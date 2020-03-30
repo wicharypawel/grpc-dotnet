@@ -14,9 +14,9 @@ namespace Grpc.Net.Client.LoadBalancing.Policies.Abstraction
     {
         private readonly GrpcChannel _channelForLB;
         private readonly LoadBalancer.LoadBalancerClient _loadBalancerClient;
-        public WrappedLoadBalancerClient(List<GrpcNameResolutionResult> resolutionResult, GrpcChannelOptions channelOptionsForLB)
+        public WrappedLoadBalancerClient(string address, GrpcChannelOptions channelOptionsForLB)
         {
-            _channelForLB = GrpcChannel.ForAddress($"http://{resolutionResult[0].Host}:{resolutionResult[0].Port}", channelOptionsForLB);
+            _channelForLB = GrpcChannel.ForAddress(address, channelOptionsForLB);
             _loadBalancerClient = new LoadBalancer.LoadBalancerClient(_channelForLB);
         }
 

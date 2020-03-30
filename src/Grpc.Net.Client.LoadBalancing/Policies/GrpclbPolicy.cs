@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using Grpc.Lb.V1;
@@ -83,7 +83,7 @@ namespace Grpc.Net.Client.LoadBalancing.Policies
             {
                 LoggerFactory = _loggerFactory
             };
-            _loadBalancerClient = GetLoadBalancerClient(resolutionResult, channelOptionsForLB);
+            _loadBalancerClient = GetLoadBalancerClient($"http://{resolutionResult[0].Host}:{resolutionResult[0].Port}", channelOptionsForLB);
             _balancingStreaming = _loadBalancerClient.BalanceLoad();
             var initialRequest = new InitialLoadBalanceRequest() { Name = serviceName };
             await _balancingStreaming.RequestStream.WriteAsync(new LoadBalanceRequest() { InitialRequest = initialRequest }).ConfigureAwait(false);
@@ -160,13 +160,13 @@ namespace Grpc.Net.Client.LoadBalancing.Policies
             SubChannels = result;
         }
 
-        private ILoadBalancerClient GetLoadBalancerClient(List<GrpcNameResolutionResult> resolutionResult, GrpcChannelOptions channelOptionsForLB)
+        private ILoadBalancerClient GetLoadBalancerClient(string address, GrpcChannelOptions channelOptionsForLB)
         {
             if(OverrideLoadBalancerClient != null)
             {
                 return OverrideLoadBalancerClient;
             }
-            return new WrappedLoadBalancerClient(resolutionResult, channelOptionsForLB);
+            return new WrappedLoadBalancerClient(address, channelOptionsForLB);
         }
 
         /// <summary>
