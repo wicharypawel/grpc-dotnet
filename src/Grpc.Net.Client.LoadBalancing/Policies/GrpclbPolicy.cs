@@ -92,7 +92,7 @@ namespace Grpc.Net.Client.LoadBalancing.Policies
             {
                 throw new InvalidOperationException("InitialLoadBalanceRequest was not followed by InitialLoadBalanceResponse");
             }
-            var initialResponse = _balancingStreaming.ResponseStream.Current.InitialResponse;
+            var initialResponse = _balancingStreaming.ResponseStream.Current.InitialResponse; // field InitialResponse.LoadBalancerDelegate is deprecated
             _clientStatsReportInterval = initialResponse.ClientStatsReportInterval.ToTimeSpan();
             await _balancingStreaming.ResponseStream.MoveNext(CancellationToken.None).ConfigureAwait(false);
             if (_balancingStreaming.ResponseStream.Current.LoadBalanceResponseTypeCase != LoadBalanceResponse.LoadBalanceResponseTypeOneofCase.ServerList)
