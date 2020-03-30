@@ -21,7 +21,7 @@ namespace Grpc.Net.Client.LoadBalancing.Policies
     /// </summary>
     public sealed class GrpclbPolicy : IGrpcLoadBalancingPolicy
     {
-        private TimeSpan _clientStatsReportInterval = TimeSpan.FromSeconds(10);
+        private TimeSpan _clientStatsReportInterval = TimeSpan.Zero;
         private bool _isSecureConnection = false;
         private int _requestsCounter = 0;
         private int _subChannelsSelectionCounter = -1;
@@ -101,8 +101,11 @@ namespace Grpc.Net.Client.LoadBalancing.Policies
             }
             UpdateSubChannels(_balancingStreaming.ResponseStream.Current.ServerList);
             _logger.LogDebug($"SubChannels list created");
-            _timer = new Timer(ReportClientStatsTimerAsync, null, _clientStatsReportInterval, _clientStatsReportInterval);
-            _logger.LogDebug($"Periodic ClientStats reporting enabled");
+            if (_clientStatsReportInterval > TimeSpan.Zero)
+            {
+                _timer = new Timer(ReportClientStatsTimerAsync, null, _clientStatsReportInterval, _clientStatsReportInterval);
+                _logger.LogDebug($"Periodic ClientStats reporting enabled, interval was set to {_clientStatsReportInterval}");
+            }
         }
 
         /// <summary>
