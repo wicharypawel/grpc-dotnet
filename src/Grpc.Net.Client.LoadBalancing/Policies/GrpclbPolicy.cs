@@ -204,7 +204,7 @@ namespace Grpc.Net.Client.LoadBalancing.Policies
                 uriBuilder.Port = server.Port;
                 uriBuilder.Scheme = _isSecureConnection ? "https" : "http";
                 var uri = uriBuilder.Uri;
-                result.Add(new GrpcSubChannel(uri));
+                result.Add(new GrpcSubChannel(uri, server.LoadBalanceToken));
                 _logger.LogDebug($"Found a server {uri}");
             }
             SubChannels = result;

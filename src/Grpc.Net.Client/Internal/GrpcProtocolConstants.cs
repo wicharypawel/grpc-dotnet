@@ -58,6 +58,7 @@ namespace Grpc.Net.Client.Internal
         internal static readonly string UserAgentHeaderValue;
         internal static readonly string TEHeader;
         internal static readonly string TEHeaderValue;
+        internal static readonly string LoadBalanceTokenHeader;
 
         static GrpcProtocolConstants()
         {
@@ -84,6 +85,7 @@ namespace Grpc.Net.Client.Internal
             UserAgentHeaderValue = userAgent;
             TEHeader = "TE";
             TEHeaderValue = "trailers";
+            LoadBalanceTokenHeader = "lb-token";
 
             DefaultMessageAcceptEncodingValue = IdentityGrpcEncoding + "," + string.Join(',', DefaultCompressionProviders.Select(p => p.Key));
         }

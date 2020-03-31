@@ -41,6 +41,7 @@ namespace Grpc.Net.Client.Internal
         private readonly TaskCompletionSource<Status> _callTcs;
         private readonly DateTime _deadline;
         private readonly GrpcMethodInfo _grpcMethodInfo;
+        private readonly string _loadBalanceToken;
 
         private Task<HttpResponseMessage>? _httpResponseTask;
         private Task<Metadata>? _responseHeadersTask;
@@ -61,7 +62,8 @@ namespace Grpc.Net.Client.Internal
         public HttpContentClientStreamWriter<TRequest, TResponse>? ClientStreamWriter { get; private set; }
         public HttpContentClientStreamReader<TRequest, TResponse>? ClientStreamReader { get; private set; }
 
-        public GrpcCall(Method<TRequest, TResponse> method, GrpcMethodInfo grpcMethodInfo, CallOptions options, GrpcChannel channel)
+        public GrpcCall(Method<TRequest, TResponse> method, GrpcMethodInfo grpcMethodInfo, CallOptions options, 
+            GrpcChannel channel, string? loadBalanceToken = null)
         {
             // Validate deadline before creating any objects that require cleanup
             ValidateDeadline(options.Deadline);
@@ -75,6 +77,7 @@ namespace Grpc.Net.Client.Internal
             Channel = channel;
             Logger = channel.LoggerFactory.CreateLogger(LoggerName);
             _deadline = options.Deadline ?? DateTime.MaxValue;
+            _loadBalanceToken = loadBalanceToken ?? string.Empty;
         }
 
         private void ValidateDeadline(DateTime? deadline)
@@ -768,7 +771,12 @@ namespace Grpc.Net.Client.Internal
             // A missing TE header results in servers aborting the gRPC call.
             headers.Add(GrpcProtocolConstants.TEHeader, GrpcProtocolConstants.TEHeaderValue);
             headers.Add(GrpcProtocolConstants.MessageAcceptEncodingHeader, Channel.MessageAcceptEncoding);
-
+            
+            if (_loadBalanceToken != string.Empty)
+            {
+                headers.Add(GrpcProtocolConstants.LoadBalanceTokenHeader, _loadBalanceToken);
+            }
+            
             if (Options.Headers != null && Options.Headers.Count > 0)
             {
                 foreach (var entry in Options.Headers)
