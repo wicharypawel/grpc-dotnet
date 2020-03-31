@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Threading;
 using Grpc.Core;
 using Grpc.Lb.V1;
@@ -14,6 +13,8 @@ namespace Grpc.Net.Client.LoadBalancing.Policies.Abstraction
     {
         private readonly GrpcChannel _channelForLB;
         private readonly LoadBalancer.LoadBalancerClient _loadBalancerClient;
+        internal bool Disposed { get; private set; }
+
         public WrappedLoadBalancerClient(string address, GrpcChannelOptions channelOptionsForLB)
         {
             _channelForLB = GrpcChannel.ForAddress(address, channelOptionsForLB);
@@ -32,7 +33,13 @@ namespace Grpc.Net.Client.LoadBalancing.Policies.Abstraction
 
         public void Dispose()
         {
+            if (Disposed)
+            {
+                return;
+            }
+            _channelForLB.ShutdownAsync().Wait();
             _channelForLB.Dispose();
+            Disposed = true;
         }
     }
 }
