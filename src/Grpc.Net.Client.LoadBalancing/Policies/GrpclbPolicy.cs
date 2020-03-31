@@ -46,6 +46,7 @@ namespace Grpc.Net.Client.LoadBalancing.Policies
         }
         internal bool Disposed { get; private set; }
         internal IReadOnlyList<GrpcSubChannel> FallbackSubChannels { get; set; } = Array.Empty<GrpcSubChannel>();
+        internal int SubChannelsCacheHash { get; private set; } = 0;
         internal IReadOnlyList<GrpcSubChannel> SubChannels { get; set; } = Array.Empty<GrpcSubChannel>();
 
         /// <summary>
@@ -187,6 +188,13 @@ namespace Grpc.Net.Client.LoadBalancing.Policies
         private Task UseServerListSubChannelsAsync(ServerList serverList)
         {
             _logger.LogDebug($"Grpclb received ServerList");
+            var serverListHash = GetSequenceHashCode(serverList.Servers);
+            if (serverListHash == SubChannelsCacheHash)
+            {
+                _logger.LogDebug($"ServerList hasn't been changed, subchannels remain the same");
+                return Task.CompletedTask;
+            }
+            SubChannelsCacheHash = serverListHash;
             var result = new List<GrpcSubChannel>();
             foreach (var server in serverList.Servers)
             {
@@ -226,6 +234,18 @@ namespace Grpc.Net.Client.LoadBalancing.Policies
                 return OverrideLoadBalancerClient;
             }
             return new WrappedLoadBalancerClient(address, channelOptionsForLB);
+        }
+
+        private static int GetSequenceHashCode<T>(IList<T> sequence)
+        {
+            const int seed = 487;
+            const int modifier = 31;
+
+            unchecked
+            {
+                return sequence.Aggregate(seed, (current, item) =>
+                    (current * modifier) + item!.GetHashCode());
+            }
         }
     }
 }
