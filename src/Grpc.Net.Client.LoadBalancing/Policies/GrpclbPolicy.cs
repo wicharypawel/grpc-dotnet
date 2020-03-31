@@ -30,6 +30,8 @@ namespace Grpc.Net.Client.LoadBalancing.Policies
         private ILoadBalancerClient? _loadBalancerClient;
         private IAsyncDuplexStreamingCall<LoadBalanceRequest, LoadBalanceResponse>? _balancingStreaming;
         private Timer? _timer;
+        private IReadOnlyList<GrpcNameResolutionResult> _fallbackAddresses = Array.Empty<GrpcNameResolutionResult>();
+        private bool _isFallback = false;
 
         /// <summary>
         /// LoggerFactory is configured (injected) when class is being instantiated.
@@ -43,6 +45,7 @@ namespace Grpc.Net.Client.LoadBalancing.Policies
             }
         }
         internal bool Disposed { get; private set; }
+        internal IReadOnlyList<GrpcSubChannel> FallbackSubChannels { get; set; } = Array.Empty<GrpcSubChannel>();
         internal IReadOnlyList<GrpcSubChannel> SubChannels { get; set; } = Array.Empty<GrpcSubChannel>();
 
         /// <summary>
@@ -68,6 +71,7 @@ namespace Grpc.Net.Client.LoadBalancing.Policies
             {
                 throw new ArgumentException($"{nameof(serviceName)} not defined");
             }
+            _fallbackAddresses = resolutionResult.Where(x => !x.IsLoadBalancer).ToList();
             resolutionResult = resolutionResult.Where(x => x.IsLoadBalancer).ToList();
             if (resolutionResult.Count == 0)
             {
@@ -98,6 +102,10 @@ namespace Grpc.Net.Client.LoadBalancing.Policies
         /// <returns>Selected subchannel.</returns>
         public GrpcSubChannel GetNextSubChannel()
         {
+            if (_isFallback && FallbackSubChannels.Count > 0)
+            {
+                return FallbackSubChannels[Interlocked.Increment(ref _subChannelsSelectionCounter) % FallbackSubChannels.Count];
+            }
             Interlocked.Increment(ref _requestsCounter);
             return SubChannels[Interlocked.Increment(ref _subChannelsSelectionCounter) % SubChannels.Count];
         }
@@ -143,10 +151,12 @@ namespace Grpc.Net.Client.LoadBalancing.Policies
                 case LoadBalanceResponse.LoadBalanceResponseTypeOneofCase.InitialResponse:
                     throw new InvalidOperationException("Unexpected InitialResponse");
                 case LoadBalanceResponse.LoadBalanceResponseTypeOneofCase.ServerList:
+                    _isFallback = false;
                     await UseServerListSubChannelsAsync(responseStream.Current.ServerList).ConfigureAwait(false);
                     break;
                 case LoadBalanceResponse.LoadBalanceResponseTypeOneofCase.FallbackResponse:
-                    // fallback unsupported, ignore
+                    _isFallback = true;
+                    await UseFallbackSubChannelsAsync().ConfigureAwait(false);
                     break;
                 default:
                     break;
@@ -190,6 +200,22 @@ namespace Grpc.Net.Client.LoadBalancing.Policies
                 _logger.LogDebug($"Found a server {uri}");
             }
             SubChannels = result;
+            return Task.CompletedTask;
+        }
+
+        private Task UseFallbackSubChannelsAsync()
+        {
+            _logger.LogDebug($"Grpclb fallback requested");
+            FallbackSubChannels = _fallbackAddresses.Select(x =>
+            {
+                var uriBuilder = new UriBuilder();
+                uriBuilder.Host = x.Host;
+                uriBuilder.Port = x.Port ?? (_isSecureConnection ? 443 : 80);
+                uriBuilder.Scheme = _isSecureConnection ? "https" : "http";
+                var uri = uriBuilder.Uri;
+                _logger.LogDebug($"Using fallback server {uri}");
+                return new GrpcSubChannel(uri);
+            }).ToList();
             return Task.CompletedTask;
         }
 
