@@ -42,11 +42,9 @@ namespace Grpc.Net.Client.LoadBalancing.Policies
                 _logger = value.CreateLogger<GrpclbPolicy>();
             }
         }
-
         internal bool Disposed { get; private set; }
-
         internal IReadOnlyList<GrpcSubChannel> SubChannels { get; set; } = Array.Empty<GrpcSubChannel>();
-        
+
         /// <summary>
         /// Property created for testing purposes, allows setter injection
         /// </summary>
@@ -79,27 +77,13 @@ namespace Grpc.Net.Client.LoadBalancing.Policies
             _logger.LogDebug($"Start grpclb policy");
             _logger.LogDebug($"Start connection to external load balancer");
             AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
-            var channelOptionsForLB = new GrpcChannelOptions()
-            {
-                LoggerFactory = _loggerFactory
-            };
+            var channelOptionsForLB = new GrpcChannelOptions() { LoggerFactory = _loggerFactory };
             _loadBalancerClient = GetLoadBalancerClient($"http://{resolutionResult[0].Host}:{resolutionResult[0].Port}", channelOptionsForLB);
             _balancingStreaming = _loadBalancerClient.BalanceLoad();
             var initialRequest = new InitialLoadBalanceRequest() { Name = serviceName };
             await _balancingStreaming.RequestStream.WriteAsync(new LoadBalanceRequest() { InitialRequest = initialRequest }).ConfigureAwait(false);
-            await _balancingStreaming.ResponseStream.MoveNext(CancellationToken.None).ConfigureAwait(false);
-            if (_balancingStreaming.ResponseStream.Current.LoadBalanceResponseTypeCase != LoadBalanceResponse.LoadBalanceResponseTypeOneofCase.InitialResponse)
-            {
-                throw new InvalidOperationException("InitialLoadBalanceRequest was not followed by InitialLoadBalanceResponse");
-            }
-            var initialResponse = _balancingStreaming.ResponseStream.Current.InitialResponse; // field InitialResponse.LoadBalancerDelegate is deprecated
-            _clientStatsReportInterval = initialResponse.ClientStatsReportInterval.ToTimeSpan();
-            await _balancingStreaming.ResponseStream.MoveNext(CancellationToken.None).ConfigureAwait(false);
-            if (_balancingStreaming.ResponseStream.Current.LoadBalanceResponseTypeCase != LoadBalanceResponse.LoadBalanceResponseTypeOneofCase.ServerList)
-            {
-                throw new InvalidOperationException("InitialLoadBalanceResponse was not followed by ServerList");
-            }
-            UpdateSubChannels(_balancingStreaming.ResponseStream.Current.ServerList);
+            await ProcessInitialResponseAsync(_balancingStreaming.ResponseStream).ConfigureAwait(false);
+            await ProcessNextBalancerResponseAsync(_balancingStreaming.ResponseStream).ConfigureAwait(false);
             _logger.LogDebug($"SubChannels list created");
             if (_clientStatsReportInterval > TimeSpan.Zero)
             {
@@ -118,10 +102,62 @@ namespace Grpc.Net.Client.LoadBalancing.Policies
             return SubChannels[Interlocked.Increment(ref _subChannelsSelectionCounter) % SubChannels.Count];
         }
 
+        /// <summary>
+        /// Releases the resources used by the <see cref="GrpclbPolicy"/> class.
+        /// </summary>
+        public void Dispose()
+        {
+            if (Disposed)
+            {
+                return;
+            }
+            try
+            {
+                _timer?.Change(Timeout.Infinite, 0);
+                _balancingStreaming?.RequestStream.CompleteAsync().Wait(); // close request stream to complete gracefully
+            }
+            finally
+            {
+                _timer?.Dispose();
+                _loadBalancerClient?.Dispose();
+            }
+            Disposed = true;
+        }
+
+        private async Task ProcessInitialResponseAsync(Core.IAsyncStreamReader<LoadBalanceResponse> responseStream)
+        {
+            await responseStream.MoveNext(CancellationToken.None).ConfigureAwait(false);
+            if (responseStream.Current.LoadBalanceResponseTypeCase != LoadBalanceResponse.LoadBalanceResponseTypeOneofCase.InitialResponse)
+            {
+                throw new InvalidOperationException("InitialLoadBalanceRequest was not followed by InitialLoadBalanceResponse");
+            }
+            var initialResponse = responseStream.Current.InitialResponse; // field InitialResponse.LoadBalancerDelegate is deprecated
+            _clientStatsReportInterval = initialResponse.ClientStatsReportInterval.ToTimeSpan();
+        }
+
+        private async Task ProcessNextBalancerResponseAsync(Core.IAsyncStreamReader<LoadBalanceResponse> responseStream)
+        {
+            await responseStream.MoveNext(CancellationToken.None).ConfigureAwait(false);
+            switch (responseStream.Current.LoadBalanceResponseTypeCase)
+            {
+                case LoadBalanceResponse.LoadBalanceResponseTypeOneofCase.InitialResponse:
+                    throw new InvalidOperationException("Unexpected InitialResponse");
+                case LoadBalanceResponse.LoadBalanceResponseTypeOneofCase.ServerList:
+                    await UseServerListSubChannelsAsync(responseStream.Current.ServerList).ConfigureAwait(false);
+                    break;
+                case LoadBalanceResponse.LoadBalanceResponseTypeOneofCase.FallbackResponse:
+                    // fallback unsupported, ignore
+                    break;
+                default:
+                    break;
+            }
+        }
+
         // async void recommended by Stephen Cleary https://stackoverflow.com/questions/38917818/pass-async-callback-to-timer-constructor
         private async void ReportClientStatsTimerAsync(object state)
         {
             await ReportClientStatsAsync().ConfigureAwait(false);
+            await ProcessNextBalancerResponseAsync(_balancingStreaming!.ResponseStream).ConfigureAwait(false);
         }
 
         private async Task ReportClientStatsAsync()
@@ -136,15 +172,11 @@ namespace Grpc.Net.Client.LoadBalancing.Policies
                 Timestamp = Timestamp.FromDateTime(DateTime.UtcNow)
             };
             await _balancingStreaming!.RequestStream.WriteAsync(new LoadBalanceRequest() { ClientStats = clientStats }).ConfigureAwait(false);
-            await _balancingStreaming.ResponseStream.MoveNext(CancellationToken.None).ConfigureAwait(false);
-            if (_balancingStreaming.ResponseStream.Current.LoadBalanceResponseTypeCase == LoadBalanceResponse.LoadBalanceResponseTypeOneofCase.ServerList)
-            {
-                UpdateSubChannels(_balancingStreaming.ResponseStream.Current.ServerList);
-            }
         }
 
-        private void UpdateSubChannels(ServerList serverList)
+        private Task UseServerListSubChannelsAsync(ServerList serverList)
         {
+            _logger.LogDebug($"Grpclb received ServerList");
             var result = new List<GrpcSubChannel>();
             foreach (var server in serverList.Servers)
             {
@@ -158,36 +190,16 @@ namespace Grpc.Net.Client.LoadBalancing.Policies
                 _logger.LogDebug($"Found a server {uri}");
             }
             SubChannels = result;
+            return Task.CompletedTask;
         }
 
         private ILoadBalancerClient GetLoadBalancerClient(string address, GrpcChannelOptions channelOptionsForLB)
         {
-            if(OverrideLoadBalancerClient != null)
+            if (OverrideLoadBalancerClient != null)
             {
                 return OverrideLoadBalancerClient;
             }
             return new WrappedLoadBalancerClient(address, channelOptionsForLB);
-        }
-
-        /// <summary>
-        /// Releases the resources used by the <see cref="GrpclbPolicy"/> class.
-        /// </summary>
-        public void Dispose()
-        {
-            if (Disposed)
-            {
-                return;
-            }
-            try
-            {
-                _timer?.Dispose();
-                _balancingStreaming?.RequestStream.CompleteAsync().Wait(); // close request stream to complete gracefully
-            }
-            finally
-            {
-                _loadBalancerClient?.Dispose();
-            }
-            Disposed = true;
         }
     }
 }
