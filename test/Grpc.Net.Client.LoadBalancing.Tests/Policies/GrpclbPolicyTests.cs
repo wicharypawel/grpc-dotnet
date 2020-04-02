@@ -1,13 +1,13 @@
-using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Grpc.Lb.V1;
 using Grpc.Net.Client.LoadBalancing.Policies;
 using Grpc.Net.Client.LoadBalancing.Policies.Abstraction;
+using Grpc.Net.Client.LoadBalancing.Tests.Policies.Factories;
+using Grpc.Net.Client.LoadBalancing.Tests.Policies.Fakes;
 using Moq;
 using System;
 using System.Collections.Generic;
-using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -21,17 +21,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         {
             // Arrange
             using var policy = new GrpclbPolicy();
-            var resolutionResults = new List<GrpcNameResolutionResult>()
-            {
-                new GrpcNameResolutionResult("10.1.6.120", 80)
-                {
-                    IsLoadBalancer = true
-                },
-                new GrpcNameResolutionResult("10.1.6.121", 80)
-                {
-                    IsLoadBalancer = true
-                }
-            };
+            var resolutionResults = GrpcNameResolutionResultFactory.GetNameResolution(2, 0);
 
             // Act
             // Assert
@@ -67,17 +57,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         {
             // Arrange
             using var policy = new GrpclbPolicy();
-            var resolutionResults = new List<GrpcNameResolutionResult>()
-            {
-                new GrpcNameResolutionResult("10.1.5.211", 80)
-                {
-                    IsLoadBalancer = false
-                },
-                new GrpcNameResolutionResult("10.1.5.212", 80)
-                {
-                    IsLoadBalancer = false
-                }
-            };
+            var resolutionResults = GrpcNameResolutionResultFactory.GetNameResolution(0, 2);
 
             // Act
             // Assert
@@ -101,7 +81,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
                 .Returns(balancerStreamMock.Object);
 
             balancerStreamMock.Setup(x => x.RequestStream).Returns(requestStreamMock.Object);
-            balancerStreamMock.Setup(x => x.ResponseStream).Returns(new TestLoadBalancerResponse(new List<LoadBalanceResponse>
+            balancerStreamMock.Setup(x => x.ResponseStream).Returns(new LoadBalanceResponseFake(new List<LoadBalanceResponse>
             {
                 new LoadBalanceResponse()
                 {
@@ -109,17 +89,14 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
                 },
                 new LoadBalanceResponse()
                 {
-                    ServerList = GetSampleServerList()
+                    ServerList = ServerListFactory.GetSampleServerList()
                 }
             }));
 
             using var policy = new GrpclbPolicy();
             policy.OverrideLoadBalancerClient = balancerClientMock.Object;
 
-            var resolutionResults = new List<GrpcNameResolutionResult>()
-            {
-                new GrpcNameResolutionResult("10.1.6.120", 80) { IsLoadBalancer = true }
-            };
+            var resolutionResults = GrpcNameResolutionResultFactory.GetNameResolution(1, 0);
 
             // Act
             await policy.CreateSubChannelsAsync(resolutionResults, "sample-service.contoso.com", false);
@@ -145,7 +122,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
                 .Returns(balancerStreamMock.Object);
 
             balancerStreamMock.Setup(x => x.RequestStream).Returns(requestStreamMock.Object);
-            balancerStreamMock.Setup(x => x.ResponseStream).Returns(new TestLoadBalancerResponse(new List<LoadBalanceResponse>
+            balancerStreamMock.Setup(x => x.ResponseStream).Returns(new LoadBalanceResponseFake(new List<LoadBalanceResponse>
             {
                 new LoadBalanceResponse()
                 {
@@ -153,17 +130,14 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
                 },
                 new LoadBalanceResponse()
                 {
-                    ServerList = GetSampleServerList()
+                    ServerList = ServerListFactory.GetSampleServerList()
                 }
             }));
 
             using var policy = new GrpclbPolicy();
             policy.OverrideLoadBalancerClient = balancerClientMock.Object;
 
-            var resolutionResults = new List<GrpcNameResolutionResult>()
-            {
-                new GrpcNameResolutionResult("10.1.6.120", 80) { IsLoadBalancer = true }
-            };
+            var resolutionResults = GrpcNameResolutionResultFactory.GetNameResolution(1, 0);
 
             // Act
             await policy.CreateSubChannelsAsync(resolutionResults, "sample-service.contoso.com", false);
@@ -179,13 +153,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         {
             // Arrange
             using var policy = new GrpclbPolicy();
-            var subChannels = new List<GrpcSubChannel>()
-            {
-                new GrpcSubChannel(new UriBuilder("http://10.1.5.210:80").Uri),
-                new GrpcSubChannel(new UriBuilder("http://10.1.5.212:80").Uri),
-                new GrpcSubChannel(new UriBuilder("http://10.1.5.211:80").Uri),
-                new GrpcSubChannel(new UriBuilder("http://10.1.5.213:80").Uri)
-            };
+            var subChannels = GrpcSubChannelFactory.GetSubChannelsWithoutLoadBalanceTokens();
             policy.SubChannels = subChannels;
 
             // Act
@@ -205,46 +173,6 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             initialResponse.ClientStatsReportInterval = Duration.FromTimeSpan(TimeSpan.FromSeconds(10));
             initialResponse.LoadBalancerDelegate = string.Empty;
             return initialResponse;
-        }
-
-        private static ServerList GetSampleServerList()
-        {
-            var serverList = new ServerList();
-            serverList.Servers.Add(new Server()
-            {
-                IpAddress = ByteString.CopyFrom(IPAddress.Parse("10.1.5.211").GetAddressBytes()),
-                Port = 80
-            });
-            serverList.Servers.Add(new Server()
-            {
-                IpAddress = ByteString.CopyFrom(IPAddress.Parse("10.1.5.212").GetAddressBytes()),
-                Port = 80
-            });
-            serverList.Servers.Add(new Server()
-            {
-                IpAddress = ByteString.CopyFrom(IPAddress.Parse("10.1.5.213").GetAddressBytes()),
-                Port = 80
-            });
-            return serverList;
-        }
-    }
-
-    internal sealed class TestLoadBalancerResponse : IAsyncStreamReader<LoadBalanceResponse>
-    {
-        private readonly IReadOnlyList<LoadBalanceResponse> _loadBalanceResponses;
-        private int _streamIndex;
-
-        public TestLoadBalancerResponse(IReadOnlyList<LoadBalanceResponse> loadBalanceResponses)
-        {
-            _loadBalanceResponses = loadBalanceResponses;
-            _streamIndex = -1;
-        }
-
-        public LoadBalanceResponse Current => _loadBalanceResponses[_streamIndex];
-
-        public Task<bool> MoveNext(CancellationToken cancellationToken)
-        {
-            return Task.FromResult(++_streamIndex < _loadBalanceResponses.Count);
         }
     }
 }

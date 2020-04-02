@@ -1,3 +1,4 @@
+using Grpc.Net.Client.LoadBalancing.Tests.Policies.Factories;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -12,17 +13,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         {
             // Arrange
             using var policy = new PickFirstPolicy();
-            var resolutionResults = new List<GrpcNameResolutionResult>()
-            {
-                new GrpcNameResolutionResult("10.1.5.211", 80)
-                {
-                    IsLoadBalancer = false
-                },
-                new GrpcNameResolutionResult("10.1.5.212", 80)
-                {
-                    IsLoadBalancer = false
-                }
-            };
+            var resolutionResults = GrpcNameResolutionResultFactory.GetNameResolution(0, 2);
 
             // Act
             // Assert
@@ -58,17 +49,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         {
             // Arrange
             using var policy = new PickFirstPolicy();
-            var resolutionResults = new List<GrpcNameResolutionResult>()
-            {
-                new GrpcNameResolutionResult("10.1.6.120", 80)
-                {
-                    IsLoadBalancer = true
-                },
-                new GrpcNameResolutionResult("10.1.6.121", 80)
-                {
-                    IsLoadBalancer = true
-                }
-            };
+            var resolutionResults = GrpcNameResolutionResultFactory.GetNameResolution(2, 0);
 
             // Act
             // Assert
@@ -84,25 +65,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         {
             // Arrange
             using var policy = new PickFirstPolicy();
-            var resolutionResults = new List<GrpcNameResolutionResult>()
-            {
-                new GrpcNameResolutionResult("10.1.5.211", 80)
-                {
-                    IsLoadBalancer = false
-                },
-                new GrpcNameResolutionResult("10.1.5.212", 80)
-                {
-                    IsLoadBalancer = false
-                },
-                new GrpcNameResolutionResult("10.1.5.213", 80)
-                {
-                    IsLoadBalancer = false
-                },
-                new GrpcNameResolutionResult("10.1.5.214", 80)
-                {
-                    IsLoadBalancer = false
-                }
-            };
+            var resolutionResults = GrpcNameResolutionResultFactory.GetNameResolution(0, 4);
 
             // Act
             await policy.CreateSubChannelsAsync(resolutionResults, "sample-service.contoso.com", false);
@@ -112,7 +75,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             Assert.Single(subChannels);
             Assert.Equal("http", subChannels[0].Address.Scheme);
             Assert.Equal(80, subChannels[0].Address.Port);
-            Assert.StartsWith("10.1.5.211", subChannels[0].Address.Host);
+            Assert.StartsWith("10.1.5.210", subChannels[0].Address.Host);
         }
 
         [Fact]
@@ -120,7 +83,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         {
             // Arrange
             using var policy = new PickFirstPolicy();
-            var resolutionResults = new List<GrpcNameResolutionResult>()
+            var resolutionResults = new List<GrpcNameResolutionResult>() // do not use GrpcNameResolutionResultFactory
             {
                 new GrpcNameResolutionResult("10.1.6.120", 80)
                 {
@@ -156,13 +119,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         {
             // Arrange
             using var policy = new PickFirstPolicy();
-            var subChannels = new List<GrpcSubChannel>()
-            {
-                new GrpcSubChannel(new UriBuilder("http://10.1.5.210:80").Uri),
-                new GrpcSubChannel(new UriBuilder("http://10.1.5.212:80").Uri),
-                new GrpcSubChannel(new UriBuilder("http://10.1.5.211:80").Uri),
-                new GrpcSubChannel(new UriBuilder("http://10.1.5.213:80").Uri)
-            };
+            var subChannels = GrpcSubChannelFactory.GetSubChannelsWithoutLoadBalanceTokens();
             policy.SubChannels = subChannels;
 
             // Act
