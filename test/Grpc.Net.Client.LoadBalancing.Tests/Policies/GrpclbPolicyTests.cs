@@ -131,17 +131,15 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
                 .Returns(balancerStreamMock.Object);
 
             balancerStreamMock.Setup(x => x.RequestStream).Returns(requestStreamMock.Object);
-            balancerStreamMock.Setup(x => x.ResponseStream).Returns(new LoadBalanceResponseFake(new List<LoadBalanceResponse>
-            {
-                new LoadBalanceResponse()
+            balancerStreamMock.Setup(x => x.ResponseStream).Returns(new LoadBalanceResponseFake()
+                .AppendToEnd(new LoadBalanceResponse()
                 {
                     InitialResponse = GetSampleInitialLoadBalanceResponse()
-                },
-                new LoadBalanceResponse()
+                })
+                .AppendToEnd(new LoadBalanceResponse()
                 {
                     ServerList = ServerListFactory.GetSampleServerList()
-                }
-            }));
+                }));
 
             using var policy = new GrpclbPolicy();
             policy.OverrideLoadBalancerClient = balancerClientMock.Object;
@@ -155,6 +153,122 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             // Assert
             policy.Dispose();
             balancerClientMock.Verify(x => x.Dispose(), Times.Once());
+        }
+
+        [Fact]
+        public async Task ForLoadReporting_UseGrpclbPolicy_VerifySendingClientStats()
+        {
+            // Arrange
+            var timerFake = new TimerFake();
+            var balancerClientMock = new Mock<ILoadBalancerClient>(MockBehavior.Strict);
+            var balancerStreamMock = new Mock<IAsyncDuplexStreamingCall<LoadBalanceRequest, LoadBalanceResponse>>(MockBehavior.Strict);
+            var requestStreamMock = new Mock<IClientStreamWriter<LoadBalanceRequest>>(MockBehavior.Strict);
+
+            balancerClientMock.Setup(x => x.Dispose());
+            balancerClientMock.Setup(x => x.BalanceLoad(null, null, It.IsAny<CancellationToken>()))
+                .Returns(balancerStreamMock.Object);
+
+            balancerStreamMock.Setup(x => x.RequestStream).Returns(requestStreamMock.Object);
+            balancerStreamMock.Setup(x => x.ResponseStream).Returns(new LoadBalanceResponseFake()
+                .AppendToEnd(new LoadBalanceResponse()
+                {
+                    InitialResponse = GetSampleInitialLoadBalanceResponse()
+                })
+                .AppendToEnd(new LoadBalanceResponse()
+                {
+                    ServerList = ServerListFactory.GetSampleServerList()
+                }, 10));
+
+            requestStreamMock.Setup(x => x.CompleteAsync()).Returns(Task.CompletedTask);
+            requestStreamMock.Setup(x => x.WriteAsync(It.Is<LoadBalanceRequest>(x => 
+                x.LoadBalanceRequestTypeCase == LoadBalanceRequest.LoadBalanceRequestTypeOneofCase.InitialRequest)))
+                .Returns(Task.CompletedTask).Verifiable();
+            requestStreamMock.Setup(x => x.WriteAsync(It.Is<LoadBalanceRequest>(x =>
+                x.LoadBalanceRequestTypeCase == LoadBalanceRequest.LoadBalanceRequestTypeOneofCase.ClientStats)))
+                .Returns(Task.CompletedTask).Verifiable();
+
+            using var policy = new GrpclbPolicy();
+            policy.OverrideLoadBalancerClient = balancerClientMock.Object;
+            policy.OverrideTimer = timerFake;
+
+            var resolutionResults = GrpcNameResolutionResultFactory.GetNameResolution(1, 2);
+
+            // Act
+            await policy.CreateSubChannelsAsync(resolutionResults, "sample-service.contoso.com", false);
+            timerFake.ManualCallbackTrigger();
+            timerFake.ManualCallbackTrigger();
+            timerFake.ManualCallbackTrigger();
+            timerFake.ManualCallbackTrigger();
+            var subChannels = policy.SubChannels;
+            var fallbackSubChannels = policy.FallbackSubChannels;
+
+            // Assert
+            Assert.Equal(3, subChannels.Count);
+            // number of fallback subchannels depends on serversCount from name resolution
+            // number of fallback subchannels should be zero for no-fallback response 
+            Assert.Equal(0, fallbackSubChannels.Count); 
+            requestStreamMock.Verify(x => x.WriteAsync(It.Is<LoadBalanceRequest>(x =>
+                x.LoadBalanceRequestTypeCase == LoadBalanceRequest.LoadBalanceRequestTypeOneofCase.InitialRequest)), Times.Once);
+            requestStreamMock.Verify(x => x.WriteAsync(It.Is<LoadBalanceRequest>(x =>
+                x.LoadBalanceRequestTypeCase == LoadBalanceRequest.LoadBalanceRequestTypeOneofCase.ClientStats)), Times.Exactly(4));
+        }
+
+        [Fact]
+        public async Task ForLoadReportingFallback_UseGrpclbPolicy_VerifyFallbackSubchannels()
+        {
+            // Arrange
+            var timerFake = new TimerFake();
+            var balancerClientMock = new Mock<ILoadBalancerClient>(MockBehavior.Strict);
+            var balancerStreamMock = new Mock<IAsyncDuplexStreamingCall<LoadBalanceRequest, LoadBalanceResponse>>(MockBehavior.Strict);
+            var requestStreamMock = new Mock<IClientStreamWriter<LoadBalanceRequest>>(MockBehavior.Strict);
+
+            balancerClientMock.Setup(x => x.Dispose());
+            balancerClientMock.Setup(x => x.BalanceLoad(null, null, It.IsAny<CancellationToken>()))
+                .Returns(balancerStreamMock.Object);
+
+            balancerStreamMock.Setup(x => x.RequestStream).Returns(requestStreamMock.Object);
+            balancerStreamMock.Setup(x => x.ResponseStream).Returns(new LoadBalanceResponseFake()
+                .AppendToEnd(new LoadBalanceResponse()
+                {
+                    InitialResponse = GetSampleInitialLoadBalanceResponse()
+                })
+                .AppendToEnd(new LoadBalanceResponse()
+                {
+                    ServerList = ServerListFactory.GetSampleServerList()
+                })
+                .AppendToEnd(new LoadBalanceResponse()
+                {
+                    FallbackResponse = new FallbackResponse()
+                }, 10));
+
+            requestStreamMock.Setup(x => x.CompleteAsync()).Returns(Task.CompletedTask);
+            requestStreamMock.Setup(x => x.WriteAsync(It.Is<LoadBalanceRequest>(x =>
+                x.LoadBalanceRequestTypeCase == LoadBalanceRequest.LoadBalanceRequestTypeOneofCase.InitialRequest)))
+                .Returns(Task.CompletedTask).Verifiable();
+            requestStreamMock.Setup(x => x.WriteAsync(It.Is<LoadBalanceRequest>(x =>
+                x.LoadBalanceRequestTypeCase == LoadBalanceRequest.LoadBalanceRequestTypeOneofCase.ClientStats)))
+                .Returns(Task.CompletedTask).Verifiable();
+
+            using var policy = new GrpclbPolicy();
+            policy.OverrideLoadBalancerClient = balancerClientMock.Object;
+            policy.OverrideTimer = timerFake;
+
+            var resolutionResults = GrpcNameResolutionResultFactory.GetNameResolution(1, 2);
+
+            // Act
+            await policy.CreateSubChannelsAsync(resolutionResults, "sample-service.contoso.com", false);
+            timerFake.ManualCallbackTrigger();
+            timerFake.ManualCallbackTrigger();
+            var fallbackSubChannels = policy.FallbackSubChannels;
+
+            // Assert
+            // number of fallback subchannels depends on serversCount from name resolution
+            // number of fallback subchannels should be zero for no-fallback response 
+            Assert.Equal(2, fallbackSubChannels.Count);
+            requestStreamMock.Verify(x => x.WriteAsync(It.Is<LoadBalanceRequest>(x =>
+                x.LoadBalanceRequestTypeCase == LoadBalanceRequest.LoadBalanceRequestTypeOneofCase.InitialRequest)), Times.Once);
+            requestStreamMock.Verify(x => x.WriteAsync(It.Is<LoadBalanceRequest>(x =>
+                x.LoadBalanceRequestTypeCase == LoadBalanceRequest.LoadBalanceRequestTypeOneofCase.ClientStats)), Times.Exactly(2));
         }
 
         [Fact]
