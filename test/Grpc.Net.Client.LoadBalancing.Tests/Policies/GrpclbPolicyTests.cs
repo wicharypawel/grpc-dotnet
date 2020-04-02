@@ -72,10 +72,11 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         public async Task ForResolutionResultWithBalancers_UseGrpclbPolicy_CreateSubchannelsForFoundServers()
         {
             // Arrange
+            var timerFake = new TimerFake();
             var balancerClientMock = new Mock<ILoadBalancerClient>(MockBehavior.Strict);
             var balancerStreamMock = new Mock<IAsyncDuplexStreamingCall<LoadBalanceRequest, LoadBalanceResponse>>(MockBehavior.Strict);
-            var requestStreamMock = new Mock<IClientStreamWriter<LoadBalanceRequest>>(MockBehavior.Loose);
-
+            var requestStreamMock = new Mock<IClientStreamWriter<LoadBalanceRequest>>(MockBehavior.Strict);
+            
             balancerClientMock.Setup(x => x.Dispose());
             balancerClientMock.Setup(x => x.BalanceLoad(null, null, It.IsAny<CancellationToken>()))
                 .Returns(balancerStreamMock.Object);
@@ -93,8 +94,13 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
                 }
             }));
 
+            requestStreamMock.Setup(x => x.CompleteAsync()).Returns(Task.CompletedTask);
+            requestStreamMock.Setup(x => x.WriteAsync(It.Is<LoadBalanceRequest>(x => x.InitialRequest != null)))
+                .Returns(Task.CompletedTask).Verifiable();
+
             using var policy = new GrpclbPolicy();
             policy.OverrideLoadBalancerClient = balancerClientMock.Object;
+            policy.OverrideTimer = timerFake;
 
             var resolutionResults = GrpcNameResolutionResultFactory.GetNameResolution(1, 0);
 
@@ -107,12 +113,15 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             Assert.All(subChannels, subChannel => Assert.Equal("http", subChannel.Address.Scheme));
             Assert.All(subChannels, subChannel => Assert.Equal(80, subChannel.Address.Port));
             Assert.All(subChannels, subChannel => Assert.StartsWith("10.1.5.", subChannel.Address.Host));
+            requestStreamMock.Verify(x => x.WriteAsync(It.Is<LoadBalanceRequest>(x => x.InitialRequest != null)), Times.Once);
+            Assert.Equal(TimeSpan.FromSeconds(10), timerFake.ClientStatsReportInterval ?? TimeSpan.Zero);
         }
 
         [Fact]
         public async Task ForLoadBalancerClient_UseGrpclbPolicy_EnsureDisposedResources()
         {
             // Arrange
+            var timerFake = new TimerFake();
             var balancerClientMock = new Mock<ILoadBalancerClient>(MockBehavior.Strict);
             var balancerStreamMock = new Mock<IAsyncDuplexStreamingCall<LoadBalanceRequest, LoadBalanceResponse>>(MockBehavior.Strict);
             var requestStreamMock = new Mock<IClientStreamWriter<LoadBalanceRequest>>(MockBehavior.Loose);
@@ -136,12 +145,12 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
 
             using var policy = new GrpclbPolicy();
             policy.OverrideLoadBalancerClient = balancerClientMock.Object;
+            policy.OverrideTimer = timerFake;
 
             var resolutionResults = GrpcNameResolutionResultFactory.GetNameResolution(1, 0);
 
             // Act
             await policy.CreateSubChannelsAsync(resolutionResults, "sample-service.contoso.com", false);
-            var subChannels = policy.SubChannels;
 
             // Assert
             policy.Dispose();

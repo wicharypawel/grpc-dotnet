@@ -29,7 +29,7 @@ namespace Grpc.Net.Client.LoadBalancing.Policies
         private ILoggerFactory _loggerFactory = NullLoggerFactory.Instance;
         private ILoadBalancerClient? _loadBalancerClient;
         private IAsyncDuplexStreamingCall<LoadBalanceRequest, LoadBalanceResponse>? _balancingStreaming;
-        private Timer? _timer;
+        private ITimer? _timer;
         private IReadOnlyList<GrpcNameResolutionResult> _fallbackAddresses = Array.Empty<GrpcNameResolutionResult>();
         private bool _isFallback = false;
 
@@ -48,6 +48,11 @@ namespace Grpc.Net.Client.LoadBalancing.Policies
         internal IReadOnlyList<GrpcSubChannel> FallbackSubChannels { get; set; } = Array.Empty<GrpcSubChannel>();
         internal int SubChannelsCacheHash { get; private set; } = 0;
         internal IReadOnlyList<GrpcSubChannel> SubChannels { get; set; } = Array.Empty<GrpcSubChannel>();
+
+        /// <summary>
+        /// Property created for testing purposes, allows setter injection
+        /// </summary>
+        internal ITimer? OverrideTimer { private get; set; }
 
         /// <summary>
         /// Property created for testing purposes, allows setter injection
@@ -92,7 +97,8 @@ namespace Grpc.Net.Client.LoadBalancing.Policies
             _logger.LogDebug($"SubChannels list created");
             if (_clientStatsReportInterval > TimeSpan.Zero)
             {
-                _timer = new Timer(ReportClientStatsTimerAsync, null, _clientStatsReportInterval, _clientStatsReportInterval);
+                _timer = GetTimer();
+                _timer.Start(ReportClientStatsTimerAsync, null, _clientStatsReportInterval, _clientStatsReportInterval);
                 _logger.LogDebug($"Periodic ClientStats reporting enabled, interval was set to {_clientStatsReportInterval}");
             }
         }
@@ -225,6 +231,15 @@ namespace Grpc.Net.Client.LoadBalancing.Policies
                 return new GrpcSubChannel(uri);
             }).ToList();
             return Task.CompletedTask;
+        }
+
+        private ITimer GetTimer()
+        {
+            if(OverrideTimer != null)
+            {
+                return OverrideTimer;
+            }
+            return new WrappedTimer();
         }
 
         private ILoadBalancerClient GetLoadBalancerClient(string address, GrpcChannelOptions channelOptionsForLB)
