@@ -20,7 +20,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
                     new GrpcNameResolutionResult("10.1.5.213", 8080)
                 };
             };
-            var resolverPlugin = new StaticResolverPlugin(resolveFunction);
+            var resolverPlugin = new StaticResolverPlugin(resolveFunction, () => GrpcServiceConfig.Create("pick_first"));
 
             // Act
             var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri("https://sample.host.com"));

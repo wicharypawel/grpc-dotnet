@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Grpc.Net.Client.LoadBalancing.ResolverPlugins.GrpcServiceConfig
+namespace Grpc.Net.Client.LoadBalancing.ResolverPlugins
 {
     // based on: https://github.com/grpc/proposal/blob/master/A2-service-configs-in-dns.md
     internal sealed class GrpcConfig
@@ -25,7 +25,7 @@ namespace Grpc.Net.Client.LoadBalancing.ResolverPlugins.GrpcServiceConfig
             }
             if (LoadBalancingPolicy != string.Empty)
             {
-                return new string[] { LoadBalancingPolicy };
+                return new string[] { LoadBalancingPolicy.ToLowerInvariant() };
             }
             else
             {

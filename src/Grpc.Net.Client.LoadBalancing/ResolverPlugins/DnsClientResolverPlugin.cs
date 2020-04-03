@@ -1,6 +1,5 @@
 ﻿using DnsClient;
 using DnsClient.Protocol;
-using Grpc.Net.Client.LoadBalancing.ResolverPlugins.GrpcServiceConfig;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
@@ -20,6 +19,7 @@ namespace Grpc.Net.Client.LoadBalancing.ResolverPlugins
     {
         private DnsClientResolverPluginOptions _options;
         private ILogger _logger = NullLogger.Instance;
+        private GrpcServiceConfig? _serviceConfig;
 
         /// <summary>
         /// LoggerFactory is configured (injected) when class is being instantiated.
@@ -77,36 +77,44 @@ namespace Grpc.Net.Client.LoadBalancing.ResolverPlugins
                 _logger.LogDebug($"Number of grpc_configs found: {grpcConfigs.Length}");
                 if(grpcConfigs.Length != 0 && TryParseGrpcConfig(grpcConfigs[0], out var serviceConfigs))
                 {
-                    _logger.LogDebug($"First grpc_config is selected " + grpcConfigs[0]);
+                    _logger.LogDebug($"First grpc_config selected ");
                     _logger.LogDebug($"Parsing JSON grpc_config into service config success");
                     var serviceConfig = serviceConfigs[0];
-                    _logger.LogDebug($"Service config defines policies: {string.Join(',', serviceConfig.GetLoadBalancingPolicies())}");
+                    var loadBalancingPolicies = serviceConfig.GetLoadBalancingPolicies();                  
+                    _serviceConfig = new GrpcServiceConfig
+                    {
+                        RequestedLoadBalancingPolicies = loadBalancingPolicies
+                    };
                 }
                 else
                 {
                     _logger.LogDebug($"Parsing JSON grpc_config into service config failed, loading service config is skipped");
                 }
             }
-            var balancingDnsQueryResults = Enumerable.Empty<GrpcNameResolutionResult>();
+            var balancingDnsQueryResults = Array.Empty<GrpcNameResolutionResult>();
             if (_options.EnableSrvGrpclb)
             {
                 var balancingDnsQuery = $"_grpclb._tcp.{host}";
                 _logger.LogDebug($"Start SRV lookup for {balancingDnsQuery}");
                 var balancingDnsQueryTask = dnsClient.QueryAsync(balancingDnsQuery, QueryType.SRV);
                 await balancingDnsQueryTask.ConfigureAwait(false);
-                balancingDnsQueryResults = balancingDnsQueryTask.Result.Answers.OfType<SrvRecord>().Select(x => ParseSrvRecord(x, true));
+                balancingDnsQueryResults = balancingDnsQueryTask.Result.Answers.OfType<SrvRecord>().Select(x => ParseSrvRecord(x, true)).ToArray();
+                if(_serviceConfig == null && balancingDnsQueryResults.Length > 0)
+                {
+                    _serviceConfig = GrpcServiceConfig.Create("grpclb", "pick_first");
+                }
             }
             var serversDnsQuery = host;
             _logger.LogDebug($"Start A lookup for {serversDnsQuery}");
             var serversDnsQueryTask = dnsClient.QueryAsync(serversDnsQuery, QueryType.A);
             await serversDnsQueryTask.ConfigureAwait(false);
-            var serversDnsQueryResults = serversDnsQueryTask.Result.Answers.OfType<ARecord>().Select(x => ParseARecord(x, target.Port, false));
+            var serversDnsQueryResults = serversDnsQueryTask.Result.Answers.OfType<ARecord>().Select(x => ParseARecord(x, target.Port, false)).ToArray();
             var results = balancingDnsQueryResults.Union(serversDnsQueryResults).ToList();
-            if (results.Count == 0)
+            if (_serviceConfig == null)
             {
-                _logger.LogDebug($"Not found any DNS records");
-                return new List<GrpcNameResolutionResult>();
+                _serviceConfig = GrpcServiceConfig.Create("pick_first");
             }
+            _logger.LogDebug($"NameResolution found {results.Count} DNS records");
             return results;
         }
 
@@ -171,6 +179,20 @@ namespace Grpc.Net.Client.LoadBalancing.ResolverPlugins
                 Priority = 0,
                 Weight = 0
             };
+        }
+
+        /// <summary>
+        /// Returns load balancing configuration discovered during name resolution.
+        /// </summary>
+        /// <returns>Load balancing configuration.</returns>
+        public Task<GrpcServiceConfig> GetServiceConfigAsync()
+        {
+            if (_serviceConfig == null)
+            {
+                throw new InvalidOperationException("Can not get service config before name resolution");
+            }
+            _logger.LogDebug($"Service config created with policies: {string.Join(',', _serviceConfig.RequestedLoadBalancingPolicies)}");
+            return Task.FromResult(_serviceConfig);
         }
     }
 }

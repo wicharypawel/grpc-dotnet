@@ -14,6 +14,7 @@ namespace Grpc.Net.Client.LoadBalancing.ResolverPlugins
     public sealed class StaticResolverPlugin : IGrpcResolverPlugin
     {
         private readonly Func<Uri, List<GrpcNameResolutionResult>> _staticNameResolution;
+        private readonly Func<GrpcServiceConfig> _staticServiceConfig;
         private ILogger _logger = NullLogger.Instance;
 
         /// <summary>
@@ -27,14 +28,21 @@ namespace Grpc.Net.Client.LoadBalancing.ResolverPlugins
         /// <summary>
         /// Creates a <seealso cref="StaticResolverPlugin"/> with configation passed as function parameter.  
         /// </summary>
-        /// <param name="staticNameResolution"></param>
-        public StaticResolverPlugin(Func<Uri, List<GrpcNameResolutionResult>> staticNameResolution)
+        /// <param name="staticNameResolution">Define name resolution using lambda</param>
+        /// <param name="staticServiceConfig">Define service config using lambda</param>
+        public StaticResolverPlugin(Func<Uri, List<GrpcNameResolutionResult>> staticNameResolution,
+            Func<GrpcServiceConfig> staticServiceConfig)
         {
             if(staticNameResolution == null)
             {
                 throw new ArgumentNullException(nameof(staticNameResolution));
             }
+            if (staticServiceConfig == null)
+            {
+                throw new ArgumentNullException(nameof(staticServiceConfig));
+            }
             _staticNameResolution = staticNameResolution;
+            _staticServiceConfig = staticServiceConfig;
         }
 
         /// <summary>
@@ -46,6 +54,16 @@ namespace Grpc.Net.Client.LoadBalancing.ResolverPlugins
         {
             _logger.LogDebug($"Using static name resolution");
             return Task.FromResult(_staticNameResolution(target));
+        }
+
+        /// <summary>
+        /// Returns load balancing configuration discovered during name resolution.
+        /// </summary>
+        /// <returns>Load balancing configuration.</returns>
+        public Task<GrpcServiceConfig> GetServiceConfigAsync()
+        {
+            _logger.LogDebug($"Using static service config");
+            return Task.FromResult(_staticServiceConfig());
         }
     }
 }

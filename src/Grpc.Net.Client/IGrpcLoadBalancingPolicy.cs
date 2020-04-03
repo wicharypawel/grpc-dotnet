@@ -25,6 +25,12 @@ namespace Grpc.Net.Client
         /// <param name="target">Server address with scheme.</param>
         /// <returns>List of resolved servers and/or lookaside load balancers.</returns>
         Task<List<GrpcNameResolutionResult>> StartNameResolutionAsync(Uri target);
+
+        /// <summary>
+        /// Returns load balancing configuration discovered during name resolution.
+        /// </summary>
+        /// <returns>Load balancing configuration.</returns>
+        Task<GrpcServiceConfig> GetServiceConfigAsync();
     }
 
     /// <summary>
@@ -135,6 +141,29 @@ namespace Grpc.Net.Client
     }
 
     /// <summary>
+    /// Configuration discovered during name resolution.
+    /// </summary>
+    public sealed class GrpcServiceConfig
+    {
+        /// <summary>
+        /// Returns a list of supported policy names eg. [xds, grpclb, round_robin, pick_first]
+        /// Multiple LB policies can be specified; clients will iterate through the list in order and stop at the first policy that they support. 
+        /// If none are supported, the service config is considered invalid.
+        /// </summary>
+        public IReadOnlyList<string> RequestedLoadBalancingPolicies { get; set; } = Array.Empty<string>();
+
+        /// <summary>
+        /// Creates GrpcServiceConfig using specified policies 
+        /// </summary>
+        /// <param name="policies">Policies for service config</param>
+        /// <returns>New instance of GrpcServiceConfig</returns>
+        public static GrpcServiceConfig Create(params string[] policies)
+        {
+            return new GrpcServiceConfig() { RequestedLoadBalancingPolicies = policies };
+        }
+    }
+
+    /// <summary>
     /// Assume name was already resolved or pass through to HttpClient to handle
     /// </summary>
     internal sealed class NoneResolverPlugin : IGrpcResolverPlugin
@@ -160,6 +189,12 @@ namespace Grpc.Net.Client
             {
                new GrpcNameResolutionResult(target.Host, target.Port)
             });
+        }
+
+        public Task<GrpcServiceConfig> GetServiceConfigAsync()
+        {
+            _logger.LogDebug($"Name resolver returns default pick_first policy");
+            return Task.FromResult(GrpcServiceConfig.Create("pick_first"));
         }
     }
 
@@ -188,7 +223,7 @@ namespace Grpc.Net.Client
             {
                 throw new ArgumentException($"{nameof(resolutionResult)} must contain at least one non-blancer address");
             }
-            _logger.LogDebug($"Start first_pick policy");
+            _logger.LogDebug($"Start pick_first policy");
             var uriBuilder = new UriBuilder();
             uriBuilder.Host = resolutionResult[0].Host;
             uriBuilder.Port = resolutionResult[0].Port ?? (isSecureConnection ? 443 : 80);
