@@ -44,18 +44,17 @@ namespace Grpc.Lb.V1 {
             "cG9uc2VIABItCgtzZXJ2ZXJfbGlzdBgCIAEoCzIWLmdycGMubGIudjEuU2Vy",
             "dmVyTGlzdEgAEjkKEWZhbGxiYWNrX3Jlc3BvbnNlGAMgASgLMhwuZ3JwYy5s",
             "Yi52MS5GYWxsYmFja1Jlc3BvbnNlSABCHAoabG9hZF9iYWxhbmNlX3Jlc3Bv",
-            "bnNlX3R5cGUiEgoQRmFsbGJhY2tSZXNwb25zZSJ9ChpJbml0aWFsTG9hZEJh",
-            "bGFuY2VSZXNwb25zZRIeChZsb2FkX2JhbGFuY2VyX2RlbGVnYXRlGAEgASgJ",
-            "Ej8KHGNsaWVudF9zdGF0c19yZXBvcnRfaW50ZXJ2YWwYAiABKAsyGS5nb29n",
-            "bGUucHJvdG9idWYuRHVyYXRpb24iNwoKU2VydmVyTGlzdBIjCgdzZXJ2ZXJz",
-            "GAEgAygLMhIuZ3JwYy5sYi52MS5TZXJ2ZXJKBAgDEAQiWgoGU2VydmVyEhIK",
-            "CmlwX2FkZHJlc3MYASABKAwSDAoEcG9ydBgCIAEoBRIaChJsb2FkX2JhbGFu",
-            "Y2VfdG9rZW4YAyABKAkSDAoEZHJvcBgEIAEoCEoECAUQBjJiCgxMb2FkQmFs",
-            "YW5jZXISUgoLQmFsYW5jZUxvYWQSHi5ncnBjLmxiLnYxLkxvYWRCYWxhbmNl",
-            "UmVxdWVzdBofLmdycGMubGIudjEuTG9hZEJhbGFuY2VSZXNwb25zZSgBMAFC",
-            "VwoNaW8uZ3JwYy5sYi52MUIRTG9hZEJhbGFuY2VyUHJvdG9QAVoxZ29vZ2xl",
-            "LmdvbGFuZy5vcmcvZ3JwYy9iYWxhbmNlci9ncnBjbGIvZ3JwY19sYl92MWIG",
-            "cHJvdG8z"));
+            "bnNlX3R5cGUiEgoQRmFsbGJhY2tSZXNwb25zZSJjChpJbml0aWFsTG9hZEJh",
+            "bGFuY2VSZXNwb25zZRI/ChxjbGllbnRfc3RhdHNfcmVwb3J0X2ludGVydmFs",
+            "GAIgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uSgQIARACIjcKClNl",
+            "cnZlckxpc3QSIwoHc2VydmVycxgBIAMoCzISLmdycGMubGIudjEuU2VydmVy",
+            "SgQIAxAEIloKBlNlcnZlchISCgppcF9hZGRyZXNzGAEgASgMEgwKBHBvcnQY",
+            "AiABKAUSGgoSbG9hZF9iYWxhbmNlX3Rva2VuGAMgASgJEgwKBGRyb3AYBCAB",
+            "KAhKBAgFEAYyYgoMTG9hZEJhbGFuY2VyElIKC0JhbGFuY2VMb2FkEh4uZ3Jw",
+            "Yy5sYi52MS5Mb2FkQmFsYW5jZVJlcXVlc3QaHy5ncnBjLmxiLnYxLkxvYWRC",
+            "YWxhbmNlUmVzcG9uc2UoATABQlcKDWlvLmdycGMubGIudjFCEUxvYWRCYWxh",
+            "bmNlclByb3RvUAFaMWdvb2dsZS5nb2xhbmcub3JnL2dycGMvYmFsYW5jZXIv",
+            "Z3JwY2xiL2dycGNfbGJfdjFiBnByb3RvMw=="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::Google.Protobuf.WellKnownTypes.DurationReflection.Descriptor, global::Google.Protobuf.WellKnownTypes.TimestampReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
@@ -65,7 +64,7 @@ namespace Grpc.Lb.V1 {
             new pbr::GeneratedClrTypeInfo(typeof(global::Grpc.Lb.V1.ClientStats), global::Grpc.Lb.V1.ClientStats.Parser, new[]{ "Timestamp", "NumCallsStarted", "NumCallsFinished", "NumCallsFinishedWithClientFailedToSend", "NumCallsFinishedKnownReceived", "CallsFinishedWithDrop" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Grpc.Lb.V1.LoadBalanceResponse), global::Grpc.Lb.V1.LoadBalanceResponse.Parser, new[]{ "InitialResponse", "ServerList", "FallbackResponse" }, new[]{ "LoadBalanceResponseType" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Grpc.Lb.V1.FallbackResponse), global::Grpc.Lb.V1.FallbackResponse.Parser, null, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::Grpc.Lb.V1.InitialLoadBalanceResponse), global::Grpc.Lb.V1.InitialLoadBalanceResponse.Parser, new[]{ "LoadBalancerDelegate", "ClientStatsReportInterval" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Grpc.Lb.V1.InitialLoadBalanceResponse), global::Grpc.Lb.V1.InitialLoadBalanceResponse.Parser, new[]{ "ClientStatsReportInterval" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Grpc.Lb.V1.ServerList), global::Grpc.Lb.V1.ServerList.Parser, new[]{ "Servers" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Grpc.Lb.V1.Server), global::Grpc.Lb.V1.Server.Parser, new[]{ "IpAddress", "Port", "LoadBalanceToken", "Drop" }, null, null, null, null)
           }));
@@ -1256,7 +1255,6 @@ namespace Grpc.Lb.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public InitialLoadBalanceResponse(InitialLoadBalanceResponse other) : this() {
-      loadBalancerDelegate_ = other.loadBalancerDelegate_;
       clientStatsReportInterval_ = other.clientStatsReportInterval_ != null ? other.clientStatsReportInterval_.Clone() : null;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
@@ -1264,24 +1262,6 @@ namespace Grpc.Lb.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public InitialLoadBalanceResponse Clone() {
       return new InitialLoadBalanceResponse(this);
-    }
-
-    /// <summary>Field number for the "load_balancer_delegate" field.</summary>
-    public const int LoadBalancerDelegateFieldNumber = 1;
-    private string loadBalancerDelegate_ = "";
-    /// <summary>
-    /// This is an application layer redirect that indicates the client should use
-    /// the specified server for load balancing. When this field is non-empty in
-    /// the response, the client should open a separate connection to the
-    /// load_balancer_delegate and call the BalanceLoad method. Its length should
-    /// be less than 64 bytes.
-    /// </summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    public string LoadBalancerDelegate {
-      get { return loadBalancerDelegate_; }
-      set {
-        loadBalancerDelegate_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
-      }
     }
 
     /// <summary>Field number for the "client_stats_report_interval" field.</summary>
@@ -1313,7 +1293,6 @@ namespace Grpc.Lb.V1 {
       if (ReferenceEquals(other, this)) {
         return true;
       }
-      if (LoadBalancerDelegate != other.LoadBalancerDelegate) return false;
       if (!object.Equals(ClientStatsReportInterval, other.ClientStatsReportInterval)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
@@ -1321,7 +1300,6 @@ namespace Grpc.Lb.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public override int GetHashCode() {
       int hash = 1;
-      if (LoadBalancerDelegate.Length != 0) hash ^= LoadBalancerDelegate.GetHashCode();
       if (clientStatsReportInterval_ != null) hash ^= ClientStatsReportInterval.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
@@ -1336,10 +1314,6 @@ namespace Grpc.Lb.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public void WriteTo(pb::CodedOutputStream output) {
-      if (LoadBalancerDelegate.Length != 0) {
-        output.WriteRawTag(10);
-        output.WriteString(LoadBalancerDelegate);
-      }
       if (clientStatsReportInterval_ != null) {
         output.WriteRawTag(18);
         output.WriteMessage(ClientStatsReportInterval);
@@ -1352,9 +1326,6 @@ namespace Grpc.Lb.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public int CalculateSize() {
       int size = 0;
-      if (LoadBalancerDelegate.Length != 0) {
-        size += 1 + pb::CodedOutputStream.ComputeStringSize(LoadBalancerDelegate);
-      }
       if (clientStatsReportInterval_ != null) {
         size += 1 + pb::CodedOutputStream.ComputeMessageSize(ClientStatsReportInterval);
       }
@@ -1368,9 +1339,6 @@ namespace Grpc.Lb.V1 {
     public void MergeFrom(InitialLoadBalanceResponse other) {
       if (other == null) {
         return;
-      }
-      if (other.LoadBalancerDelegate.Length != 0) {
-        LoadBalancerDelegate = other.LoadBalancerDelegate;
       }
       if (other.clientStatsReportInterval_ != null) {
         if (clientStatsReportInterval_ == null) {
@@ -1389,10 +1357,6 @@ namespace Grpc.Lb.V1 {
           default:
             _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
             break;
-          case 10: {
-            LoadBalancerDelegate = input.ReadString();
-            break;
-          }
           case 18: {
             if (clientStatsReportInterval_ == null) {
               ClientStatsReportInterval = new global::Google.Protobuf.WellKnownTypes.Duration();

@@ -146,7 +146,7 @@ namespace Grpc.Net.Client.LoadBalancing.Policies
             {
                 throw new InvalidOperationException("InitialLoadBalanceRequest was not followed by InitialLoadBalanceResponse");
             }
-            var initialResponse = responseStream.Current.InitialResponse; // field InitialResponse.LoadBalancerDelegate is deprecated
+            var initialResponse = responseStream.Current.InitialResponse;
             _clientStatsReportInterval = initialResponse.ClientStatsReportInterval.ToTimeSpan();
         }
 

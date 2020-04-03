@@ -294,7 +294,6 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         {
             var initialResponse = new InitialLoadBalanceResponse();
             initialResponse.ClientStatsReportInterval = Duration.FromTimeSpan(TimeSpan.FromSeconds(10));
-            initialResponse.LoadBalancerDelegate = string.Empty;
             return initialResponse;
         }
     }
