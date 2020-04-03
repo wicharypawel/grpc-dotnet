@@ -93,12 +93,26 @@ namespace Grpc.Net.Client
 
             ResolverPlugin = channelOptions.ResolverPlugin;
             ResolverPlugin.LoggerFactory = LoggerFactory;
-            LoadBalancingPolicy = channelOptions.LoadBalancingPolicy;
-            LoadBalancingPolicy.LoggerFactory = LoggerFactory;
-            
             var resolutionResult = ResolverPlugin.StartNameResolutionAsync(Address).GetAwaiter().GetResult();
+            var requestedPolicies = ResolverPlugin.GetServiceConfigAsync().GetAwaiter().GetResult().RequestedLoadBalancingPolicies;
+            LoadBalancingPolicy = CreateRequestedPolicy(requestedPolicies);
+            LoadBalancingPolicy.LoggerFactory = LoggerFactory;
             var isSecureConnection = Address.Scheme == Uri.UriSchemeHttps || (Address.Scheme.Equals("dns", StringComparison.OrdinalIgnoreCase) && Address.Port == 443);
             LoadBalancingPolicy.CreateSubChannelsAsync(resolutionResult, Address.Host,  Address.Scheme == Uri.UriSchemeHttps).Wait();
+        }
+
+        private static IGrpcLoadBalancingPolicy CreateRequestedPolicy(IReadOnlyList<string> requestedPolicies)
+        {
+            var registry = LoadBalancingPolicyRegistry.GetDefaultRegistry();
+            foreach (var requestedPolicyName in requestedPolicies)
+            {
+                var loadBalancingPolicyProvider = registry.GetProvider(requestedPolicyName);
+                if (loadBalancingPolicyProvider != null)
+                {
+                    return loadBalancingPolicyProvider.CreateLoadBalancingPolicy();
+                }
+            }
+            throw new InvalidOperationException("Requested load balancing policy not found");
         }
 
         private static HttpClient CreateInternalHttpClient()
@@ -285,7 +299,7 @@ namespace Grpc.Net.Client
             }
 
             LoadBalancingPolicy.Dispose();
-            
+
             if (_shouldDisposeHttpClient)
             {
                 HttpClient.Dispose();

@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -59,6 +60,23 @@ namespace Grpc.Net.Client
         /// </summary>
         /// <returns>Selected subchannel.</returns>
         GrpcSubChannel GetNextSubChannel();
+    }
+
+    /// <summary>
+    /// Provider is responsible for creation of <seealso cref="IGrpcLoadBalancingPolicy"/>
+    /// </summary>
+    public interface ILoadBalancingPolicyProvider
+    {
+        /// <summary>
+        /// Policy name written in snake_case eg. pick_first, round_robin, xds etc.
+        /// </summary>
+        public string PolicyName { get; }
+
+        /// <summary>
+        /// Factory method
+        /// </summary>
+        /// <returns>New instance of <seealso cref="IGrpcLoadBalancingPolicy"/></returns>
+        public IGrpcLoadBalancingPolicy CreateLoadBalancingPolicy();
     }
 
     /// <summary>
@@ -245,6 +263,97 @@ namespace Grpc.Net.Client
 
         public void Dispose()
         {
+        }
+    }
+
+    /// <summary>
+    /// Provider is responsible for creation of <seealso cref="IGrpcLoadBalancingPolicy"/>.
+    /// </summary>
+    internal sealed class PickFirstPolicyProvider : ILoadBalancingPolicyProvider
+    {
+        /// <summary>
+        /// Policy name written in snake_case eg. pick_first, round_robin, xds etc.
+        /// </summary>
+        public string PolicyName => "pick_first";
+
+        /// <summary>
+        /// Factory method
+        /// </summary>
+        /// <returns>New instance of <seealso cref="IGrpcLoadBalancingPolicy"/>.</returns>
+        public IGrpcLoadBalancingPolicy CreateLoadBalancingPolicy()
+        {
+            return new PickFirstPolicy();
+        }
+    }
+
+    /// <summary>
+    /// Registry of <seealso cref="ILoadBalancingPolicyProvider"/>s. 
+    /// </summary>
+    public sealed class LoadBalancingPolicyRegistry
+    {
+        private readonly ConcurrentDictionary<string, ILoadBalancingPolicyProvider> _providers = new ConcurrentDictionary<string, ILoadBalancingPolicyProvider>();
+
+        private LoadBalancingPolicyRegistry()
+        {
+        }
+
+        private static LoadBalancingPolicyRegistry? Instance;
+        private static readonly object LockObject = new object();
+
+        /// <summary>
+        /// Register provider.
+        /// </summary>
+        public void Register(ILoadBalancingPolicyProvider provider)
+        {
+            if (!_providers.TryAdd(provider.PolicyName, provider))
+            {
+                throw new InvalidOperationException("Deregistering load balancing policy provider failed");
+            }
+        }
+
+        /// <summary>
+        /// Deregisters provider.
+        /// </summary>
+        public void Deregister(ILoadBalancingPolicyProvider provider)
+        {
+            if(!_providers.TryRemove(provider.PolicyName, out _))
+            {
+                throw new InvalidOperationException("Deregistering load balancing policy provider failed");
+            }
+        }
+
+        /// <summary>
+        /// Returns the provider for the given load-balancing policy 
+        /// </summary>
+        /// <param name="policyName">Policy name written in snake_case eg. pick_first, round_robin, xds etc.</param>
+        /// <returns>Load balancing policy or null if no suitable provider can be found</returns>
+        public ILoadBalancingPolicyProvider? GetProvider(string policyName)
+        {
+            if(_providers.TryGetValue(policyName, out var loadBalancingPolicyProvider))
+            {
+                return loadBalancingPolicyProvider;
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Returns the default registry.
+        /// </summary>
+        /// <returns>Instance of <seealso cref="LoadBalancingPolicyRegistry"/>.</returns>
+        public static LoadBalancingPolicyRegistry GetDefaultRegistry()
+        {
+            lock (LockObject)
+            {
+                if (Instance == null)
+                {
+                    Instance = new LoadBalancingPolicyRegistry();
+                    Instance.Register(new PickFirstPolicyProvider());
+                }
+                return Instance;
+            }
         }
     }
 }
