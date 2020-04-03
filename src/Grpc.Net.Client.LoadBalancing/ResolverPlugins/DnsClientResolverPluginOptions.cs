@@ -15,9 +15,14 @@ namespace Grpc.Net.Client.LoadBalancing.ResolverPlugins
         public IPEndPoint[] NameServers { get; set; }
         
         /// <summary>
-        /// Allows disabling service config lookup. Default value false.
+        /// Allows enabling TXT records lookup for service config. Default value false.
         /// </summary>
-        public bool DisableTxtServiceConfig { get; set; }
+        public bool EnableTxtServiceConfig { get; set; }
+
+        /// <summary>
+        /// Allows enabling SRV records lookup for grpclb. Default value false.
+        /// </summary>
+        public bool EnableSrvGrpclb { get; set; }
 
         /// <summary>
         /// Creates a <seealso cref="DnsClientResolverPluginOptions"/> options class with default values.
@@ -25,7 +30,8 @@ namespace Grpc.Net.Client.LoadBalancing.ResolverPlugins
         public DnsClientResolverPluginOptions()
         {
             NameServers = Array.Empty<IPEndPoint>();
-            DisableTxtServiceConfig = true;
+            EnableTxtServiceConfig = false;
+            EnableSrvGrpclb = false;
         }
     }
 }

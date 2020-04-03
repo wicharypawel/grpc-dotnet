@@ -13,7 +13,7 @@ namespace Grpc.Net.Client.LoadBalancing.ResolverPlugins
 {
     /// <summary>
     /// Resolver plugin is responsible for name resolution by reaching the authority and return 
-    /// a list of resolved addresses (both IP address and port) and a service config.
+    /// a list of resolved addresses (both IP address and port).
     /// More: https://github.com/grpc/grpc/blob/master/doc/naming.md
     /// </summary>
     public sealed class DnsClientResolverPlugin : IGrpcResolverPlugin
@@ -35,14 +35,14 @@ namespace Grpc.Net.Client.LoadBalancing.ResolverPlugins
         internal IDnsQuery? OverrideDnsClient { private get; set; }
 
         /// <summary>
-        /// Creates a <seealso cref="DnsClientResolverPlugin"/> that is capable of searching SRV and TXT records.
+        /// Creates a <seealso cref="DnsClientResolverPlugin"/> using default <seealso cref="DnsClientResolverPluginOptions"/>.
         /// </summary>
         public DnsClientResolverPlugin() : this(new DnsClientResolverPluginOptions())
         {
         }
 
         /// <summary>
-        /// Creates a <seealso cref="DnsClientResolverPlugin"/> that is capable of searching SRV and TXT records.
+        /// Creates a <seealso cref="DnsClientResolverPlugin"/> using specified <seealso cref="DnsClientResolverPluginOptions"/>.
         /// </summary>
         /// <param name="options">Options allows override default behaviour.</param>
         public DnsClientResolverPlugin(DnsClientResolverPluginOptions options)
@@ -67,7 +67,7 @@ namespace Grpc.Net.Client.LoadBalancing.ResolverPlugins
             }
             var host = target.Host;
             var dnsClient = GetDnsClient();
-            if (!_options.DisableTxtServiceConfig)
+            if (_options.EnableTxtServiceConfig)
             {
                 var serviceConfigDnsQuery = $"_grpc_config.{host}";
                 _logger.LogDebug($"Start TXT lookup for {serviceConfigDnsQuery}");
@@ -87,15 +87,21 @@ namespace Grpc.Net.Client.LoadBalancing.ResolverPlugins
                     _logger.LogDebug($"Parsing JSON grpc_config into service config failed, loading service config is skipped");
                 }
             }
-            var balancingDnsQuery = $"_grpclb._tcp.{host}";
+            var balancingDnsQueryResults = Enumerable.Empty<GrpcNameResolutionResult>();
+            if (_options.EnableSrvGrpclb)
+            {
+                var balancingDnsQuery = $"_grpclb._tcp.{host}";
+                _logger.LogDebug($"Start SRV lookup for {balancingDnsQuery}");
+                var balancingDnsQueryTask = dnsClient.QueryAsync(balancingDnsQuery, QueryType.SRV);
+                await balancingDnsQueryTask.ConfigureAwait(false);
+                balancingDnsQueryResults = balancingDnsQueryTask.Result.Answers.OfType<SrvRecord>().Select(x => ParseSrvRecord(x, true));
+            }
             var serversDnsQuery = host;
-            _logger.LogDebug($"Start SRV lookup for {balancingDnsQuery}");
             _logger.LogDebug($"Start A lookup for {serversDnsQuery}");
-            var balancingDnsQueryTask = dnsClient.QueryAsync(balancingDnsQuery, QueryType.SRV);
             var serversDnsQueryTask = dnsClient.QueryAsync(serversDnsQuery, QueryType.A);
-            await Task.WhenAll(balancingDnsQueryTask, serversDnsQueryTask).ConfigureAwait(false);
-            var results = balancingDnsQueryTask.Result.Answers.OfType<SrvRecord>().Select(x => ParseSrvRecord(x, true))
-                .Union(serversDnsQueryTask.Result.Answers.OfType<ARecord>().Select(x => ParseARecord(x, target.Port, false))).ToList();
+            await serversDnsQueryTask.ConfigureAwait(false);
+            var serversDnsQueryResults = serversDnsQueryTask.Result.Answers.OfType<ARecord>().Select(x => ParseARecord(x, target.Port, false));
+            var results = balancingDnsQueryResults.Union(serversDnsQueryResults).ToList();
             if (results.Count == 0)
             {
                 _logger.LogDebug($"Not found any DNS records");

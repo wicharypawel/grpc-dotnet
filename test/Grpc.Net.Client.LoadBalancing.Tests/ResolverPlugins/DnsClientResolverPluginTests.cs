@@ -48,7 +48,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
 
             txtDnsQueryResponse.Setup(x => x.Answers).Returns(new List<TxtRecord>().AsReadOnly());
             srvBalancersDnsQueryResponse.Setup(x => x.Answers).Returns(new List<SrvRecord>().AsReadOnly());
-            aServersDnsQueryResponse.Setup(x => x.Answers).Returns(new List<SrvRecord>().AsReadOnly());
+            aServersDnsQueryResponse.Setup(x => x.Answers).Returns(new List<ARecord>().AsReadOnly());
 
             dnsClientMock.Setup(x => x.QueryAsync($"_grpc_config.{serviceHostName}", QueryType.TXT, QueryClass.IN, default))
                 .Returns(Task.FromResult(txtDnsQueryResponse.Object));
@@ -68,7 +68,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
         }
 
         [Fact]
-        public async Task ForTargetAndBalancerSrvRecords_UseDnsClientResolverPlugin_ReturnBalancers()
+        public async Task ForTargetAndBalancerSrvRecordsConfigured_UseDnsClientResolverPlugin_ReturnServersAndBalancers()
         {
             // Arrange
             var serviceHostName = "my-service";
@@ -88,7 +88,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             dnsClientMock.Setup(x => x.QueryAsync(serviceHostName, QueryType.A, QueryClass.IN, default))
                 .Returns(Task.FromResult(aServersDnsQueryResponse.Object));
 
-            var resolverPlugin = new DnsClientResolverPlugin();
+            var resolverPlugin = new DnsClientResolverPlugin(new DnsClientResolverPluginOptions() { EnableSrvGrpclb = true });
             resolverPlugin.OverrideDnsClient = dnsClientMock.Object;
 
             // Act
@@ -99,6 +99,41 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             Assert.Equal(2, resolutionResult.Where(x => x.IsLoadBalancer).Count());
             Assert.All(resolutionResult.Where(x => x.IsLoadBalancer), x => Assert.Equal(80, x.Port));
             Assert.All(resolutionResult.Where(x => x.IsLoadBalancer), x => Assert.StartsWith("10-1-6-", x.Host));
+            Assert.Equal(3, resolutionResult.Where(x => !x.IsLoadBalancer).Count());
+            Assert.All(resolutionResult.Where(x => !x.IsLoadBalancer), x => Assert.Equal(443, x.Port));
+            Assert.All(resolutionResult.Where(x => !x.IsLoadBalancer), x => Assert.StartsWith("10.1.5.", x.Host));
+        }
+
+        [Fact]
+        public async Task ForTargetAndBalancerAndSrvLookupDisabled_UseDnsClientResolverPlugin_ReturnOnlyServers()
+        {
+            // Arrange
+            var serviceHostName = "my-service";
+            var txtDnsQueryResponse = new Mock<IDnsQueryResponse>(MockBehavior.Strict);
+            var srvBalancersDnsQueryResponse = new Mock<IDnsQueryResponse>(MockBehavior.Strict);
+            var aServersDnsQueryResponse = new Mock<IDnsQueryResponse>(MockBehavior.Strict);
+            var dnsClientMock = new Mock<IDnsQuery>(MockBehavior.Strict);
+
+            txtDnsQueryResponse.Setup(x => x.Answers).Returns(new List<TxtRecord>().AsReadOnly());
+            srvBalancersDnsQueryResponse.Setup(x => x.Answers).Returns(new List<SrvRecord>(GetBalancersSrvRecords(serviceHostName)).AsReadOnly());
+            aServersDnsQueryResponse.Setup(x => x.Answers).Returns(new List<ARecord>(GetServersARecords(serviceHostName)).AsReadOnly());
+
+            dnsClientMock.Setup(x => x.QueryAsync($"_grpc_config.{serviceHostName}", QueryType.TXT, QueryClass.IN, default))
+                .Returns(Task.FromResult(txtDnsQueryResponse.Object));
+            dnsClientMock.Setup(x => x.QueryAsync($"_grpclb._tcp.{serviceHostName}", QueryType.SRV, QueryClass.IN, default))
+                .Returns(Task.FromResult(srvBalancersDnsQueryResponse.Object));
+            dnsClientMock.Setup(x => x.QueryAsync(serviceHostName, QueryType.A, QueryClass.IN, default))
+                .Returns(Task.FromResult(aServersDnsQueryResponse.Object));
+
+            var resolverPlugin = new DnsClientResolverPlugin(new DnsClientResolverPluginOptions() { EnableSrvGrpclb = false });
+            resolverPlugin.OverrideDnsClient = dnsClientMock.Object;
+
+            // Act
+            var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"dns://{serviceHostName}:443"));
+
+            // Assert
+            Assert.Equal(3, resolutionResult.Count);
+            Assert.Empty(resolutionResult.Where(x => x.IsLoadBalancer));
             Assert.Equal(3, resolutionResult.Where(x => !x.IsLoadBalancer).Count());
             Assert.All(resolutionResult.Where(x => !x.IsLoadBalancer), x => Assert.Equal(443, x.Port));
             Assert.All(resolutionResult.Where(x => !x.IsLoadBalancer), x => Assert.StartsWith("10.1.5.", x.Host));
