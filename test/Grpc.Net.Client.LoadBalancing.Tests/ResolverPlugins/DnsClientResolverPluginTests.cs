@@ -148,7 +148,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
         }
 
         [Fact]
-        public async Task ForServiceConfigAndNoBalancers_UseDnsClientResolverPlugin_ReturnServersAndBalancersServiceConfig()
+        public async Task ForServiceConfigAndOtherRecords_UseDnsClientResolverPlugin_ReturnServersAndBalancersServiceConfig()
         {
             // Arrange
             var serviceHostName = "my-service";
@@ -157,7 +157,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             var aServersDnsQueryResponse = new Mock<IDnsQueryResponse>(MockBehavior.Strict);
             var dnsClientMock = new Mock<IDnsQuery>(MockBehavior.Strict);
 
-            txtDnsQueryResponse.Setup(x => x.Answers).Returns(new List<TxtRecord>(GetServiceConfigTxtRecords(serviceHostName)).AsReadOnly());
+            txtDnsQueryResponse.Setup(x => x.Answers).Returns(new List<TxtRecord>(GetServiceConfigTxtRecords(serviceHostName, TXT)).AsReadOnly());
             srvBalancersDnsQueryResponse.Setup(x => x.Answers).Returns(new List<SrvRecord>(GetBalancersSrvRecords(serviceHostName)).AsReadOnly());
             aServersDnsQueryResponse.Setup(x => x.Answers).Returns(new List<ARecord>(GetServersARecords(serviceHostName)).AsReadOnly());
 
@@ -187,6 +187,46 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             Assert.True(serviceConfig.RequestedLoadBalancingPolicies.First() == "round_robin");
         }
 
+        [Fact]
+        public async Task ForServiceConfigWithXdsAndOtherRecords_UseDnsClientResolverPlugin_ReturnServersAndBalancersServiceConfigWithXds()
+        {
+            // Arrange
+            var serviceHostName = "my-service";
+            var txtDnsQueryResponse = new Mock<IDnsQueryResponse>(MockBehavior.Strict);
+            var srvBalancersDnsQueryResponse = new Mock<IDnsQueryResponse>(MockBehavior.Strict);
+            var aServersDnsQueryResponse = new Mock<IDnsQueryResponse>(MockBehavior.Strict);
+            var dnsClientMock = new Mock<IDnsQuery>(MockBehavior.Strict);
+
+            txtDnsQueryResponse.Setup(x => x.Answers).Returns(new List<TxtRecord>(GetServiceConfigTxtRecords(serviceHostName, TXT_XDS)).AsReadOnly());
+            srvBalancersDnsQueryResponse.Setup(x => x.Answers).Returns(new List<SrvRecord>(GetBalancersSrvRecords(serviceHostName)).AsReadOnly());
+            aServersDnsQueryResponse.Setup(x => x.Answers).Returns(new List<ARecord>(GetServersARecords(serviceHostName)).AsReadOnly());
+
+            dnsClientMock.Setup(x => x.QueryAsync($"_grpc_config.{serviceHostName}", QueryType.TXT, QueryClass.IN, default))
+                .Returns(Task.FromResult(txtDnsQueryResponse.Object));
+            dnsClientMock.Setup(x => x.QueryAsync($"_grpclb._tcp.{serviceHostName}", QueryType.SRV, QueryClass.IN, default))
+                .Returns(Task.FromResult(srvBalancersDnsQueryResponse.Object));
+            dnsClientMock.Setup(x => x.QueryAsync(serviceHostName, QueryType.A, QueryClass.IN, default))
+                .Returns(Task.FromResult(aServersDnsQueryResponse.Object));
+
+            var resolverPluginOptions = new DnsClientResolverPluginOptions() { EnableSrvGrpclb = true, EnableTxtServiceConfig = true };
+            var resolverPlugin = new DnsClientResolverPlugin(resolverPluginOptions);
+            resolverPlugin.OverrideDnsClient = dnsClientMock.Object;
+
+            // Act
+            var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"dns://{serviceHostName}:443"));
+            var serviceConfig = await resolverPlugin.GetServiceConfigAsync();
+
+            // Assert
+            Assert.Equal(5, resolutionResult.Count);
+            Assert.Equal(2, resolutionResult.Where(x => x.IsLoadBalancer).Count());
+            Assert.All(resolutionResult.Where(x => x.IsLoadBalancer), x => Assert.Equal(80, x.Port));
+            Assert.All(resolutionResult.Where(x => x.IsLoadBalancer), x => Assert.StartsWith("10-1-6-", x.Host));
+            Assert.Equal(3, resolutionResult.Where(x => !x.IsLoadBalancer).Count());
+            Assert.All(resolutionResult.Where(x => !x.IsLoadBalancer), x => Assert.Equal(443, x.Port));
+            Assert.All(resolutionResult.Where(x => !x.IsLoadBalancer), x => Assert.StartsWith("10.1.5.", x.Host));
+            Assert.True(serviceConfig.RequestedLoadBalancingPolicies.First() == "xds");
+        }
+
         private List<SrvRecord> GetBalancersSrvRecords(string serviceHostName)
         {
             return new List<SrvRecord>()
@@ -206,15 +246,17 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             };
         }
 
-        private List<TxtRecord> GetServiceConfigTxtRecords(string serviceHostName)
+        private List<TxtRecord> GetServiceConfigTxtRecords(string serviceHostName, string value)
         {
             return new List<TxtRecord>()
             {
                 new TxtRecord(new ResourceRecordInfo(serviceHostName, ResourceRecordType.TXT, QueryClass.IN, 30, 0), 
-                    new string[] { TXT }, new string[] { TXT }),
+                    new string[] { value }, new string[] { value }),
             };
         }
 
         private static string TXT = @"grpc_config=[{""serviceConfig"":{""loadBalancingPolicy"":""round_robin"",""methodConfig"":[{""name"":[{""service"":""MyService"",""method"":""Foo""}],""waitForReady"":true}]}}]";
+        
+        private static string TXT_XDS = @"grpc_config=[{""serviceConfig"":{""loadBalancingConfig"":[{""xds"":{""balancerName"":""dns:///balancer.example.com:8080"",""childPolicy"":[{ ""round_robin"":{}}]}}]}}]";
     }
 }

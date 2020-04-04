@@ -1,11 +1,14 @@
 ﻿#pragma warning disable CA1812 // Classes in this file are used for deserialization
+using Google.Protobuf.WellKnownTypes;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Serialization;
 
 namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 {
     // based on: https://github.com/grpc/proposal/blob/master/A2-service-configs-in-dns.md
+    // based on: https://github.com/grpc/proposal/blob/master/A24-lb-policy-config.md
     internal sealed class GrpcConfigModel
     {
         public ServiceConfigModel ServiceConfig { get; set; } = new ServiceConfigModel();
@@ -36,16 +39,21 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 
     internal sealed class LoadBalancingConfig
     {
+        [JsonPropertyName("pick_first")]
         public PickFirstConfig? PickFirst { get; set; }
+        [JsonPropertyName("round_robin")]
         public RoundRobinConfig? RoundRobin { get; set; }
         public GrpcLbConfig? Grpclb { get; set; }
-
-        //XDS policy config should be added here in the future
+        public XdsConfig? Xds { get; set; }
+        [JsonPropertyName("xds_experimental")]
+        public XdsConfig? XdsExperimental { get; set; }
+        public CdsConfig? Cds { get; set; }
 
         public string GetPolicyName()
         {
             // according to proto file only one configuration can be specified 
             return Grpclb?.ToString() ?? RoundRobin?.ToString() ?? PickFirst?.ToString()
+                ?? Xds?.ToString() ?? XdsExperimental?.ToString() ?? Cds?.ToString()
                 ?? throw new InvalidOperationException("Load balancing config without policy defined");
         }
     }
@@ -74,11 +82,35 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
     {
         public List<LoadBalancingConfig>? ChildPolicy { get; set; }
 
-        public string? ServiceName { get; set; }
+        public string ServiceName { get; set; } = string.Empty;
 
         public override string ToString()
         {
             return "grpclb";
+        }
+    }
+
+    internal sealed class XdsConfig
+    {
+        public string BalancerName { get; set; } = string.Empty; // deprecated field
+        public List<LoadBalancingConfig> ChildPolicy { get; set; } = new List<LoadBalancingConfig>();
+        public List<LoadBalancingConfig> FallbackPolicy { get; set; } = new List<LoadBalancingConfig>();
+        public string EdsServiceName { get; set; } = string.Empty;
+        public StringValue? LrsLoadReportingServerName { get; set; }
+
+        public override string ToString()
+        {
+            return "xds";
+        }
+    }
+
+    internal sealed class CdsConfig
+    {
+        public string Cluster { get; set; } = string.Empty;
+
+        public override string ToString()
+        {
+            return "cds";
         }
     }
 }
