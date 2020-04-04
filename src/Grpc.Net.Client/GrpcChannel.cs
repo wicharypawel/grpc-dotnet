@@ -23,6 +23,7 @@ using System.Net.Http;
 using System.Threading;
 using Grpc.Core;
 using Grpc.Net.Client.Internal;
+using Grpc.Net.Client.LoadBalancing;
 using Grpc.Net.Compression;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;

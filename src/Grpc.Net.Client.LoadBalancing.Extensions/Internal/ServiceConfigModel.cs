@@ -3,16 +3,16 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Grpc.Net.Client.LoadBalancing.ResolverPlugins
+namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 {
     // based on: https://github.com/grpc/proposal/blob/master/A2-service-configs-in-dns.md
-    internal sealed class GrpcConfig
+    internal sealed class GrpcConfigModel
     {
-        public ServiceConfig ServiceConfig { get; set; } = new ServiceConfig();
+        public ServiceConfigModel ServiceConfig { get; set; } = new ServiceConfigModel();
     }
 
     //based on: https://github.com/grpc/grpc-proto/blob/master/grpc/service_config/service_config.proto
-    internal sealed class ServiceConfig
+    internal sealed class ServiceConfigModel
     {
         // This field is deprecated but currently widely used
         public string LoadBalancingPolicy { get; set; } = string.Empty;

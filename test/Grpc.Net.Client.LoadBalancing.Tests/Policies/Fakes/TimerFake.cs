@@ -1,4 +1,4 @@
-﻿using Grpc.Net.Client.LoadBalancing.Policies.Abstraction;
+﻿using Grpc.Net.Client.LoadBalancing.Extensions.Internal.Abstraction;
 using System;
 using System.Threading;
 

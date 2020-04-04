@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace Grpc.Net.Client.LoadBalancing.ResolverPlugins
+namespace Grpc.Net.Client.LoadBalancing.Extensions
 {
     /// <summary>
     /// Resolver plugin is responsible for name resolution by reaching the authority and return 

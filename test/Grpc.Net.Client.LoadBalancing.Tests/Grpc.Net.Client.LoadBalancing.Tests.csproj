@@ -13,8 +13,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Grpc.Net.Client.LoadBalancing.Extensions\Grpc.Net.Client.LoadBalancing.Extensions.csproj" />
     <ProjectReference Include="..\..\src\Grpc.Net.Client\Grpc.Net.Client.csproj" />
-    <ProjectReference Include="..\..\src\Grpc.Net.Client.LoadBalancing\Grpc.Net.Client.LoadBalancing.csproj" />
   </ItemGroup>
 
 </Project>

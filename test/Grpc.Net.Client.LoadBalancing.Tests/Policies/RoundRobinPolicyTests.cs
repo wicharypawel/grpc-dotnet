@@ -1,4 +1,4 @@
-using Grpc.Net.Client.LoadBalancing.Policies;
+using Grpc.Net.Client.LoadBalancing.Internal;
 using Grpc.Net.Client.LoadBalancing.Tests.Policies.Factories;
 using System;
 using System.Collections.Generic;

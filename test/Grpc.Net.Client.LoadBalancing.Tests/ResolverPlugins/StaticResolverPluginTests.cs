@@ -1,4 +1,4 @@
-﻿using Grpc.Net.Client.LoadBalancing.ResolverPlugins;
+﻿using Grpc.Net.Client.LoadBalancing.Extensions;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;

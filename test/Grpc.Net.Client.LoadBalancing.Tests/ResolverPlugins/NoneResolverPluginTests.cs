@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Grpc.Net.Client.LoadBalancing.Internal;
+using System;
 using System.Threading.Tasks;
 using Xunit;
 

@@ -1,8 +1,8 @@
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Grpc.Lb.V1;
-using Grpc.Net.Client.LoadBalancing.Policies;
-using Grpc.Net.Client.LoadBalancing.Policies.Abstraction;
+using Grpc.Net.Client.LoadBalancing.Extensions.Internal;
+using Grpc.Net.Client.LoadBalancing.Extensions.Internal.Abstraction;
 using Grpc.Net.Client.LoadBalancing.Tests.Policies.Factories;
 using Grpc.Net.Client.LoadBalancing.Tests.Policies.Fakes;
 using Moq;

@@ -7,10 +7,10 @@ using System.Net;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.Linq;
-using Grpc.Net.Client.LoadBalancing.Policies.Abstraction;
 using Google.Protobuf.WellKnownTypes;
+using Grpc.Net.Client.LoadBalancing.Extensions.Internal.Abstraction;
 
-namespace Grpc.Net.Client.LoadBalancing.Policies
+namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 {
     /// <summary>
     /// The load balancing policy creates a subchannel to each server address.
@@ -19,7 +19,7 @@ namespace Grpc.Net.Client.LoadBalancing.Policies
     /// Official name of this policy is "grpclb". It is a implementation of an external load balancing also called lookaside or one-arm loadbalancing.
     /// More: https://github.com/grpc/grpc/blob/master/doc/load-balancing.md#external-load-balancing-service
     /// </summary>
-    public sealed class GrpclbPolicy : IGrpcLoadBalancingPolicy
+    internal sealed class GrpclbPolicy : IGrpcLoadBalancingPolicy
     {
         private TimeSpan _clientStatsReportInterval = TimeSpan.Zero;
         private bool _isSecureConnection = false;
@@ -235,7 +235,7 @@ namespace Grpc.Net.Client.LoadBalancing.Policies
 
         private ITimer GetTimer()
         {
-            if(OverrideTimer != null)
+            if (OverrideTimer != null)
             {
                 return OverrideTimer;
             }
@@ -259,7 +259,7 @@ namespace Grpc.Net.Client.LoadBalancing.Policies
             unchecked
             {
                 return sequence.Aggregate(seed, (current, item) =>
-                    (current * modifier) + item!.GetHashCode());
+                    current * modifier + item!.GetHashCode());
             }
         }
     }

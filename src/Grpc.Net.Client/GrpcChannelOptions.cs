@@ -20,6 +20,8 @@ using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using Grpc.Core;
+using Grpc.Net.Client.LoadBalancing;
+using Grpc.Net.Client.LoadBalancing.Internal;
 using Grpc.Net.Compression;
 using Microsoft.Extensions.Logging;
 

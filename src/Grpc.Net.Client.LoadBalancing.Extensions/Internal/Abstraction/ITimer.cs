@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Threading;
 
-namespace Grpc.Net.Client.LoadBalancing.Policies.Abstraction
+namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal.Abstraction
 {
     /// <summary>
     /// This abstraction was added to the code base to make policies easy to mock in testing scenarios.

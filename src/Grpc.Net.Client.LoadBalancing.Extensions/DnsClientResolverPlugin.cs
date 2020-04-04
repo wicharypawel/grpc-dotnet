@@ -1,5 +1,6 @@
 ﻿using DnsClient;
 using DnsClient.Protocol;
+using Grpc.Net.Client.LoadBalancing.Extensions.Internal;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
@@ -8,7 +9,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace Grpc.Net.Client.LoadBalancing.ResolverPlugins
+namespace Grpc.Net.Client.LoadBalancing.Extensions
 {
     /// <summary>
     /// Resolver plugin is responsible for name resolution by reaching the authority and return 
@@ -140,19 +141,19 @@ namespace Grpc.Net.Client.LoadBalancing.ResolverPlugins
             return txtRecordText.StartsWith("grpc_config=", StringComparison.InvariantCultureIgnoreCase);
         }
 
-        private static bool TryParseGrpcConfig(string txtRecordText, out ServiceConfig[] serviceConfigs)
+        private static bool TryParseGrpcConfig(string txtRecordText, out ServiceConfigModel[] serviceConfigs)
         {
             try
             {
                 var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
                 var txtRecordValue = txtRecordText.Substring(12); // remove txt key -> grpc_config= 
-                serviceConfigs = JsonSerializer.Deserialize<GrpcConfig[]>(txtRecordValue, options)
+                serviceConfigs = JsonSerializer.Deserialize<GrpcConfigModel[]>(txtRecordValue, options)
                     .Select(x => x.ServiceConfig).ToArray();
                 return true;
             }
             catch (Exception)
             {
-                serviceConfigs = Array.Empty<ServiceConfig>();
+                serviceConfigs = Array.Empty<ServiceConfigModel>();
                 return false;
             }
         }

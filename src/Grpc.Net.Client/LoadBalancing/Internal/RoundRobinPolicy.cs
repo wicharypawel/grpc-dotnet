@@ -6,7 +6,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Grpc.Net.Client.LoadBalancing.Policies
+namespace Grpc.Net.Client.LoadBalancing.Internal
 {
     /// <summary>
     /// The load balancing policy creates a subchannel to each server address.
@@ -15,7 +15,7 @@ namespace Grpc.Net.Client.LoadBalancing.Policies
     /// Official name of this policy is "round_robin". It is a implementation of an balancing-aware client.
     /// More: https://github.com/grpc/grpc/blob/master/doc/load-balancing.md#balancing-aware-client
     /// </summary>
-    public sealed class RoundRobinPolicy : IGrpcLoadBalancingPolicy
+    internal sealed class RoundRobinPolicy : IGrpcLoadBalancingPolicy
     {
         private int _subChannelsSelectionCounter = -1;
         private ILogger _logger = NullLogger.Instance;

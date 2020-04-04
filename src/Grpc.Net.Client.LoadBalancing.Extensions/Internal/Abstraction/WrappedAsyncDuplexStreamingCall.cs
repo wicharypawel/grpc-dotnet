@@ -1,7 +1,7 @@
 ﻿using System.Threading.Tasks;
 using Grpc.Core;
 
-namespace Grpc.Net.Client.LoadBalancing.Policies.Abstraction
+namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal.Abstraction
 {
     /// <summary>
     /// This class wrap and delegate AsyncDuplexStreamingCall.

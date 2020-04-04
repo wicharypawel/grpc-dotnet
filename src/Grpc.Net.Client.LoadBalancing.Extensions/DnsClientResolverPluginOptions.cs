@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Net;
 
-namespace Grpc.Net.Client.LoadBalancing.ResolverPlugins
+namespace Grpc.Net.Client.LoadBalancing.Extensions
 {
     /// <summary>
     /// An options class for configuring a <see cref="DnsClientResolverPlugin"/>.

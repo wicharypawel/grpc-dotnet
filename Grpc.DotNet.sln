@@ -114,7 +114,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Grpc.AspNetCore.Web", "src\
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Grpc.AspNetCore.HealthChecks", "src\Grpc.AspNetCore.HealthChecks\Grpc.AspNetCore.HealthChecks.csproj", "{39A9F2B5-2541-423E-83C9-46C7BFF53F41}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Grpc.Net.Client.LoadBalancing", "src\Grpc.Net.Client.LoadBalancing\Grpc.Net.Client.LoadBalancing.csproj", "{0F42C32D-BAE2-451B-8BE9-17BF995AE101}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Grpc.Net.Client.LoadBalancing.Extensions", "src\Grpc.Net.Client.LoadBalancing.Extensions\Grpc.Net.Client.LoadBalancing.Extensions.csproj", "{0F42C32D-BAE2-451B-8BE9-17BF995AE101}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Grpc.Net.Client.LoadBalancing.Tests", "test\Grpc.Net.Client.LoadBalancing.Tests\Grpc.Net.Client.LoadBalancing.Tests.csproj", "{78564304-153B-41CF-94F3-B34C5700D9F4}"
 EndProject
