@@ -116,7 +116,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Grpc.AspNetCore.HealthCheck
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Grpc.Net.Client.LoadBalancing.Extensions", "src\Grpc.Net.Client.LoadBalancing.Extensions\Grpc.Net.Client.LoadBalancing.Extensions.csproj", "{0F42C32D-BAE2-451B-8BE9-17BF995AE101}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Grpc.Net.Client.LoadBalancing.Tests", "test\Grpc.Net.Client.LoadBalancing.Tests\Grpc.Net.Client.LoadBalancing.Tests.csproj", "{78564304-153B-41CF-94F3-B34C5700D9F4}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Grpc.Net.Client.LoadBalancing.Tests", "test\Grpc.Net.Client.LoadBalancing.Tests\Grpc.Net.Client.LoadBalancing.Tests.csproj", "{78564304-153B-41CF-94F3-B34C5700D9F4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Grpc.Net.Client.LoadBalancing.Protos", "src\Grpc.Net.Client.LoadBalancing.Protos\Grpc.Net.Client.LoadBalancing.Protos.csproj", "{47EEF968-AD38-4032-8742-67A578FF693C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -236,6 +238,10 @@ Global
 		{78564304-153B-41CF-94F3-B34C5700D9F4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{78564304-153B-41CF-94F3-B34C5700D9F4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{78564304-153B-41CF-94F3-B34C5700D9F4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{47EEF968-AD38-4032-8742-67A578FF693C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{47EEF968-AD38-4032-8742-67A578FF693C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{47EEF968-AD38-4032-8742-67A578FF693C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{47EEF968-AD38-4032-8742-67A578FF693C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -278,6 +284,7 @@ Global
 		{39A9F2B5-2541-423E-83C9-46C7BFF53F41} = {8C62055F-8CD7-4859-9001-634D544DF2AE}
 		{0F42C32D-BAE2-451B-8BE9-17BF995AE101} = {8C62055F-8CD7-4859-9001-634D544DF2AE}
 		{78564304-153B-41CF-94F3-B34C5700D9F4} = {CECC4AE8-9C4E-4727-939B-517CC2E58D65}
+		{47EEF968-AD38-4032-8742-67A578FF693C} = {8C62055F-8CD7-4859-9001-634D544DF2AE}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CD5C2B19-49B4-480A-990C-36D98A719B07}
