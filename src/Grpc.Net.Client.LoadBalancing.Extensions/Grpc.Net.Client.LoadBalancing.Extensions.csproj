@@ -16,6 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Grpc.Net.Client.LoadBalancing.Protos\Grpc.Net.Client.LoadBalancing.Protos.csproj" />
     <ProjectReference Include="..\Grpc.Net.Client\Grpc.Net.Client.csproj" />
   </ItemGroup>
 
