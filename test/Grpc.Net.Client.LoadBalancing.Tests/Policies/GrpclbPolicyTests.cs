@@ -81,6 +81,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             balancerClientMock.Setup(x => x.BalanceLoad(null, null, It.IsAny<CancellationToken>()))
                 .Returns(balancerStreamMock.Object);
 
+            balancerStreamMock.Setup(x => x.Dispose());
             balancerStreamMock.Setup(x => x.RequestStream).Returns(requestStreamMock.Object);
             balancerStreamMock.Setup(x => x.ResponseStream).Returns(new LoadBalanceResponseFake(new List<LoadBalanceResponse>
             {
@@ -130,6 +131,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             balancerClientMock.Setup(x => x.BalanceLoad(null, null, It.IsAny<CancellationToken>()))
                 .Returns(balancerStreamMock.Object);
 
+            balancerStreamMock.Setup(x => x.Dispose());
             balancerStreamMock.Setup(x => x.RequestStream).Returns(requestStreamMock.Object);
             balancerStreamMock.Setup(x => x.ResponseStream).Returns(new LoadBalanceResponseFake()
                 .AppendToEnd(new LoadBalanceResponse()
@@ -168,6 +170,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             balancerClientMock.Setup(x => x.BalanceLoad(null, null, It.IsAny<CancellationToken>()))
                 .Returns(balancerStreamMock.Object);
 
+            balancerStreamMock.Setup(x => x.Dispose());
             balancerStreamMock.Setup(x => x.RequestStream).Returns(requestStreamMock.Object);
             balancerStreamMock.Setup(x => x.ResponseStream).Returns(new LoadBalanceResponseFake()
                 .AppendToEnd(new LoadBalanceResponse()
@@ -226,6 +229,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             balancerClientMock.Setup(x => x.BalanceLoad(null, null, It.IsAny<CancellationToken>()))
                 .Returns(balancerStreamMock.Object);
 
+            balancerStreamMock.Setup(x => x.Dispose());
             balancerStreamMock.Setup(x => x.RequestStream).Returns(requestStreamMock.Object);
             balancerStreamMock.Setup(x => x.ResponseStream).Returns(new LoadBalanceResponseFake()
                 .AppendToEnd(new LoadBalanceResponse()
