@@ -134,6 +134,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             finally
             {
                 _timer?.Dispose();
+                _balancingStreaming?.Dispose();
                 _loadBalancerClient?.Dispose();
             }
             Disposed = true;
