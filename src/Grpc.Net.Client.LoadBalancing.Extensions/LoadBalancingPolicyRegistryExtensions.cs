@@ -15,5 +15,14 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions
         {
             registry.Register(new GrpclbPolicyProvider());
         }
+
+        /// <summary>
+        /// Register xds provider in registry.
+        /// </summary>
+        /// <param name="registry">Registry instance.</param>
+        public static void RegisterXds(this LoadBalancingPolicyRegistry registry)
+        {
+            registry.Register(new XdsPolicyProvider());
+        }
     }
 }
