@@ -66,7 +66,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             {
                 // Note that the xds resolver will return an empty list of addresses, because in the xDS API flow, 
                 // the addresses are not returned until the ClusterLoadAssignment resource is obtained later.
-                throw new ArgumentException($"{nameof(resolutionResult)} is expected to be empty.");
+                throw new ArgumentException($"{nameof(resolutionResult)} is expected to be empty");
             }
             _isSecureConnection = isSecureConnection;
             _logger.LogDebug($"Start xds policy");
@@ -76,8 +76,8 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 .Where(x => x.Type == Cluster.Types.DiscoveryType.Eds)
                 .Where(x => x?.EdsClusterConfig?.ServiceName.Contains(serviceName, StringComparison.OrdinalIgnoreCase) ?? false);
             var clusterLoadAssignments = await _xdsClient.GetEdsAsync(clustersForServiceName.First().Name).ConfigureAwait(false);
-            var sad = clusterLoadAssignments[0].Endpoints[0].LbEndpoints.Select(x => x.Endpoint.Address.SocketAddress);
-            await UseServerListSubChannelsAsync(sad).ConfigureAwait(false);
+            var serverAddressList = clusterLoadAssignments[0].Endpoints[0].LbEndpoints.Select(x => x.Endpoint.Address.SocketAddress);
+            await UseServerListSubChannelsAsync(serverAddressList).ConfigureAwait(false);
             _logger.LogDebug($"SubChannels list created");
         }
 
