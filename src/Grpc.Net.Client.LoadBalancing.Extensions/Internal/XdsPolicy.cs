@@ -23,11 +23,10 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         private ILogger _logger = NullLogger.Instance;
         private ILoggerFactory _loggerFactory = NullLoggerFactory.Instance;
         //private ILoadBalancerClient? _loadBalancerClient;
-        private IXdsClient _xdsClient;
+        private IXdsClient? _xdsClient;
 
         public XdsPolicy()
         {
-            _xdsClient = XdsClientFactory.CreateXdsClient();
         }
 
         /// <summary>
@@ -54,6 +53,10 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         /// <returns>List of subchannels.</returns>
         public async Task CreateSubChannelsAsync(List<GrpcNameResolutionResult> resolutionResult, string serviceName, bool isSecureConnection)
         {
+            if (_xdsClient == null)
+            {
+                _xdsClient = XdsClientFactory.CreateXdsClient(_loggerFactory);
+            }
             if (resolutionResult == null)
             {
                 throw new ArgumentNullException(nameof(resolutionResult));

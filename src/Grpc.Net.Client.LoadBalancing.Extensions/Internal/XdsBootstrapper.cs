@@ -22,6 +22,8 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         
         private ILogger _logger = NullLogger.Instance;
 
+        public ILoggerFactory LoggerFactory { set => _logger = value.CreateLogger<XdsBootstrapper>(); }
+
         private XdsBootstrapper()
         {
         }
