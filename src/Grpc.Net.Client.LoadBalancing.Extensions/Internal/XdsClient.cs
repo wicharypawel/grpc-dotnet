@@ -1,6 +1,7 @@
 ﻿using Envoy.Api.V2;
 using Envoy.Service.Discovery.V2;
 using Grpc.Core;
+using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -22,23 +23,28 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         private readonly AggregatedDiscoveryService.AggregatedDiscoveryServiceClient _adsClient;
         private readonly AsyncDuplexStreamingCall<DiscoveryRequest, DiscoveryResponse> _adsStream;
         private readonly XdsBootstrapInfo _bootstrapInfo;
+        private readonly ILogger _logger;
 
-        public XdsClient(IXdsBootstrapper bootstrapper)
+        public XdsClient(IXdsBootstrapper bootstrapper, ILoggerFactory loggerFactory)
         {
+            _logger = loggerFactory.CreateLogger<XdsClient>();
             _bootstrapInfo = bootstrapper.ReadBootstrap();
             if(_bootstrapInfo.Servers.Count == 0)
             {
                 throw new System.InvalidOperationException("XdsClient No management server provided by bootstrap");
             }
             _adsChannel = new Channel(_bootstrapInfo.Servers[0].ServerUri, ChannelCredentials.Insecure);
+            _logger.LogDebug("XdsClient start ADS connection");
             _adsClient = new AggregatedDiscoveryService.AggregatedDiscoveryServiceClient(_adsChannel);
             _adsStream = _adsClient.StreamAggregatedResources();
+            _logger.LogDebug("XdsClient ADS started");
         }
 
         internal bool Disposed { get; private set; }
 
         public async Task<List<Listener>> GetLdsAsync()
         {
+            _logger.LogDebug("XdsClient request LDS");
             await _adsStream.RequestStream.WriteAsync(new DiscoveryRequest()
             {
                 TypeUrl = ADS_TYPE_URL_LDS,
@@ -59,6 +65,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 
         public async Task<List<RouteConfiguration>> GetRdsAsync(string listenerName)
         {
+            _logger.LogDebug("XdsClient request RDS");
             await _adsStream.RequestStream.WriteAsync(new DiscoveryRequest()
             {
                 TypeUrl = ADS_TYPE_URL_RDS,
@@ -79,6 +86,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 
         public async Task<List<Cluster>> GetCdsAsync()
         {
+            _logger.LogDebug("XdsClient request CDS");
             await _adsStream.RequestStream.WriteAsync(new DiscoveryRequest()
             {
                 TypeUrl = ADS_TYPE_URL_CDS,
@@ -99,6 +107,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 
         public async Task<List<ClusterLoadAssignment>> GetEdsAsync(string clusterName)
         {
+            _logger.LogDebug("XdsClient request EDS");
             await _adsStream.RequestStream.WriteAsync(new DiscoveryRequest()
             {
                 TypeUrl = ADS_TYPE_URL_EDS,

@@ -14,7 +14,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             }
             var bootstrapper = XdsBootstrapper.Instance;
             bootstrapper.LoggerFactory = loggerFactory;
-            return new XdsClient(bootstrapper);
+            return new XdsClient(bootstrapper, loggerFactory);
         }
     }
 }
