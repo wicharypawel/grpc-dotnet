@@ -10,7 +10,8 @@
             {
                 return OverrideXdsClient;
             }
-            return new XdsClient();
+            var bootstrapper = XdsBootstrapper.Instance;
+            return new XdsClient(bootstrapper);
         }
     }
 }

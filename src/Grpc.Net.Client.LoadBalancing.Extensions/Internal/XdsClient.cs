@@ -1,5 +1,4 @@
 ﻿using Envoy.Api.V2;
-using Envoy.Api.V2.Core;
 using Envoy.Service.Discovery.V2;
 using Grpc.Core;
 using System.Collections.Generic;
@@ -22,10 +21,16 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         private readonly Channel _adsChannel;
         private readonly AggregatedDiscoveryService.AggregatedDiscoveryServiceClient _adsClient;
         private readonly AsyncDuplexStreamingCall<DiscoveryRequest, DiscoveryResponse> _adsStream;
+        private readonly XdsBootstrapInfo _bootstrapInfo;
 
-        public XdsClient()
+        public XdsClient(IXdsBootstrapper bootstrapper)
         {
-            _adsChannel = new Channel("istio-pilot.istio-system.svc.cluster.local:15010", ChannelCredentials.Insecure);
+            _bootstrapInfo = bootstrapper.ReadBootstrap();
+            if(_bootstrapInfo.Servers.Count == 0)
+            {
+                throw new System.InvalidOperationException("XdsClient No management server provided by bootstrap");
+            }
+            _adsChannel = new Channel(_bootstrapInfo.Servers[0].ServerUri, ChannelCredentials.Insecure);
             _adsClient = new AggregatedDiscoveryService.AggregatedDiscoveryServiceClient(_adsChannel);
             _adsStream = _adsClient.StreamAggregatedResources();
         }
@@ -40,10 +45,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 ResourceNames = { },
                 VersionInfo = version,
                 ResponseNonce = nonce,
-                Node = new Envoy.Api.V2.Core.Node()
-                {
-                    Id = "sidecar~192.168.0.1~xds.default~default.svc.cluster.local",
-                }
+                Node = _bootstrapInfo.Node
             }).ConfigureAwait(false);
             await _adsStream.ResponseStream.MoveNext(CancellationToken.None).ConfigureAwait(false);
             var discoveryResponse = _adsStream.ResponseStream.Current;
@@ -63,10 +65,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 ResourceNames = { listenerName },
                 VersionInfo = version,
                 ResponseNonce = nonce,
-                Node = new Envoy.Api.V2.Core.Node()
-                {
-                    Id = "sidecar~192.168.0.1~xds.default~default.svc.cluster.local",
-                }
+                Node = _bootstrapInfo.Node
             }).ConfigureAwait(false);
             await _adsStream.ResponseStream.MoveNext(CancellationToken.None).ConfigureAwait(false);
             var discoveryResponse = _adsStream.ResponseStream.Current;
@@ -86,10 +85,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 ResourceNames = { },
                 VersionInfo = version,
                 ResponseNonce = nonce,
-                Node = new Envoy.Api.V2.Core.Node()
-                {
-                    Id = "sidecar~192.168.0.1~xds.default~default.svc.cluster.local",
-                }
+                Node = _bootstrapInfo.Node
             }).ConfigureAwait(false);
             await _adsStream.ResponseStream.MoveNext(CancellationToken.None).ConfigureAwait(false);
             var discoveryResponse = _adsStream.ResponseStream.Current;
@@ -109,10 +105,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 ResourceNames = { clusterName },
                 VersionInfo = version,
                 ResponseNonce = nonce,
-                Node = new Node()
-                {
-                    Id = "sidecar~192.168.0.1~xds.default~default.svc.cluster.local",
-                }
+                Node = _bootstrapInfo.Node
             }).ConfigureAwait(false);
             await _adsStream.ResponseStream.MoveNext(CancellationToken.None).ConfigureAwait(false);
             var discoveryResponse = _adsStream.ResponseStream.Current;
