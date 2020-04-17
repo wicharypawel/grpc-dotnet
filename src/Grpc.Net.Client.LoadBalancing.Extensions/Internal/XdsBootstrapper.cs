@@ -15,8 +15,8 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 {
     internal sealed class XdsBootstrapper : IXdsBootstrapper
     {
-        private const string BOOTSTRAP_PATH_SYS_ENV_VAR = "GRPC_XDS_BOOTSTRAP";
-        private const string CLIENT_FEATURE_DISABLE_OVERPROVISIONING = "envoy.lb.does_not_support_overprovisioning";
+        private const string BootstrapPathEnvironmentVariable = "GRPC_XDS_BOOTSTRAP";
+        private const string ClientFeatureDisableOverprovisioning = "envoy.lb.does_not_support_overprovisioning";
 
         public static XdsBootstrapper Instance = new XdsBootstrapper();
         
@@ -28,11 +28,11 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 
         public XdsBootstrapInfo ReadBootstrap()
         {
-            _logger.LogDebug($"XdsBootstrapper start ReadBootstrap");
-            var filePath = Environment.GetEnvironmentVariable(BOOTSTRAP_PATH_SYS_ENV_VAR);
+            _logger.LogDebug($"XdsBootstrapper Start ReadBootstrap");
+            var filePath = Environment.GetEnvironmentVariable(BootstrapPathEnvironmentVariable);
             if (filePath == null)
             {
-                throw new InvalidOperationException($"XdsBootstrapper Environment variable {BOOTSTRAP_PATH_SYS_ENV_VAR} not defined.");
+                throw new InvalidOperationException($"XdsBootstrapper Environment variable {BootstrapPathEnvironmentVariable} not defined.");
             }
             _logger.LogDebug($"XdsBootstrapper will load bootstrap file using path: {filePath}");
             return ReadBootstrap(Encoding.UTF8.GetString(File.ReadAllBytes(filePath)));
@@ -49,10 +49,10 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 
 #pragma warning disable CS8604 // Possible null reference argument.
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
-        private XdsBootstrapInfo ParseConfig(string rawData)
+        private XdsBootstrapInfo ParseConfig(string bootstrapFile)
         {
             _logger.LogDebug("XdsBootstrapper Reading bootstrap information");
-            var bootstrapFileModel = JsonSerializer.Deserialize<BootstrapFileModel>(rawData);
+            var bootstrapFileModel = JsonSerializer.Deserialize<BootstrapFileModel>(bootstrapFile);
             if (bootstrapFileModel.XdsServers == null)
             {
                 throw new InvalidOperationException("XdsBootstrapper Invalid bootstrap: 'xds_servers' does not exist.");
@@ -66,7 +66,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                     throw new InvalidOperationException("XdsBootstrapper Invalid bootstrap: 'xds_servers' contains unknown server.");
                 }
                 _logger.LogDebug($"XdsBootstrapper xDS server URI: {serverConfig.ServerUri}");
-                var channelCredsOptions = new List<XdsBootstrapInfo.ChannelCreds>();
+                var channelCredentials = new List<XdsBootstrapInfo.ChannelCreds>();
                 if(serverConfig.ChannelCreds != null)
                 {
                     foreach (BootstrapFileModel.ChannelCredsModel channelCreds in serverConfig.ChannelCreds)
@@ -76,45 +76,46 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                             throw new InvalidOperationException("XdsBootstrapper Invalid bootstrap: 'xds_servers' contains server with unknown type 'channel_creds'.");
                         }
                         _logger.LogDebug($"Channel credentials option: {channelCreds.Type}");
-                        var creds = new XdsBootstrapInfo.ChannelCreds(type: channelCreds.Type, channelCreds.Config);
-                        channelCredsOptions.Add(creds);
+                        var credential = new XdsBootstrapInfo.ChannelCreds(type: channelCreds.Type, channelCreds.Config);
+                        channelCredentials.Add(credential);
                     }
                 }
-                servers.Add(new XdsBootstrapInfo.ServerInfo(serverConfig.ServerUri, channelCredsOptions));
+                servers.Add(new XdsBootstrapInfo.ServerInfo(serverConfig.ServerUri, channelCredentials));
             }
-            var nodeBuilder = new Node();
+            var node = new Node();
             if(bootstrapFileModel?.Node != null)
             {
-                var node = bootstrapFileModel.Node;
-                nodeBuilder.Id = node.Id ?? string.Empty;
-                nodeBuilder.Cluster = node.Cluster ?? string.Empty;
-                if(node.Metadata != null)
+                var nodeModel = bootstrapFileModel.Node;
+                node.Id = nodeModel.Id ?? string.Empty;
+                node.Cluster = nodeModel.Cluster ?? string.Empty;
+                if(nodeModel.Metadata != null)
                 {
-                    nodeBuilder.Metadata = new Struct();
-                    foreach (var key in node.Metadata.Fields.Keys)
+                    node.Metadata = new Struct();
+                    foreach (var key in nodeModel.Metadata.Fields.Keys)
                     {
-                        nodeBuilder.Metadata.Fields.Add(key, ConvertToValue(node.Metadata.Fields[key]));
+                        node.Metadata.Fields.Add(key, ConvertToValue(nodeModel.Metadata.Fields[key]));
                     }
                 }
-                if(node.Locality != null)
+                if(nodeModel.Locality != null)
                 {
-                    nodeBuilder.Locality = new Locality()
+                    node.Locality = new Locality()
                     {
-                        Region = node.Locality.Region ?? string.Empty,
-                        Zone = node.Locality.Zone ?? string.Empty,
-                        SubZone = node.Locality.SubZone ?? string.Empty,
+                        Region = nodeModel.Locality.Region ?? string.Empty,
+                        Zone = nodeModel.Locality.Zone ?? string.Empty,
+                        SubZone = nodeModel.Locality.SubZone ?? string.Empty,
                     };
                 }
             }
 
             var buildVersion = GrpcBuildVersion.Instance;
 #pragma warning disable CS0612 // Type or member is obsolete this behaviour was ported from java implementation
-            nodeBuilder.BuildVersion = buildVersion.ToString();
+            node.BuildVersion = buildVersion.ToString();
 #pragma warning restore CS0612 // Type or member is obsolete
-            nodeBuilder.UserAgentName = buildVersion.UserAgent;
-            nodeBuilder.UserAgentVersion = buildVersion.ImplementationVersion;
-            nodeBuilder.ClientFeatures.Add(CLIENT_FEATURE_DISABLE_OVERPROVISIONING);
-            return new XdsBootstrapInfo(servers, nodeBuilder);
+            node.UserAgentName = buildVersion.UserAgent;
+            node.UserAgentVersion = buildVersion.ImplementationVersion;
+            node.ClientFeatures.Add(ClientFeatureDisableOverprovisioning);
+            _logger.LogDebug("XdsBootstrapper created XdsBootstrapInfo");
+            return new XdsBootstrapInfo(servers, node);
         }
 
         private static Value ConvertToValue(object value)
