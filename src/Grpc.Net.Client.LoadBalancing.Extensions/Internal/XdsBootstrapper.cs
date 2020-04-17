@@ -35,7 +35,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 throw new InvalidOperationException($"XdsBootstrapper Environment variable {BootstrapPathEnvironmentVariable} not defined.");
             }
             _logger.LogDebug($"XdsBootstrapper will load bootstrap file using path: {filePath}");
-            return ReadBootstrap(Encoding.UTF8.GetString(File.ReadAllBytes(filePath)));
+            return ReadBootstrap(File.ReadAllText(filePath, Encoding.UTF8));
         }
 
         public XdsBootstrapInfo ReadBootstrap(string inlineBootstrapFile)
