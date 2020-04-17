@@ -1,0 +1,31 @@
+﻿{
+  "xds_servers": [
+    {
+      "server_uri": "server_uri_test_value",
+      "channel_creds": [
+        {
+          "type": "channel_creds_type_value",
+          "config": {
+            "cnfKey": "channel_creds_config_value1",
+            "cnfKey2": 2
+          }
+        }
+      ]
+    }
+  ],
+  "node": {
+    "id": "node_id_value_adasd123123123",
+    "cluster": "node_cluster_value_djsdj319",
+    "metadata": {
+      "fields": {
+        "testkey": "testvalue",
+        "testkey2": 102
+      }
+    },
+    "locality": {
+      "region": "region_value_123838",
+      "zone": "zone_value_382u140",
+      "sub_zone": "subzone_value_284719"
+    }
+  }
+}

@@ -17,4 +17,13 @@
     <ProjectReference Include="..\..\src\Grpc.Net.Client\Grpc.Net.Client.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="XdsRelated\Factories\XdsBootstrapFile2.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="XdsRelated\Factories\XdsBootstrapFile1.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
