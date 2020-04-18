@@ -92,6 +92,10 @@ namespace Grpc.Net.Client
                 ValidateChannelCredentials();
             }
 
+            if (string.IsNullOrWhiteSpace(Address.Host))
+            {
+                throw new ArgumentException($"Can not find host in {nameof(address)}, verify host and scheme were specified");
+            }
             ResolverPlugin = channelOptions.ResolverPlugin;
             ResolverPlugin.LoggerFactory = LoggerFactory;
             var resolutionResult = ResolverPlugin.StartNameResolutionAsync(Address).GetAwaiter().GetResult();
