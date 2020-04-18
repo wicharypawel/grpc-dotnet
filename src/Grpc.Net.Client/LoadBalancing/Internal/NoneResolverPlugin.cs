@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Grpc.Net.Client.LoadBalancing.Internal
@@ -11,6 +12,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
     /// </summary>
     internal sealed class NoneResolverPlugin : IGrpcResolverPlugin
     {
+        private readonly string[] WellKnownSchemes = new string[] { "dns", "xds" }; 
         private ILogger _logger = NullLogger.Instance;
         public ILoggerFactory LoggerFactory
         {
@@ -23,9 +25,9 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             {
                 throw new ArgumentNullException(nameof(target));
             }
-            if (target.Scheme.Equals("dns", StringComparison.OrdinalIgnoreCase))
+            if (WellKnownSchemes.Contains(target.Scheme.ToLowerInvariant()))
             {
-                throw new ArgumentException("dns:// scheme require non-default name resolver in channelOptions.ResolverPlugin");
+                throw new ArgumentException($"{target.Scheme}:// scheme require non-default name resolver in channelOptions.ResolverPlugin");
             }
             _logger.LogDebug($"Name resolver using defined target as name resolution");
             return Task.FromResult(new List<GrpcNameResolutionResult>()

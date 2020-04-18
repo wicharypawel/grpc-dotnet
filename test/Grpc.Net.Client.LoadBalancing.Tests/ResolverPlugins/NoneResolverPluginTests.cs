@@ -35,6 +35,10 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             {
                 await resolverPlugin.StartNameResolutionAsync(new Uri("dns://sample.host.com"));
             });
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
+            {
+                await resolverPlugin.StartNameResolutionAsync(new Uri("xds://sample.host.com"));
+            });
         }
     }
 }
