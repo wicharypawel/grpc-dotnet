@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Grpc.Net.Client.LoadBalancing.Extensions.Internal;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
@@ -20,14 +21,20 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions
     {
         private XdsResolverPluginOptions _options;
         private ILogger _logger = NullLogger.Instance;
+        private ILoggerFactory _loggerFactory = NullLoggerFactory.Instance;
         private GrpcServiceConfig? _serviceConfig;
+        private IXdsClient? _xdsClient;
 
         /// <summary>
         /// LoggerFactory is configured (injected) when class is being instantiated.
         /// </summary>
         public ILoggerFactory LoggerFactory
         {
-            set => _logger = value.CreateLogger<XdsResolverPlugin>();
+            set
+            {
+                _loggerFactory = value;
+                _logger = value.CreateLogger<XdsResolverPlugin>();
+            }
         }
 
         /// <summary>
@@ -56,6 +63,10 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions
         /// <returns>List of resolved servers.</returns>
         public Task<List<GrpcNameResolutionResult>> StartNameResolutionAsync(Uri target)
         {
+            if (_xdsClient == null)
+            {
+                _xdsClient = XdsClientFactory.CreateXdsClient(_loggerFactory);
+            }
             if (target == null)
             {
                 throw new ArgumentNullException(nameof(target));
