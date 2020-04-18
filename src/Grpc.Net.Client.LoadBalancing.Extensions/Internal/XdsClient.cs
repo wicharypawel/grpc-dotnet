@@ -2,6 +2,7 @@
 using Envoy.Service.Discovery.V2;
 using Grpc.Core;
 using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -19,7 +20,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         private string version = string.Empty;
         private string nonce = string.Empty;
 
-        private readonly Channel _adsChannel;
+        private readonly GrpcChannel _adsChannel;
         private readonly AggregatedDiscoveryService.AggregatedDiscoveryServiceClient _adsClient;
         private readonly AsyncDuplexStreamingCall<DiscoveryRequest, DiscoveryResponse> _adsStream;
         private readonly XdsBootstrapInfo _bootstrapInfo;
@@ -31,9 +32,11 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             _bootstrapInfo = bootstrapper.ReadBootstrap();
             if(_bootstrapInfo.Servers.Count == 0)
             {
-                throw new System.InvalidOperationException("XdsClient No management server provided by bootstrap");
+                throw new InvalidOperationException("XdsClient No management server provided by bootstrap");
             }
-            _adsChannel = new Channel(_bootstrapInfo.Servers[0].ServerUri, ChannelCredentials.Insecure);
+            AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
+            var channelOptions = new GrpcChannelOptions() { LoggerFactory = loggerFactory, Credentials = ChannelCredentials.Insecure };
+            _adsChannel = GrpcChannel.ForAddress(_bootstrapInfo.Servers[0].ServerUri, channelOptions);
             _logger.LogDebug("XdsClient start ADS connection");
             _adsClient = new AggregatedDiscoveryService.AggregatedDiscoveryServiceClient(_adsChannel);
             _adsStream = _adsClient.StreamAggregatedResources();
