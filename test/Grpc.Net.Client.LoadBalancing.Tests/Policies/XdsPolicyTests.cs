@@ -108,10 +108,16 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         private static List<Cluster> GetSampleClusters(string serviceName)
         {
             var cluster = new Cluster();
+            cluster.Name = $"outbound|8000||{serviceName}";
             cluster.Type = Cluster.Types.DiscoveryType.Eds;
+            cluster.LbPolicy = Cluster.Types.LbPolicy.RoundRobin;
             cluster.EdsClusterConfig = new Cluster.Types.EdsClusterConfig()
             {
-                ServiceName = $"outbound|8000||{serviceName}"
+                ServiceName = $"outbound|8000||{serviceName}",
+                EdsConfig = new ConfigSource()
+                {
+                    Ads = new AggregatedConfigSource()
+                }
             };
             return new List<Cluster>() { cluster };
         }

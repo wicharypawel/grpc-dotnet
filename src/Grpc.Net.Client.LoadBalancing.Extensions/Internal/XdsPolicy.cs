@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.Linq;
 using Envoy.Api.V2;
+using Envoy.Api.V2.Core;
 
 namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 {
@@ -75,11 +76,28 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             _logger.LogDebug($"Start xds policy");
             _logger.LogDebug($"Start connection to control plane");
             var clusters = await _xdsClient.GetCdsAsync().ConfigureAwait(false);
-            var clustersForServiceName = clusters
+            var cluster = clusters
                 .Where(x => x.Type == Cluster.Types.DiscoveryType.Eds)
-                .Where(x => x?.EdsClusterConfig?.ServiceName.Contains(serviceName, StringComparison.OrdinalIgnoreCase) ?? false);
-            var clusterLoadAssignments = await _xdsClient.GetEdsAsync(clustersForServiceName.First().Name).ConfigureAwait(false);
-            var serverAddressList = clusterLoadAssignments[0].Endpoints[0].LbEndpoints.Select(x => x.Endpoint.Address.SocketAddress);
+                .Where(x => x?.EdsClusterConfig?.EdsConfig != null)
+                .Where(x => x.LbPolicy == Cluster.Types.LbPolicy.RoundRobin)
+                .Where(x => x?.Name.Contains(serviceName, StringComparison.OrdinalIgnoreCase) ?? false).First();
+            if (cluster.LrsServer != null && cluster.LrsServer.Self != null)
+            {
+                _logger.LogDebug("XdsPolicy LRS load reporting unsupported");
+            }
+            else
+            {
+                _logger.LogDebug("XdsPolicy LRS load reporting disabled");
+            }
+            var edsClusterName = cluster.EdsClusterConfig?.ServiceName ?? cluster.Name;
+            var clusterLoadAssignments = await _xdsClient.GetEdsAsync(edsClusterName).ConfigureAwait(false);
+            var clusterLoadAssignment = clusterLoadAssignments
+                .Where(x => x.Endpoints.Count != 0)
+                .Where(x => x.Endpoints[0].LbEndpoints.Count != 0)
+                .First();
+            var serverAddressList = clusterLoadAssignment.Endpoints[0].LbEndpoints
+                .Where(x => x.HealthStatus == HealthStatus.Healthy || x.HealthStatus == HealthStatus.Unknown)
+                .Select(x => x.Endpoint.Address.SocketAddress);
             await UseServerListSubChannelsAsync(serverAddressList).ConfigureAwait(false);
             _logger.LogDebug($"SubChannels list created");
         }
