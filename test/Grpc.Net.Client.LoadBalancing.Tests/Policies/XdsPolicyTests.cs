@@ -17,6 +17,9 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         public async Task ForEmptyServiceName_UseXdsPolicy_ThrowArgumentException()
         {
             // Arrange
+            var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
+            xdsClientMock.Setup(x => x.Dispose());
+            XdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
             using var policy = new XdsPolicy();
             var resolutionResults = GrpcNameResolutionResultFactory.GetNameResolution(0, 0);
 
@@ -37,6 +40,9 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         [Fact]
         public async Task ForBalancersResolutionPassed_UseXdsPolicy_ThrowArgumentException()
         {
+            var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
+            xdsClientMock.Setup(x => x.Dispose());
+            XdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
             // Arrange
             using var policy = new XdsPolicy();
             var resolutionResults = GrpcNameResolutionResultFactory.GetNameResolution(2, 0);
@@ -54,6 +60,9 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         public async Task ForServersResolutionPassed_UseXdsPolicy_ThrowArgumentException()
         {
             // Arrange
+            var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
+            xdsClientMock.Setup(x => x.Dispose());
+            XdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
             using var policy = new XdsPolicy();
             var resolutionResults = GrpcNameResolutionResultFactory.GetNameResolution(0, 2);
 
