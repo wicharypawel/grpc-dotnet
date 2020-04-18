@@ -34,7 +34,11 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             {
                 throw new InvalidOperationException("XdsClient No management server provided by bootstrap");
             }
-            AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
+            if (_bootstrapInfo.Servers[0].ChannelCredsList.Count != 0)
+            {
+                throw new NotImplementedException("XdsClient Channel credentials are not supported");
+            }
+            AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);                          
             var channelOptions = new GrpcChannelOptions() { LoggerFactory = loggerFactory, Credentials = ChannelCredentials.Insecure };
             _adsChannel = GrpcChannel.ForAddress(_bootstrapInfo.Servers[0].ServerUri, channelOptions);
             _logger.LogDebug("XdsClient start ADS connection");
