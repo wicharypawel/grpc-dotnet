@@ -36,6 +36,12 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             }
             if (_bootstrapInfo.Servers[0].ChannelCredsList.Count != 0)
             {
+                // materials google_default:
+                // start by creating service_account json file in GCP
+                // visit links below, start with methods  
+                // CreateDefaultCredentialAsync, CreateDefaultCredentialFromFile, CreateDefaultCredentialFromParameters, CreateServiceAccountCredentialFromParameters
+                // https://github.com/googleapis/google-api-dotnet-client/blob/master/Src/Support/Google.Apis.Auth/OAuth2/GoogleCredential.cs
+                // https://github.com/googleapis/google-api-dotnet-client/blob/master/Src/Support/Google.Apis.Auth/OAuth2/DefaultCredentialProvider.cs
                 throw new NotImplementedException("XdsClient Channel credentials are not supported");
             }
             AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);                          
