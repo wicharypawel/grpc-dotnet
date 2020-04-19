@@ -103,8 +103,8 @@ namespace Grpc.Net.Client
             var requestedPolicies = serviceConfig.RequestedLoadBalancingPolicies;
             LoadBalancingPolicy = CreateRequestedPolicy(requestedPolicies);
             LoadBalancingPolicy.LoggerFactory = LoggerFactory;
-            var isSecureConnection = Address.Scheme == Uri.UriSchemeHttps || (Address.Scheme.Equals("dns", StringComparison.OrdinalIgnoreCase) && Address.Port == 443);
-            LoadBalancingPolicy.CreateSubChannelsAsync(new List<GrpcHostAddress>(resolutionResult.HostsAddresses), Address.Host,  Address.Scheme == Uri.UriSchemeHttps).Wait();
+            var isSecureConnection = Address.Scheme == Uri.UriSchemeHttps || Address.Port == 443;
+            LoadBalancingPolicy.CreateSubChannelsAsync(new List<GrpcHostAddress>(resolutionResult.HostsAddresses), Address.Host, isSecureConnection).Wait();
         }
 
         private static IGrpcLoadBalancingPolicy CreateRequestedPolicy(IReadOnlyList<string> requestedPolicies)
