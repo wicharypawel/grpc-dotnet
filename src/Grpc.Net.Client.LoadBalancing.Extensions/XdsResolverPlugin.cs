@@ -80,7 +80,8 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions
             _logger.LogDebug($"NameResolution xds returns empty resolution result list");
             _logger.LogDebug($"Service config created with policies: {string.Join(',', _serviceConfig.RequestedLoadBalancingPolicies)}");
             var config = GrpcServiceConfigOrError.FromConfig(_serviceConfig);
-            return Task.FromResult(new GrpcNameResolutionResult(new List<GrpcHostAddress>(), config, GrpcAttributes.Empty));
+            var attributes = new GrpcAttributes(new Dictionary<string, object>() { { XdsAttributesConstants.XdsClientInstanceKey, _xdsClient } });
+            return Task.FromResult(new GrpcNameResolutionResult(new List<GrpcHostAddress>(), config, attributes));
         }
     }
 }

@@ -64,10 +64,8 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 // the addresses are not returned until the ClusterLoadAssignment resource is obtained later.
                 throw new ArgumentException($"{nameof(resolutionResult)} is expected to be empty");
             }
-            if (_xdsClient == null)
-            {
-                _xdsClient = XdsClientFactory.CreateXdsClient(_loggerFactory);
-            }
+            _xdsClient = resolutionResult.Attributes.Get(XdsAttributesConstants.XdsClientInstanceKey) as IXdsClient
+                ?? throw new InvalidOperationException("XdsPolicy can not find XdsClient");
             _isSecureConnection = isSecureConnection;
             _logger.LogDebug($"Start xds policy");
             _logger.LogDebug($"Start connection to control plane");
