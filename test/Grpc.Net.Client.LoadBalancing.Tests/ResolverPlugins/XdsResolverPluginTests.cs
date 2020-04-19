@@ -1,4 +1,5 @@
 ﻿using Grpc.Net.Client.LoadBalancing.Extensions;
+using Grpc.Net.Client.LoadBalancing.Tests.Policies.Factories;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -37,6 +38,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
         public async Task ForTarget_UseXdsResolverPlugin_ReturnNoFinidingsAndServiceConfigWithXdsPolicy()
         {
             // Arrange
+            XdsBootstrapFileFactory.SetBootstrapFileEnv("XdsBootstrapFile.json");
             var serviceHostName = "my-service";
 
             var resolverPlugin = new XdsResolverPlugin();

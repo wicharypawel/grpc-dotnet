@@ -63,10 +63,6 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions
         /// <returns>List of resolved servers.</returns>
         public Task<List<GrpcNameResolutionResult>> StartNameResolutionAsync(Uri target)
         {
-            if (_xdsClient == null)
-            {
-                _xdsClient = XdsClientFactory.CreateXdsClient(_loggerFactory);
-            }
             if (target == null)
             {
                 throw new ArgumentNullException(nameof(target));
@@ -74,6 +70,10 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions
             if (!target.Scheme.Equals("xds", StringComparison.OrdinalIgnoreCase))
             {
                 throw new ArgumentException($"{nameof(XdsResolverPlugin)} require xds:// scheme to set as target address");
+            }
+            if (_xdsClient == null)
+            {
+                _xdsClient = XdsClientFactory.CreateXdsClient(_loggerFactory);
             }
             var host = target.Host;
             _serviceConfig = GrpcServiceConfig.Create("xds", "pick_first");

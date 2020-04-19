@@ -18,6 +18,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="XdsRelated\Factories\XdsBootstrapFile.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="XdsRelated\Factories\XdsBootstrapFile2.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

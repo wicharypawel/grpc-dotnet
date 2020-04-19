@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -54,10 +54,6 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         /// <returns>List of subchannels.</returns>
         public async Task CreateSubChannelsAsync(List<GrpcNameResolutionResult> resolutionResult, string serviceName, bool isSecureConnection)
         {
-            if (_xdsClient == null)
-            {
-                _xdsClient = XdsClientFactory.CreateXdsClient(_loggerFactory);
-            }
             if (resolutionResult == null)
             {
                 throw new ArgumentNullException(nameof(resolutionResult));
@@ -71,6 +67,10 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 // Note that the xds resolver will return an empty list of addresses, because in the xDS API flow, 
                 // the addresses are not returned until the ClusterLoadAssignment resource is obtained later.
                 throw new ArgumentException($"{nameof(resolutionResult)} is expected to be empty");
+            }
+            if (_xdsClient == null)
+            {
+                _xdsClient = XdsClientFactory.CreateXdsClient(_loggerFactory);
             }
             _isSecureConnection = isSecureConnection;
             _logger.LogDebug($"Start xds policy");
