@@ -22,7 +22,7 @@ namespace Grpc.Net.Client.LoadBalancing
         /// </summary>
         /// <param name="target">Server address with scheme.</param>
         /// <returns>List of resolved servers and/or lookaside load balancers.</returns>
-        Task<List<GrpcNameResolutionResult>> StartNameResolutionAsync(Uri target);
+        Task<List<GrpcHostAddress>> StartNameResolutionAsync(Uri target);
 
         /// <summary>
         /// Returns load balancing configuration discovered during name resolution.

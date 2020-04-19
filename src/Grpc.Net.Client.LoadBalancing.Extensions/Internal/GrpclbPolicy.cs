@@ -30,7 +30,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         private ILoadBalancerClient? _loadBalancerClient;
         private IAsyncDuplexStreamingCall<LoadBalanceRequest, LoadBalanceResponse>? _balancingStreaming;
         private ITimer? _timer;
-        private IReadOnlyList<GrpcNameResolutionResult> _fallbackAddresses = Array.Empty<GrpcNameResolutionResult>();
+        private IReadOnlyList<GrpcHostAddress> _fallbackAddresses = Array.Empty<GrpcHostAddress>();
         private bool _isFallback = false;
 
         /// <summary>
@@ -67,7 +67,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         /// <param name="serviceName">The name of the load balanced service (e.g., service.googleapis.com).</param>
         /// <param name="isSecureConnection">Flag if connection between client and destination server should be secured.</param>
         /// <returns>List of subchannels.</returns>
-        public async Task CreateSubChannelsAsync(List<GrpcNameResolutionResult> resolutionResult, string serviceName, bool isSecureConnection)
+        public async Task CreateSubChannelsAsync(List<GrpcHostAddress> resolutionResult, string serviceName, bool isSecureConnection)
         {
             if (resolutionResult == null)
             {

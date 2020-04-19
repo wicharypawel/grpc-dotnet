@@ -21,7 +21,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         {
             // Arrange
             using var policy = new GrpclbPolicy();
-            var resolutionResults = GrpcNameResolutionResultFactory.GetNameResolution(2, 0);
+            var resolutionResults = GrpcHostAddressFactory.GetNameResolution(2, 0);
 
             // Act
             // Assert
@@ -47,7 +47,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             // Assert
             var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
             {
-                await policy.CreateSubChannelsAsync(new List<GrpcNameResolutionResult>(), "sample-service.contoso.com", false);
+                await policy.CreateSubChannelsAsync(new List<GrpcHostAddress>(), "sample-service.contoso.com", false);
             });
             Assert.Equal("resolutionResult must contain at least one blancer address", exception.Message);
         }
@@ -57,7 +57,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         {
             // Arrange
             using var policy = new GrpclbPolicy();
-            var resolutionResults = GrpcNameResolutionResultFactory.GetNameResolution(0, 2);
+            var resolutionResults = GrpcHostAddressFactory.GetNameResolution(0, 2);
 
             // Act
             // Assert
@@ -103,7 +103,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             policy.OverrideLoadBalancerClient = balancerClientMock.Object;
             policy.OverrideTimer = timerFake;
 
-            var resolutionResults = GrpcNameResolutionResultFactory.GetNameResolution(1, 0);
+            var resolutionResults = GrpcHostAddressFactory.GetNameResolution(1, 0);
 
             // Act
             await policy.CreateSubChannelsAsync(resolutionResults, "sample-service.contoso.com", false);
@@ -147,7 +147,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             policy.OverrideLoadBalancerClient = balancerClientMock.Object;
             policy.OverrideTimer = timerFake;
 
-            var resolutionResults = GrpcNameResolutionResultFactory.GetNameResolution(1, 0);
+            var resolutionResults = GrpcHostAddressFactory.GetNameResolution(1, 0);
 
             // Act
             await policy.CreateSubChannelsAsync(resolutionResults, "sample-service.contoso.com", false);
@@ -194,7 +194,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             policy.OverrideLoadBalancerClient = balancerClientMock.Object;
             policy.OverrideTimer = timerFake;
 
-            var resolutionResults = GrpcNameResolutionResultFactory.GetNameResolution(1, 2);
+            var resolutionResults = GrpcHostAddressFactory.GetNameResolution(1, 2);
 
             // Act
             await policy.CreateSubChannelsAsync(resolutionResults, "sample-service.contoso.com", false);
@@ -257,7 +257,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             policy.OverrideLoadBalancerClient = balancerClientMock.Object;
             policy.OverrideTimer = timerFake;
 
-            var resolutionResults = GrpcNameResolutionResultFactory.GetNameResolution(1, 2);
+            var resolutionResults = GrpcHostAddressFactory.GetNameResolution(1, 2);
 
             // Act
             await policy.CreateSubChannelsAsync(resolutionResults, "sample-service.contoso.com", false);

@@ -22,7 +22,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             xdsClientMock.Setup(x => x.Dispose());
             XdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
             using var policy = new XdsPolicy();
-            var resolutionResults = GrpcNameResolutionResultFactory.GetNameResolution(0, 0);
+            var resolutionResults = GrpcHostAddressFactory.GetNameResolution(0, 0);
 
             // Act
             // Assert
@@ -46,7 +46,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             XdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
             // Arrange
             using var policy = new XdsPolicy();
-            var resolutionResults = GrpcNameResolutionResultFactory.GetNameResolution(2, 0);
+            var resolutionResults = GrpcHostAddressFactory.GetNameResolution(2, 0);
 
             // Act
             // Assert
@@ -65,7 +65,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             xdsClientMock.Setup(x => x.Dispose());
             XdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
             using var policy = new XdsPolicy();
-            var resolutionResults = GrpcNameResolutionResultFactory.GetNameResolution(0, 2);
+            var resolutionResults = GrpcHostAddressFactory.GetNameResolution(0, 2);
 
             // Act
             // Assert
@@ -89,7 +89,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             XdsClientFactory.OverrideXdsClient = xdsClientMock.Object; 
 
             using var policy = new XdsPolicy();
-            var resolutionResults = GrpcNameResolutionResultFactory.GetNameResolution(0, 0);
+            var resolutionResults = GrpcHostAddressFactory.GetNameResolution(0, 0);
 
             // Act
             await policy.CreateSubChannelsAsync(resolutionResults, serviceName, false);

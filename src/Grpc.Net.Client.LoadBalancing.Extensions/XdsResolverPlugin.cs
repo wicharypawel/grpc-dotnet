@@ -61,7 +61,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions
         /// </summary>
         /// <param name="target">Server address with scheme.</param>
         /// <returns>List of resolved servers.</returns>
-        public Task<List<GrpcNameResolutionResult>> StartNameResolutionAsync(Uri target)
+        public Task<List<GrpcHostAddress>> StartNameResolutionAsync(Uri target)
         {
             if (target == null)
             {
@@ -78,7 +78,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions
             var host = target.Host;
             _serviceConfig = GrpcServiceConfig.Create("xds", "pick_first");
             _logger.LogDebug($"NameResolution xds returns empty resolution result list");
-            return Task.FromResult(new List<GrpcNameResolutionResult>());
+            return Task.FromResult(new List<GrpcHostAddress>());
         }
 
         /// <summary>

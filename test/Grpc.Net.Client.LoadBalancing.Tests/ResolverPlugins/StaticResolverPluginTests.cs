@@ -12,12 +12,12 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
         public async Task ForStaticResolutionFunction_UseStaticResolverPlugin_ReturnPredefinedValues()
         {
             // Arrange
-            Func<Uri, List<GrpcNameResolutionResult>> resolveFunction = (uri) =>
+            Func<Uri, List<GrpcHostAddress>> resolveFunction = (uri) =>
             {
-                return new List<GrpcNameResolutionResult>()
+                return new List<GrpcHostAddress>()
                 {
-                    new GrpcNameResolutionResult("10.1.5.212", 8080),
-                    new GrpcNameResolutionResult("10.1.5.213", 8080)
+                    new GrpcHostAddress("10.1.5.212", 8080),
+                    new GrpcHostAddress("10.1.5.213", 8080)
                 };
             };
             var resolverPlugin = new StaticResolverPlugin(resolveFunction, () => GrpcServiceConfig.Create("pick_first"));

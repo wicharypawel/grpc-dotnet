@@ -13,7 +13,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions
     /// </summary>
     public sealed class StaticResolverPlugin : IGrpcResolverPlugin
     {
-        private readonly Func<Uri, List<GrpcNameResolutionResult>> _staticNameResolution;
+        private readonly Func<Uri, List<GrpcHostAddress>> _staticNameResolution;
         private readonly Func<GrpcServiceConfig> _staticServiceConfig;
         private ILogger _logger = NullLogger.Instance;
 
@@ -30,7 +30,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions
         /// </summary>
         /// <param name="staticNameResolution">Define name resolution using lambda</param>
         /// <param name="staticServiceConfig">Define service config using lambda</param>
-        public StaticResolverPlugin(Func<Uri, List<GrpcNameResolutionResult>> staticNameResolution,
+        public StaticResolverPlugin(Func<Uri, List<GrpcHostAddress>> staticNameResolution,
             Func<GrpcServiceConfig> staticServiceConfig)
         {
             if(staticNameResolution == null)
@@ -50,7 +50,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions
         /// </summary>
         /// <param name="target">Server address with scheme.</param>
         /// <returns>List of resolved servers and/or lookaside load balancers.</returns>
-        public Task<List<GrpcNameResolutionResult>> StartNameResolutionAsync(Uri target)
+        public Task<List<GrpcHostAddress>> StartNameResolutionAsync(Uri target)
         {
             _logger.LogDebug($"Using static name resolution");
             return Task.FromResult(_staticNameResolution(target));

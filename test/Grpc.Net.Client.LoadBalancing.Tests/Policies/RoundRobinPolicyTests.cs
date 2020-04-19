@@ -14,7 +14,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         {
             // Arrange
             using var policy = new RoundRobinPolicy();
-            var resolutionResults = GrpcNameResolutionResultFactory.GetNameResolution(0, 2);
+            var resolutionResults = GrpcHostAddressFactory.GetNameResolution(0, 2);
 
             // Act
             // Assert
@@ -40,7 +40,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             // Assert
             var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
             {
-                await policy.CreateSubChannelsAsync(new List<GrpcNameResolutionResult>(), "sample-service.contoso.com", false);
+                await policy.CreateSubChannelsAsync(new List<GrpcHostAddress>(), "sample-service.contoso.com", false);
             });
             Assert.Equal("resolutionResult must contain at least one non-blancer address", exception.Message);
         }
@@ -50,7 +50,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         {
             // Arrange
             using var policy = new RoundRobinPolicy();
-            var resolutionResults = GrpcNameResolutionResultFactory.GetNameResolution(2, 0);
+            var resolutionResults = GrpcHostAddressFactory.GetNameResolution(2, 0);
 
             // Act
             // Assert
@@ -66,7 +66,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         {
             // Arrange
             using var policy = new RoundRobinPolicy();
-            var resolutionResults = GrpcNameResolutionResultFactory.GetNameResolution(0, 4);
+            var resolutionResults = GrpcHostAddressFactory.GetNameResolution(0, 4);
 
             // Act
             await policy.CreateSubChannelsAsync(resolutionResults, "sample-service.contoso.com", false);
@@ -84,25 +84,25 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         {
             // Arrange
             using var policy = new RoundRobinPolicy();
-            var resolutionResults = new List<GrpcNameResolutionResult>()
+            var resolutionResults = new List<GrpcHostAddress>()
             {
-                new GrpcNameResolutionResult("10.1.5.211", 8443)
+                new GrpcHostAddress("10.1.5.211", 8443)
                 {
                     IsLoadBalancer = false,
                 },
-                new GrpcNameResolutionResult("10.1.5.212", 8443)
+                new GrpcHostAddress("10.1.5.212", 8443)
                 {
                     IsLoadBalancer = false
                 },
-                new GrpcNameResolutionResult("10.1.6.120", 80)
+                new GrpcHostAddress("10.1.6.120", 80)
                 {
                     IsLoadBalancer = true
                 },
-                new GrpcNameResolutionResult("10.1.6.121", 80)
+                new GrpcHostAddress("10.1.6.121", 80)
                 {
                     IsLoadBalancer = true
                 },
-                new GrpcNameResolutionResult("10.1.5.214", 8443)
+                new GrpcHostAddress("10.1.5.214", 8443)
                 {
                     IsLoadBalancer = false
                 }

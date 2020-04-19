@@ -56,7 +56,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions
         /// </summary>
         /// <param name="target">Server address with scheme.</param>
         /// <returns>List of resolved servers and/or lookaside load balancers.</returns>
-        public async Task<List<GrpcNameResolutionResult>> StartNameResolutionAsync(Uri target)
+        public async Task<List<GrpcHostAddress>> StartNameResolutionAsync(Uri target)
         {
             if (target == null)
             {
@@ -92,7 +92,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions
                     _logger.LogDebug($"Parsing JSON grpc_config into service config failed, loading service config is skipped");
                 }
             }
-            var balancingDnsQueryResults = Array.Empty<GrpcNameResolutionResult>();
+            var balancingDnsQueryResults = Array.Empty<GrpcHostAddress>();
             if (_options.EnableSrvGrpclb)
             {
                 var balancingDnsQuery = $"_grpclb._tcp.{host}";
@@ -158,10 +158,10 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions
             }
         }
         
-        private GrpcNameResolutionResult ParseSrvRecord(SrvRecord srvRecord, bool isLoadBalancer)
+        private GrpcHostAddress ParseSrvRecord(SrvRecord srvRecord, bool isLoadBalancer)
         {
             _logger.LogDebug($"Found a SRV record {srvRecord.ToString()}");
-            return new GrpcNameResolutionResult(srvRecord.Target)
+            return new GrpcHostAddress(srvRecord.Target)
             {
                 Port = srvRecord.Port,
                 IsLoadBalancer = isLoadBalancer,
@@ -170,10 +170,10 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions
             };
         }
 
-        private GrpcNameResolutionResult ParseARecord(ARecord aRecord, int port, bool isLoadBalancer)
+        private GrpcHostAddress ParseARecord(ARecord aRecord, int port, bool isLoadBalancer)
         {
             _logger.LogDebug($"Found a A record {aRecord.ToString()}");
-            return new GrpcNameResolutionResult(aRecord.Address.ToString())
+            return new GrpcHostAddress(aRecord.Address.ToString())
             {
                 Port = port,
                 IsLoadBalancer = isLoadBalancer,
