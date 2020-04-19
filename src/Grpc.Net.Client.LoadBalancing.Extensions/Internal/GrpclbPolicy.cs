@@ -67,7 +67,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         /// <param name="serviceName">The name of the load balanced service (e.g., service.googleapis.com).</param>
         /// <param name="isSecureConnection">Flag if connection between client and destination server should be secured.</param>
         /// <returns>List of subchannels.</returns>
-        public async Task CreateSubChannelsAsync(List<GrpcHostAddress> resolutionResult, string serviceName, bool isSecureConnection)
+        public async Task CreateSubChannelsAsync(GrpcNameResolutionResult resolutionResult, string serviceName, bool isSecureConnection)
         {
             if (resolutionResult == null)
             {
@@ -77,9 +77,10 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             {
                 throw new ArgumentException($"{nameof(serviceName)} not defined");
             }
-            _fallbackAddresses = resolutionResult.Where(x => !x.IsLoadBalancer).ToList();
-            resolutionResult = resolutionResult.Where(x => x.IsLoadBalancer).ToList();
-            if (resolutionResult.Count == 0)
+            var hostsAddresses = resolutionResult.HostsAddresses;
+            _fallbackAddresses = hostsAddresses.Where(x => !x.IsLoadBalancer).ToList();
+            hostsAddresses = hostsAddresses.Where(x => x.IsLoadBalancer).ToList();
+            if (hostsAddresses.Count == 0)
             {
                 throw new ArgumentException($"{nameof(resolutionResult)} must contain at least one blancer address");
             }
@@ -88,7 +89,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             _logger.LogDebug($"Start connection to external load balancer");
             AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
             var channelOptionsForLB = new GrpcChannelOptions() { LoggerFactory = _loggerFactory };
-            _loadBalancerClient = GetLoadBalancerClient($"http://{resolutionResult[0].Host}:{resolutionResult[0].Port}", channelOptionsForLB);
+            _loadBalancerClient = GetLoadBalancerClient($"http://{hostsAddresses[0].Host}:{hostsAddresses[0].Port}", channelOptionsForLB);
             _balancingStreaming = _loadBalancerClient.BalanceLoad();
             var initialRequest = new InitialLoadBalanceRequest() { Name = serviceName };
             await _balancingStreaming.RequestStream.WriteAsync(new LoadBalanceRequest() { InitialRequest = initialRequest }).ConfigureAwait(false);

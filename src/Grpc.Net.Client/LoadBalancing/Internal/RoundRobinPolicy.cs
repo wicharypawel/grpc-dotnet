@@ -38,7 +38,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         /// <param name="serviceName">The name of the load balanced service (e.g., service.googleapis.com).</param>
         /// <param name="isSecureConnection">Flag if connection between client and destination server should be secured.</param>
         /// <returns>List of subchannels.</returns>
-        public Task CreateSubChannelsAsync(List<GrpcHostAddress> resolutionResult, string serviceName, bool isSecureConnection)
+        public Task CreateSubChannelsAsync(GrpcNameResolutionResult resolutionResult, string serviceName, bool isSecureConnection)
         {
             if (resolutionResult == null)
             {
@@ -48,13 +48,14 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             {
                 throw new ArgumentException($"{nameof(serviceName)} not defined");
             }
-            resolutionResult = resolutionResult.Where(x => !x.IsLoadBalancer).ToList();
-            if (resolutionResult.Count == 0)
+            var hostsAddresses = resolutionResult.HostsAddresses;
+            hostsAddresses = hostsAddresses.Where(x => !x.IsLoadBalancer).ToList();
+            if (hostsAddresses.Count == 0)
             {
                 throw new ArgumentException($"{nameof(resolutionResult)} must contain at least one non-blancer address");
             }
             _logger.LogDebug($"Start round_robin policy");
-            var result = resolutionResult.Select(x =>
+            var result = hostsAddresses.Select(x =>
             {
                 var uriBuilder = new UriBuilder();
                 uriBuilder.Host = x.Host;

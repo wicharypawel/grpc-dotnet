@@ -47,7 +47,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         /// <param name="serviceName">The name of the load balanced service (e.g., service.googleapis.com).</param>
         /// <param name="isSecureConnection">Flag if connection between client and destination server should be secured.</param>
         /// <returns>List of subchannels.</returns>
-        public async Task CreateSubChannelsAsync(List<GrpcHostAddress> resolutionResult, string serviceName, bool isSecureConnection)
+        public async Task CreateSubChannelsAsync(GrpcNameResolutionResult resolutionResult, string serviceName, bool isSecureConnection)
         {
             if (resolutionResult == null)
             {
@@ -57,7 +57,8 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             {
                 throw new ArgumentException($"{nameof(serviceName)} not defined");
             }
-            if (resolutionResult.Count != 0)
+            var hostsAddresses = resolutionResult.HostsAddresses;
+            if (hostsAddresses.Count != 0)
             {
                 // Note that the xds resolver will return an empty list of addresses, because in the xDS API flow, 
                 // the addresses are not returned until the ClusterLoadAssignment resource is obtained later.

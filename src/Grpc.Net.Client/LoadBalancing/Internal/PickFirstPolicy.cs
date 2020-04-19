@@ -17,7 +17,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
 
         internal IReadOnlyList<GrpcSubChannel> SubChannels { get; set; } = Array.Empty<GrpcSubChannel>();
 
-        public Task CreateSubChannelsAsync(List<GrpcHostAddress> resolutionResult, string serviceName, bool isSecureConnection)
+        public Task CreateSubChannelsAsync(GrpcNameResolutionResult resolutionResult, string serviceName, bool isSecureConnection)
         {
             if (resolutionResult == null)
             {
@@ -27,15 +27,16 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             {
                 throw new ArgumentException($"{nameof(serviceName)} not defined");
             }
-            resolutionResult = resolutionResult.Where(x => !x.IsLoadBalancer).ToList();
-            if (resolutionResult.Count == 0)
+            var hostsAddresses = resolutionResult.HostsAddresses;
+            hostsAddresses = hostsAddresses.Where(x => !x.IsLoadBalancer).ToList();
+            if (hostsAddresses.Count == 0)
             {
                 throw new ArgumentException($"{nameof(resolutionResult)} must contain at least one non-blancer address");
             }
             _logger.LogDebug($"Start pick_first policy");
             var uriBuilder = new UriBuilder();
-            uriBuilder.Host = resolutionResult[0].Host;
-            uriBuilder.Port = resolutionResult[0].Port ?? (isSecureConnection ? 443 : 80);
+            uriBuilder.Host = hostsAddresses[0].Host;
+            uriBuilder.Port = hostsAddresses[0].Port ?? (isSecureConnection ? 443 : 80);
             uriBuilder.Scheme = isSecureConnection ? "https" : "http";
             var uri = uriBuilder.Uri;
             var result = new List<GrpcSubChannel> {

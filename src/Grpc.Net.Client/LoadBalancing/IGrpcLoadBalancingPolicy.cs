@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Grpc.Net.Client.LoadBalancing
@@ -24,7 +23,7 @@ namespace Grpc.Net.Client.LoadBalancing
         /// <param name="serviceName">The name of the load balanced service (e.g., service.googleapis.com).</param>
         /// <param name="isSecureConnection">Flag if connection between client and destination server should be secured.</param>
         /// <returns>List of subchannels.</returns>
-        Task CreateSubChannelsAsync(List<GrpcHostAddress> resolutionResult, string serviceName, bool isSecureConnection);
+        Task CreateSubChannelsAsync(GrpcNameResolutionResult resolutionResult, string serviceName, bool isSecureConnection);
 
         /// <summary>
         /// For each RPC sent, the load balancing policy decides which subchannel (i.e., which server) the RPC should be sent to.
