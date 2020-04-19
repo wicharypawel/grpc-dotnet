@@ -17,10 +17,10 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri("https://sample.host.com"));
 
             // Assert
-            Assert.Single(resolutionResult);
-            Assert.Equal("sample.host.com", resolutionResult[0].Host);
-            Assert.Equal(443, resolutionResult[0].Port);
-            Assert.False(resolutionResult[0].IsLoadBalancer);
+            Assert.Single(resolutionResult.HostsAddresses);
+            Assert.Equal("sample.host.com", resolutionResult.HostsAddresses[0].Host);
+            Assert.Equal(443, resolutionResult.HostsAddresses[0].Port);
+            Assert.False(resolutionResult.HostsAddresses[0].IsLoadBalancer);
         }
 
         [Fact]

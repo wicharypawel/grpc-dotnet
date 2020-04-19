@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Grpc.Net.Client.LoadBalancing.Extensions
@@ -13,8 +12,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions
     /// </summary>
     public sealed class StaticResolverPlugin : IGrpcResolverPlugin
     {
-        private readonly Func<Uri, List<GrpcHostAddress>> _staticNameResolution;
-        private readonly Func<GrpcServiceConfig> _staticServiceConfig;
+        private readonly Func<Uri, GrpcNameResolutionResult> _staticNameResolution;
         private ILogger _logger = NullLogger.Instance;
 
         /// <summary>
@@ -29,20 +27,13 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions
         /// Creates a <seealso cref="StaticResolverPlugin"/> with configation passed as function parameter.  
         /// </summary>
         /// <param name="staticNameResolution">Define name resolution using lambda</param>
-        /// <param name="staticServiceConfig">Define service config using lambda</param>
-        public StaticResolverPlugin(Func<Uri, List<GrpcHostAddress>> staticNameResolution,
-            Func<GrpcServiceConfig> staticServiceConfig)
+        public StaticResolverPlugin(Func<Uri, GrpcNameResolutionResult> staticNameResolution)
         {
             if(staticNameResolution == null)
             {
                 throw new ArgumentNullException(nameof(staticNameResolution));
             }
-            if (staticServiceConfig == null)
-            {
-                throw new ArgumentNullException(nameof(staticServiceConfig));
-            }
             _staticNameResolution = staticNameResolution;
-            _staticServiceConfig = staticServiceConfig;
         }
 
         /// <summary>
@@ -50,20 +41,11 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions
         /// </summary>
         /// <param name="target">Server address with scheme.</param>
         /// <returns>List of resolved servers and/or lookaside load balancers.</returns>
-        public Task<List<GrpcHostAddress>> StartNameResolutionAsync(Uri target)
+        public Task<GrpcNameResolutionResult> StartNameResolutionAsync(Uri target)
         {
             _logger.LogDebug($"Using static name resolution");
-            return Task.FromResult(_staticNameResolution(target));
-        }
-
-        /// <summary>
-        /// Returns load balancing configuration discovered during name resolution.
-        /// </summary>
-        /// <returns>Load balancing configuration.</returns>
-        public Task<GrpcServiceConfig> GetServiceConfigAsync()
-        {
             _logger.LogDebug($"Using static service config");
-            return Task.FromResult(_staticServiceConfig());
+            return Task.FromResult(_staticNameResolution(target));
         }
     }
 }

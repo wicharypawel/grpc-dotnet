@@ -61,10 +61,10 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
 
             // Act
             var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"dns://{serviceHostName}:80"));
-            var serviceConfig = await resolverPlugin.GetServiceConfigAsync();
+            var serviceConfig = resolutionResult.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
 
             // Assert
-            Assert.Empty(resolutionResult);
+            Assert.Empty(resolutionResult.HostsAddresses);
             Assert.True(serviceConfig.RequestedLoadBalancingPolicies.Count == 1);
             Assert.True(serviceConfig.RequestedLoadBalancingPolicies.First() == "pick_first");
         }
@@ -95,16 +95,16 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
 
             // Act
             var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"dns://{serviceHostName}:443"));
-            var serviceConfig = await resolverPlugin.GetServiceConfigAsync();
+            var serviceConfig = resolutionResult.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
 
             // Assert
-            Assert.Equal(5, resolutionResult.Count);
-            Assert.Equal(2, resolutionResult.Where(x => x.IsLoadBalancer).Count());
-            Assert.All(resolutionResult.Where(x => x.IsLoadBalancer), x => Assert.Equal(80, x.Port));
-            Assert.All(resolutionResult.Where(x => x.IsLoadBalancer), x => Assert.StartsWith("10-1-6-", x.Host));
-            Assert.Equal(3, resolutionResult.Where(x => !x.IsLoadBalancer).Count());
-            Assert.All(resolutionResult.Where(x => !x.IsLoadBalancer), x => Assert.Equal(443, x.Port));
-            Assert.All(resolutionResult.Where(x => !x.IsLoadBalancer), x => Assert.StartsWith("10.1.5.", x.Host));
+            Assert.Equal(5, resolutionResult.HostsAddresses.Count);
+            Assert.Equal(2, resolutionResult.HostsAddresses.Where(x => x.IsLoadBalancer).Count());
+            Assert.All(resolutionResult.HostsAddresses.Where(x => x.IsLoadBalancer), x => Assert.Equal(80, x.Port));
+            Assert.All(resolutionResult.HostsAddresses.Where(x => x.IsLoadBalancer), x => Assert.StartsWith("10-1-6-", x.Host));
+            Assert.Equal(3, resolutionResult.HostsAddresses.Where(x => !x.IsLoadBalancer).Count());
+            Assert.All(resolutionResult.HostsAddresses.Where(x => !x.IsLoadBalancer), x => Assert.Equal(443, x.Port));
+            Assert.All(resolutionResult.HostsAddresses.Where(x => !x.IsLoadBalancer), x => Assert.StartsWith("10.1.5.", x.Host));
             Assert.True(serviceConfig.RequestedLoadBalancingPolicies.First() == "grpclb");
         }
 
@@ -135,14 +135,14 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
 
             // Act
             var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"dns://{serviceHostName}:443"));
-            var serviceConfig = await resolverPlugin.GetServiceConfigAsync();
+            var serviceConfig = resolutionResult.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
 
             // Assert
-            Assert.Equal(3, resolutionResult.Count);
-            Assert.Empty(resolutionResult.Where(x => x.IsLoadBalancer));
-            Assert.Equal(3, resolutionResult.Where(x => !x.IsLoadBalancer).Count());
-            Assert.All(resolutionResult.Where(x => !x.IsLoadBalancer), x => Assert.Equal(443, x.Port));
-            Assert.All(resolutionResult.Where(x => !x.IsLoadBalancer), x => Assert.StartsWith("10.1.5.", x.Host));
+            Assert.Equal(3, resolutionResult.HostsAddresses.Count);
+            Assert.Empty(resolutionResult.HostsAddresses.Where(x => x.IsLoadBalancer));
+            Assert.Equal(3, resolutionResult.HostsAddresses.Where(x => !x.IsLoadBalancer).Count());
+            Assert.All(resolutionResult.HostsAddresses.Where(x => !x.IsLoadBalancer), x => Assert.Equal(443, x.Port));
+            Assert.All(resolutionResult.HostsAddresses.Where(x => !x.IsLoadBalancer), x => Assert.StartsWith("10.1.5.", x.Host));
             Assert.True(serviceConfig.RequestedLoadBalancingPolicies.Count == 1);
             Assert.True(serviceConfig.RequestedLoadBalancingPolicies.First() == "pick_first");
         }
@@ -174,16 +174,16 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
 
             // Act
             var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"dns://{serviceHostName}:443"));
-            var serviceConfig = await resolverPlugin.GetServiceConfigAsync();
+            var serviceConfig = resolutionResult.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
 
             // Assert
-            Assert.Equal(5, resolutionResult.Count);
-            Assert.Equal(2, resolutionResult.Where(x => x.IsLoadBalancer).Count());
-            Assert.All(resolutionResult.Where(x => x.IsLoadBalancer), x => Assert.Equal(80, x.Port));
-            Assert.All(resolutionResult.Where(x => x.IsLoadBalancer), x => Assert.StartsWith("10-1-6-", x.Host));
-            Assert.Equal(3, resolutionResult.Where(x => !x.IsLoadBalancer).Count());
-            Assert.All(resolutionResult.Where(x => !x.IsLoadBalancer), x => Assert.Equal(443, x.Port));
-            Assert.All(resolutionResult.Where(x => !x.IsLoadBalancer), x => Assert.StartsWith("10.1.5.", x.Host));
+            Assert.Equal(5, resolutionResult.HostsAddresses.Count);
+            Assert.Equal(2, resolutionResult.HostsAddresses.Where(x => x.IsLoadBalancer).Count());
+            Assert.All(resolutionResult.HostsAddresses.Where(x => x.IsLoadBalancer), x => Assert.Equal(80, x.Port));
+            Assert.All(resolutionResult.HostsAddresses.Where(x => x.IsLoadBalancer), x => Assert.StartsWith("10-1-6-", x.Host));
+            Assert.Equal(3, resolutionResult.HostsAddresses.Where(x => !x.IsLoadBalancer).Count());
+            Assert.All(resolutionResult.HostsAddresses.Where(x => !x.IsLoadBalancer), x => Assert.Equal(443, x.Port));
+            Assert.All(resolutionResult.HostsAddresses.Where(x => !x.IsLoadBalancer), x => Assert.StartsWith("10.1.5.", x.Host));
             Assert.True(serviceConfig.RequestedLoadBalancingPolicies.First() == "round_robin");
         }
 
@@ -214,16 +214,16 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
 
             // Act
             var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"dns://{serviceHostName}:443"));
-            var serviceConfig = await resolverPlugin.GetServiceConfigAsync();
+            var serviceConfig = resolutionResult.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
 
             // Assert
-            Assert.Equal(5, resolutionResult.Count);
-            Assert.Equal(2, resolutionResult.Where(x => x.IsLoadBalancer).Count());
-            Assert.All(resolutionResult.Where(x => x.IsLoadBalancer), x => Assert.Equal(80, x.Port));
-            Assert.All(resolutionResult.Where(x => x.IsLoadBalancer), x => Assert.StartsWith("10-1-6-", x.Host));
-            Assert.Equal(3, resolutionResult.Where(x => !x.IsLoadBalancer).Count());
-            Assert.All(resolutionResult.Where(x => !x.IsLoadBalancer), x => Assert.Equal(443, x.Port));
-            Assert.All(resolutionResult.Where(x => !x.IsLoadBalancer), x => Assert.StartsWith("10.1.5.", x.Host));
+            Assert.Equal(5, resolutionResult.HostsAddresses.Count);
+            Assert.Equal(2, resolutionResult.HostsAddresses.Where(x => x.IsLoadBalancer).Count());
+            Assert.All(resolutionResult.HostsAddresses.Where(x => x.IsLoadBalancer), x => Assert.Equal(80, x.Port));
+            Assert.All(resolutionResult.HostsAddresses.Where(x => x.IsLoadBalancer), x => Assert.StartsWith("10-1-6-", x.Host));
+            Assert.Equal(3, resolutionResult.HostsAddresses.Where(x => !x.IsLoadBalancer).Count());
+            Assert.All(resolutionResult.HostsAddresses.Where(x => !x.IsLoadBalancer), x => Assert.Equal(443, x.Port));
+            Assert.All(resolutionResult.HostsAddresses.Where(x => !x.IsLoadBalancer), x => Assert.StartsWith("10.1.5.", x.Host));
             Assert.True(serviceConfig.RequestedLoadBalancingPolicies.First() == "xds");
         }
 

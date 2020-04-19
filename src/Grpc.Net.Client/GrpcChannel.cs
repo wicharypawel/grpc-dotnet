@@ -99,11 +99,12 @@ namespace Grpc.Net.Client
             ResolverPlugin = channelOptions.ResolverPlugin;
             ResolverPlugin.LoggerFactory = LoggerFactory;
             var resolutionResult = ResolverPlugin.StartNameResolutionAsync(Address).GetAwaiter().GetResult();
-            var requestedPolicies = ResolverPlugin.GetServiceConfigAsync().GetAwaiter().GetResult().RequestedLoadBalancingPolicies;
+            var serviceConfig = resolutionResult.ServiceConfig.Config as GrpcServiceConfig ?? GrpcServiceConfig.Create("pick_first");
+            var requestedPolicies = serviceConfig.RequestedLoadBalancingPolicies;
             LoadBalancingPolicy = CreateRequestedPolicy(requestedPolicies);
             LoadBalancingPolicy.LoggerFactory = LoggerFactory;
             var isSecureConnection = Address.Scheme == Uri.UriSchemeHttps || (Address.Scheme.Equals("dns", StringComparison.OrdinalIgnoreCase) && Address.Port == 443);
-            LoadBalancingPolicy.CreateSubChannelsAsync(resolutionResult, Address.Host,  Address.Scheme == Uri.UriSchemeHttps).Wait();
+            LoadBalancingPolicy.CreateSubChannelsAsync(new List<GrpcHostAddress>(resolutionResult.HostsAddresses), Address.Host,  Address.Scheme == Uri.UriSchemeHttps).Wait();
         }
 
         private static IGrpcLoadBalancingPolicy CreateRequestedPolicy(IReadOnlyList<string> requestedPolicies)

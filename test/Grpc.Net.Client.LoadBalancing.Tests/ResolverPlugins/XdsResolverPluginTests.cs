@@ -45,11 +45,11 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
 
             // Act
             var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"xds://{serviceHostName}:80"));
-            var serviceConfig = await resolverPlugin.GetServiceConfigAsync();
+            var serviceConfig = resolutionResult.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
 
             // Assert
             Assert.NotNull(resolutionResult);
-            Assert.Empty(resolutionResult);
+            Assert.Empty(resolutionResult.HostsAddresses);
             Assert.NotEmpty(serviceConfig.RequestedLoadBalancingPolicies);
             Assert.True(serviceConfig.RequestedLoadBalancingPolicies.First() == "xds");
         }

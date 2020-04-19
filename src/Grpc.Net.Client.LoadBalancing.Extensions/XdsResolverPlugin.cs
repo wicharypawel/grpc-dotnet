@@ -61,7 +61,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions
         /// </summary>
         /// <param name="target">Server address with scheme.</param>
         /// <returns>List of resolved servers.</returns>
-        public Task<List<GrpcHostAddress>> StartNameResolutionAsync(Uri target)
+        public Task<GrpcNameResolutionResult> StartNameResolutionAsync(Uri target)
         {
             if (target == null)
             {
@@ -78,21 +78,9 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions
             var host = target.Host;
             _serviceConfig = GrpcServiceConfig.Create("xds", "pick_first");
             _logger.LogDebug($"NameResolution xds returns empty resolution result list");
-            return Task.FromResult(new List<GrpcHostAddress>());
-        }
-
-        /// <summary>
-        /// Returns load balancing configuration discovered during name resolution.
-        /// </summary>
-        /// <returns>Load balancing configuration.</returns>
-        public Task<GrpcServiceConfig> GetServiceConfigAsync()
-        {
-            if (_serviceConfig == null)
-            {
-                throw new InvalidOperationException("Can not get service config before name resolution");
-            }
             _logger.LogDebug($"Service config created with policies: {string.Join(',', _serviceConfig.RequestedLoadBalancingPolicies)}");
-            return Task.FromResult(_serviceConfig);
+            var config = GrpcServiceConfigOrError.FromConfig(_serviceConfig);
+            return Task.FromResult(new GrpcNameResolutionResult(new List<GrpcHostAddress>(), config, GrpcAttributes.Empty));
         }
     }
 }

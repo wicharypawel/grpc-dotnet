@@ -19,7 +19,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             set => _logger = value.CreateLogger<NoneResolverPlugin>();
         }
 
-        public Task<List<GrpcHostAddress>> StartNameResolutionAsync(Uri target)
+        public Task<GrpcNameResolutionResult> StartNameResolutionAsync(Uri target)
         {
             if (target == null)
             {
@@ -30,16 +30,13 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
                 throw new ArgumentException($"{target.Scheme}:// scheme require non-default name resolver in channelOptions.ResolverPlugin");
             }
             _logger.LogDebug($"Name resolver using defined target as name resolution");
-            return Task.FromResult(new List<GrpcHostAddress>()
+            var hosts = new List<GrpcHostAddress>()
             {
                new GrpcHostAddress(target.Host, target.Port)
-            });
-        }
-
-        public Task<GrpcServiceConfig> GetServiceConfigAsync()
-        {
+            };
             _logger.LogDebug($"Name resolver returns default pick_first policy");
-            return Task.FromResult(GrpcServiceConfig.Create("pick_first"));
+            var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
+            return Task.FromResult(new GrpcNameResolutionResult(hosts, config, GrpcAttributes.Empty));
         }
     }
 }
