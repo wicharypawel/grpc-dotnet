@@ -6,6 +6,7 @@ using Grpc.Net.Client.LoadBalancing.Tests.Policies.Factories;
 using Moq;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -92,7 +93,9 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
 
             // Act
             await policy.CreateSubChannelsAsync(resolutionResults, serviceName, false);
-            var subChannels = policy.SubChannels;
+            var subChannels = ((WeightedRandomPicker)policy._subchannelPicker)._weightedPickers
+                .Select(x => (RoundRobinPicker)x.ChildPicker)
+                .SelectMany(x => x.SubChannels).ToList();
 
             // Assert
             Assert.Equal(3, subChannels.Count);
@@ -150,7 +153,10 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             // Arrange
             using var policy = new XdsPolicy();
             var subChannels = GrpcSubChannelFactory.GetSubChannelsWithoutLoadBalanceTokens();
-            policy.SubChannels = subChannels;
+            policy._subchannelPicker = new WeightedRandomPicker(new List<WeightedRandomPicker.WeightedChildPicker>()
+            {
+                new WeightedRandomPicker.WeightedChildPicker(1, new RoundRobinPicker(subChannels))
+            });
 
             // Act
             // Assert

@@ -1,12 +1,13 @@
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.Linq;
 using Envoy.Api.V2;
 using Envoy.Api.V2.Core;
+using Envoy.Api.V2.Endpoint;
+using Google.Protobuf.Collections;
 
 namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 {
@@ -20,15 +21,10 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
     internal sealed class XdsPolicy : IGrpcLoadBalancingPolicy
     {
         private bool _isSecureConnection = false;
-        private int _subChannelsSelectionCounter = -1;
         private ILogger _logger = NullLogger.Instance;
         private ILoggerFactory _loggerFactory = NullLoggerFactory.Instance;
-        //private ILoadBalancerClient? _loadBalancerClient;
         private IXdsClient? _xdsClient;
-
-        public XdsPolicy()
-        {
-        }
+        internal ISubchannelPicker _subchannelPicker = new EmptyPicker();
 
         /// <summary>
         /// LoggerFactory is configured (injected) when class is being instantiated.
@@ -42,7 +38,6 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             }
         }
         internal bool Disposed { get; private set; }
-        internal IReadOnlyList<GrpcSubChannel> SubChannels { get; set; } = Array.Empty<GrpcSubChannel>();
 
         /// <summary>
         /// Creates a subchannel to each server address. Depending on policy this may require additional 
@@ -95,10 +90,16 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 .Where(x => x.Endpoints.Count != 0)
                 .Where(x => x.Endpoints[0].LbEndpoints.Count != 0)
                 .First();
-            var serverAddressList = clusterLoadAssignment.Endpoints[0].LbEndpoints
-                .Where(x => x.HealthStatus == HealthStatus.Healthy || x.HealthStatus == HealthStatus.Unknown)
-                .Select(x => x.Endpoint.Address.SocketAddress);
-            await UseServerListSubChannelsAsync(serverAddressList).ConfigureAwait(false);
+            var localities = GetLocalitiesWithHighestPriority(clusterLoadAssignment.Endpoints);
+            var childPolicies = localities.Select(locality =>
+            {
+                var serverAddressList = locality.LbEndpoints
+                    .Where(x => x.HealthStatus == HealthStatus.Healthy || x.HealthStatus == HealthStatus.Unknown)
+                    .Select(x => x.Endpoint.Address.SocketAddress);
+                var childPicker = new RoundRobinPicker(AddressListToGrcpSubChannel(serverAddressList));
+                return new WeightedRandomPicker.WeightedChildPicker(Convert.ToInt32(locality.LoadBalancingWeight ?? 0), childPicker);
+            }).ToList();
+            _subchannelPicker = new WeightedRandomPicker(childPolicies);
             _logger.LogDebug($"SubChannels list created");
         }
 
@@ -108,7 +109,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         /// <returns>Selected subchannel.</returns>
         public GrpcSubChannel GetNextSubChannel()
         {
-            return SubChannels[Interlocked.Increment(ref _subChannelsSelectionCounter) % SubChannels.Count];
+            return _subchannelPicker!.PickSubchannel();
         }
 
         /// <summary>
@@ -124,10 +125,17 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             Disposed = true;
         }
 
-        private Task UseServerListSubChannelsAsync(IEnumerable<Envoy.Api.V2.Core.SocketAddress> serverList)
+        private IReadOnlyList<LocalityLbEndpoints> GetLocalitiesWithHighestPriority(RepeatedField<LocalityLbEndpoints> localities)
         {
-            _logger.LogDebug($"xds received server list");
-            //TODO add cache here
+            var groupedLocalities = localities.GroupBy(x => x.Priority).OrderBy(x => x.Key).ToList();
+            _logger.LogDebug($"XdsPolicy found {groupedLocalities.Count} groups with distinct priority");
+            _logger.LogDebug($"XdsPolicy select locality with priority {groupedLocalities[0].Key} [0-highest, N-lowest]");
+            return groupedLocalities[0].ToList();
+        }
+
+        private List<GrpcSubChannel> AddressListToGrcpSubChannel(IEnumerable<SocketAddress> serverList)
+        {
+            _logger.LogDebug($"xds received server list for locality");
             var result = new List<GrpcSubChannel>();
             foreach (var server in serverList)
             {
@@ -139,8 +147,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 result.Add(new GrpcSubChannel(uri, string.Empty));
                 _logger.LogDebug($"Found a server {uri}");
             }
-            SubChannels = result;
-            return Task.CompletedTask;
+            return result;
         }
     }
 }
