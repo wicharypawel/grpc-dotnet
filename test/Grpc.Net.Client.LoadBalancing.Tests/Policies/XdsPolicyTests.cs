@@ -18,11 +18,10 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         public async Task ForEmptyServiceName_UseXdsPolicy_ThrowArgumentException()
         {
             // Arrange
-            var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
-            xdsClientMock.Setup(x => x.Dispose());
-            XdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
             using var policy = new XdsPolicy();
-            var resolutionResults = GrpcHostAddressFactory.GetNameResolution(0, 0);
+            var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(0, 0);
+            var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
+            var resolutionResults = new GrpcNameResolutionResult(hostsAddresses, config, GrpcAttributes.Empty);
 
             // Act
             // Assert
@@ -41,12 +40,11 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         [Fact]
         public async Task ForBalancersResolutionPassed_UseXdsPolicy_ThrowArgumentException()
         {
-            var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
-            xdsClientMock.Setup(x => x.Dispose());
-            XdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
             // Arrange
             using var policy = new XdsPolicy();
-            var resolutionResults = GrpcHostAddressFactory.GetNameResolution(2, 0);
+            var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(2, 0);
+            var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
+            var resolutionResults = new GrpcNameResolutionResult(hostsAddresses, config, GrpcAttributes.Empty);
 
             // Act
             // Assert
@@ -61,11 +59,10 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         public async Task ForServersResolutionPassed_UseXdsPolicy_ThrowArgumentException()
         {
             // Arrange
-            var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
-            xdsClientMock.Setup(x => x.Dispose());
-            XdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
             using var policy = new XdsPolicy();
-            var resolutionResults = GrpcHostAddressFactory.GetNameResolution(0, 2);
+            var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(0, 2);
+            var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
+            var resolutionResults = new GrpcNameResolutionResult(hostsAddresses, config, GrpcAttributes.Empty);
 
             // Act
             // Assert
@@ -86,10 +83,11 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             xdsClientMock.Setup(x => x.GetCdsAsync()).Returns(Task.FromResult(GetSampleClusters(serviceName)));
             xdsClientMock.Setup(x => x.GetEdsAsync(It.IsAny<string>())).Returns(Task.FromResult(GetSampleClusterLoadAssignments()));
 
-            XdsClientFactory.OverrideXdsClient = xdsClientMock.Object; 
-
             using var policy = new XdsPolicy();
-            var resolutionResults = GrpcHostAddressFactory.GetNameResolution(0, 0);
+            var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(0, 0);
+            var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
+            var attributes = new GrpcAttributes(new Dictionary<string, object> { { XdsAttributesConstants.XdsClientInstanceKey, xdsClientMock.Object } });
+            var resolutionResults = new GrpcNameResolutionResult(hostsAddresses, config, attributes);
 
             // Act
             await policy.CreateSubChannelsAsync(resolutionResults, serviceName, false);

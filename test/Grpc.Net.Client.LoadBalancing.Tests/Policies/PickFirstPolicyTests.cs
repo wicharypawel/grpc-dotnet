@@ -14,7 +14,9 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         {
             // Arrange
             using var policy = new PickFirstPolicy();
-            var resolutionResults = GrpcHostAddressFactory.GetNameResolution(0, 2);
+            var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(0, 2);
+            var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
+            var resolutionResults = new GrpcNameResolutionResult(hostsAddresses, config, GrpcAttributes.Empty);
 
             // Act
             // Assert
@@ -35,12 +37,15 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         {
             // Arrange
             using var policy = new PickFirstPolicy();
+            var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(0, 0);
+            var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
+            var resolutionResults = new GrpcNameResolutionResult(hostsAddresses, config, GrpcAttributes.Empty);
 
             // Act
             // Assert
             var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
             {
-                await policy.CreateSubChannelsAsync(new List<GrpcHostAddress>(), "sample-service.contoso.com", false);
+                await policy.CreateSubChannelsAsync(resolutionResults, "sample-service.contoso.com", false);
             });
             Assert.Equal("resolutionResult must contain at least one non-blancer address", exception.Message);
         }
@@ -50,7 +55,9 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         {
             // Arrange
             using var policy = new PickFirstPolicy();
-            var resolutionResults = GrpcHostAddressFactory.GetNameResolution(2, 0);
+            var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(2, 0);
+            var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
+            var resolutionResults = new GrpcNameResolutionResult(hostsAddresses, config, GrpcAttributes.Empty);
 
             // Act
             // Assert
@@ -66,7 +73,9 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         {
             // Arrange
             using var policy = new PickFirstPolicy();
-            var resolutionResults = GrpcHostAddressFactory.GetNameResolution(0, 4);
+            var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(0, 4);
+            var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
+            var resolutionResults = new GrpcNameResolutionResult(hostsAddresses, config, GrpcAttributes.Empty);
 
             // Act
             await policy.CreateSubChannelsAsync(resolutionResults, "sample-service.contoso.com", false);
@@ -84,7 +93,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         {
             // Arrange
             using var policy = new PickFirstPolicy();
-            var resolutionResults = new List<GrpcHostAddress>() // do not use GrpcHostAddressFactory
+            var hostsAddresses = new List<GrpcHostAddress>() // do not use GrpcHostAddressFactory
             {
                 new GrpcHostAddress("10.1.6.120", 80)
                 {
@@ -103,6 +112,8 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
                     IsLoadBalancer = false
                 }
             };
+            var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
+            var resolutionResults = new GrpcNameResolutionResult(hostsAddresses, config, GrpcAttributes.Empty);
 
             // Act
             await policy.CreateSubChannelsAsync(resolutionResults, "sample-service.contoso.com", true);
