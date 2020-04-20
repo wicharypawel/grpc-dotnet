@@ -14,6 +14,8 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
     {
         private readonly string[] WellKnownSchemes = new string[] { "dns", "xds", "xds-experimental" }; 
         private ILogger _logger = NullLogger.Instance;
+        private readonly string _defaultLoadBalancingPolicy; 
+        
         public ILoggerFactory LoggerFactory
         {
             set => _logger = value.CreateLogger<NoOpResolverPlugin>();
@@ -21,10 +23,13 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
 
         public NoOpResolverPlugin()
         {
+            _defaultLoadBalancingPolicy = "pick_first";
         }
 
-        public NoOpResolverPlugin(GrpcAttributes _)
+        public NoOpResolverPlugin(GrpcAttributes attributes)
         {
+            _defaultLoadBalancingPolicy = attributes.Get(GrpcAttributesConstants.DefaultLoadBalancingPolicy) as string
+                ?? "pick_first";
         }
 
         public Task<GrpcNameResolutionResult> StartNameResolutionAsync(Uri target)
@@ -37,13 +42,13 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             {
                 throw new ArgumentException($"{target.Scheme}:// scheme require non-default name resolver");
             }
-            _logger.LogDebug("Name resolver using defined target as name resolution");
+            _logger.LogDebug("NoOpResolverPlugin using defined target as name resolution");
             var hosts = new List<GrpcHostAddress>()
             {
                new GrpcHostAddress(target.Host, target.Port)
             };
-            _logger.LogDebug($"Name resolver returns default pick_first policy");
-            var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
+            _logger.LogDebug($"NoOpResolverPlugin returns {_defaultLoadBalancingPolicy} policy");
+            var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create(_defaultLoadBalancingPolicy));
             return Task.FromResult(new GrpcNameResolutionResult(hosts, config, GrpcAttributes.Empty));
         }
     }

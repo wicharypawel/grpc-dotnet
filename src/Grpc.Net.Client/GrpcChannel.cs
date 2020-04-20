@@ -24,7 +24,6 @@ using System.Threading;
 using Grpc.Core;
 using Grpc.Net.Client.Internal;
 using Grpc.Net.Client.LoadBalancing;
-using Grpc.Net.Client.LoadBalancing.Internal;
 using Grpc.Net.Compression;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -97,6 +96,7 @@ namespace Grpc.Net.Client
             {
                 throw new ArgumentException($"Can not find host in {nameof(address)}, verify host and scheme were specified");
             }
+            channelOptions.Attributes = channelOptions.Attributes.Add(GrpcAttributesConstants.DefaultLoadBalancingPolicy, channelOptions.DefaultLoadBalancingPolicy);
             ResolverPlugin = CreateResolverPlugin(Address, LoggerFactory, channelOptions.Attributes);
             ResolverPlugin.LoggerFactory = LoggerFactory;
             var resolutionResult = ResolverPlugin.StartNameResolutionAsync(Address).GetAwaiter().GetResult();

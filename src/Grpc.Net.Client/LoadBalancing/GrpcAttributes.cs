@@ -15,7 +15,7 @@ namespace Grpc.Net.Client.LoadBalancing
         private readonly IReadOnlyDictionary<string, object> _data;
 
         /// <summary>
-        /// Creates new instance of <seealso cref="GrpcAttributes"/>. 
+        /// Creates a new instance of <seealso cref="GrpcAttributes"/>. 
         /// </summary>
         /// <param name="data">Dictionary of metadata.</param>
         public GrpcAttributes(Dictionary<string, object> data)
@@ -35,6 +35,20 @@ namespace Grpc.Net.Client.LoadBalancing
                 return result;
             }
             return null; 
+        }
+
+        /// <summary>
+        /// Create new instance of <see cref="GrpcAttributes"/> based on existing attributes.
+        /// All data will be copied to a new instance and then new data will be added.
+        /// </summary>
+        /// <param name="key">New metadata key. In case of duplicated keys, new value will override original.</param>
+        /// <param name="value">New metadata value. In case of duplicated keys, new value will override original.</param>
+        /// <returns>Creates a new instance of <seealso cref="GrpcAttributes"/>.</returns>
+        public GrpcAttributes Add(string key, object value)
+        {
+            var result = new Dictionary<string, object>(_data);
+            result.Add(key, value);
+            return new GrpcAttributes(result);
         }
     }
 }
