@@ -1,6 +1,6 @@
 ﻿namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 {
-    internal sealed class GrpclbPolicyProvider : ILoadBalancingPolicyProvider
+    internal sealed class GrpclbPolicyProvider : IGrpcLoadBalancingPolicyProvider
     {
         public string PolicyName => "grpclb";
 

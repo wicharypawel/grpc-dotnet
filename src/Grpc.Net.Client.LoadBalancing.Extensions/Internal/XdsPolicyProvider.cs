@@ -1,6 +1,6 @@
 ﻿namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 {
-    internal sealed class XdsPolicyProvider : ILoadBalancingPolicyProvider
+    internal sealed class XdsPolicyProvider : IGrpcLoadBalancingPolicyProvider
     {
         public string PolicyName => "xds";
 

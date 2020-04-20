@@ -2,30 +2,29 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
 namespace Grpc.Net.Client.LoadBalancing
 {
     /// <summary>
-    /// Registry of <seealso cref="ILoadBalancingPolicyProvider"/>s. 
+    /// Registry of <seealso cref="IGrpcLoadBalancingPolicyProvider"/>s. 
     /// </summary>
-    public sealed class LoadBalancingPolicyRegistry
+    public sealed class GrpcLoadBalancingPolicyRegistry
     {
-        private readonly ConcurrentDictionary<string, ILoadBalancingPolicyProvider> _providers = new ConcurrentDictionary<string, ILoadBalancingPolicyProvider>();
+        private readonly ConcurrentDictionary<string, IGrpcLoadBalancingPolicyProvider> _providers = new ConcurrentDictionary<string, IGrpcLoadBalancingPolicyProvider>();
 
-        private LoadBalancingPolicyRegistry()
+        private GrpcLoadBalancingPolicyRegistry()
         {
         }
 
-        private static LoadBalancingPolicyRegistry? Instance;
+        private static GrpcLoadBalancingPolicyRegistry? Instance;
         private static readonly object LockObject = new object();
 
         /// <summary>
         /// Register provider.
         /// </summary>
-        public void Register(ILoadBalancingPolicyProvider provider)
+        public void Register(IGrpcLoadBalancingPolicyProvider provider)
         {
             if (!_providers.TryAdd(provider.PolicyName, provider))
             {
@@ -36,7 +35,7 @@ namespace Grpc.Net.Client.LoadBalancing
         /// <summary>
         /// Deregisters provider.
         /// </summary>
-        public void Deregister(ILoadBalancingPolicyProvider provider)
+        public void Deregister(IGrpcLoadBalancingPolicyProvider provider)
         {
             if(!_providers.TryRemove(provider.PolicyName, out _))
             {
@@ -49,7 +48,7 @@ namespace Grpc.Net.Client.LoadBalancing
         /// </summary>
         /// <param name="policyName">Policy name written in snake_case eg. pick_first, round_robin, xds etc.</param>
         /// <returns>Load balancing policy or null if no suitable provider can be found</returns>
-        public ILoadBalancingPolicyProvider? GetProvider(string policyName)
+        public IGrpcLoadBalancingPolicyProvider? GetProvider(string policyName)
         {
             if(_providers.TryGetValue(policyName, out var loadBalancingPolicyProvider))
             {
@@ -64,8 +63,8 @@ namespace Grpc.Net.Client.LoadBalancing
         /// <summary>
         /// Returns the default registry.
         /// </summary>
-        /// <returns>Instance of <seealso cref="LoadBalancingPolicyRegistry"/>.</returns>
-        public static LoadBalancingPolicyRegistry GetDefaultRegistry()
+        /// <returns>Instance of <seealso cref="GrpcLoadBalancingPolicyRegistry"/>.</returns>
+        public static GrpcLoadBalancingPolicyRegistry GetDefaultRegistry()
         {
             return GetDefaultRegistry(NullLoggerFactory.Instance);
         }
@@ -74,8 +73,8 @@ namespace Grpc.Net.Client.LoadBalancing
         /// Returns the default registry.
         /// </summary>
         /// <param name="loggerFactory">Logger factory instance.</param>
-        /// <returns>Instance of <seealso cref="LoadBalancingPolicyRegistry"/>.</returns>
-        public static LoadBalancingPolicyRegistry GetDefaultRegistry(ILoggerFactory loggerFactory)
+        /// <returns>Instance of <seealso cref="GrpcLoadBalancingPolicyRegistry"/>.</returns>
+        public static GrpcLoadBalancingPolicyRegistry GetDefaultRegistry(ILoggerFactory loggerFactory)
         {
             if (Instance != null)
             {
@@ -85,20 +84,20 @@ namespace Grpc.Net.Client.LoadBalancing
             {
                 if (Instance == null)
                 {
-                    var logger = loggerFactory.CreateLogger<LoadBalancingPolicyRegistry>();
-                    Instance = new LoadBalancingPolicyRegistry();
-                    logger.LogDebug($"{nameof(LoadBalancingPolicyRegistry)} created");
+                    var logger = loggerFactory.CreateLogger<GrpcLoadBalancingPolicyRegistry>();
+                    Instance = new GrpcLoadBalancingPolicyRegistry();
+                    logger.LogDebug($"{nameof(GrpcLoadBalancingPolicyRegistry)} created");
                     foreach (var provider in GetPolicyProvidersFromAppDomain())
                     {
                         Instance.Register(provider);
-                        logger.LogDebug($"{nameof(LoadBalancingPolicyRegistry)} found {provider.GetType().Name}");
+                        logger.LogDebug($"{nameof(GrpcLoadBalancingPolicyRegistry)} found {provider.GetType().Name}");
                     }
                 }
                 return Instance;
             }
         }
 
-        private static ILoadBalancingPolicyProvider[] GetPolicyProvidersFromAppDomain()
+        private static IGrpcLoadBalancingPolicyProvider[] GetPolicyProvidersFromAppDomain()
         {
             var assemblies = AppDomain.CurrentDomain.GetAssemblies()
                 .Where(assembly => !assembly.IsDynamic)
@@ -107,13 +106,13 @@ namespace Grpc.Net.Client.LoadBalancing
             return assemblies.SelectMany(GetPolicyProvidersFromAssembly).ToArray();
         }
 
-        private static ILoadBalancingPolicyProvider[] GetPolicyProvidersFromAssembly(Assembly assembly)
+        private static IGrpcLoadBalancingPolicyProvider[] GetPolicyProvidersFromAssembly(Assembly assembly)
         {
             return assembly.GetTypes()
                 .Where(type => type.IsClass && !type.IsAbstract)
-                .Where(type => typeof(ILoadBalancingPolicyProvider).IsAssignableFrom(type))
+                .Where(type => typeof(IGrpcLoadBalancingPolicyProvider).IsAssignableFrom(type))
                 .Select(type => Activator.CreateInstance(type))
-                .Cast<ILoadBalancingPolicyProvider>()
+                .Cast<IGrpcLoadBalancingPolicyProvider>()
                 .ToArray();
         }
     }

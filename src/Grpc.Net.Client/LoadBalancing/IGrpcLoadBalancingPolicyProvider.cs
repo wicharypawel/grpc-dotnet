@@ -3,7 +3,7 @@
     /// <summary>
     /// Provider is responsible for creation of <seealso cref="IGrpcLoadBalancingPolicy"/>
     /// </summary>
-    public interface ILoadBalancingPolicyProvider
+    public interface IGrpcLoadBalancingPolicyProvider
     {
         /// <summary>
         /// Policy name written in snake_case eg. pick_first, round_robin, xds etc.

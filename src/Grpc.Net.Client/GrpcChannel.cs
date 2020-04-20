@@ -109,7 +109,7 @@ namespace Grpc.Net.Client
 
         private static IGrpcLoadBalancingPolicy CreateRequestedPolicy(IReadOnlyList<string> requestedPolicies, ILoggerFactory loggerFactory)
         {
-            var registry = LoadBalancingPolicyRegistry.GetDefaultRegistry(loggerFactory);
+            var registry = GrpcLoadBalancingPolicyRegistry.GetDefaultRegistry(loggerFactory);
             foreach (var requestedPolicyName in requestedPolicies)
             {
                 var loadBalancingPolicyProvider = registry.GetProvider(requestedPolicyName);
