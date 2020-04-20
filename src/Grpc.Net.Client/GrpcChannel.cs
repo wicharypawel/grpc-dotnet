@@ -101,15 +101,15 @@ namespace Grpc.Net.Client
             var resolutionResult = ResolverPlugin.StartNameResolutionAsync(Address).GetAwaiter().GetResult();
             var serviceConfig = resolutionResult.ServiceConfig.Config as GrpcServiceConfig ?? GrpcServiceConfig.Create("pick_first");
             var requestedPolicies = serviceConfig.RequestedLoadBalancingPolicies;
-            LoadBalancingPolicy = CreateRequestedPolicy(requestedPolicies);
+            LoadBalancingPolicy = CreateRequestedPolicy(requestedPolicies, LoggerFactory);
             LoadBalancingPolicy.LoggerFactory = LoggerFactory;
             var isSecureConnection = Address.Scheme == Uri.UriSchemeHttps || Address.Port == 443;
             LoadBalancingPolicy.CreateSubChannelsAsync(resolutionResult, Address.Host, isSecureConnection).Wait();
         }
 
-        private static IGrpcLoadBalancingPolicy CreateRequestedPolicy(IReadOnlyList<string> requestedPolicies)
+        private static IGrpcLoadBalancingPolicy CreateRequestedPolicy(IReadOnlyList<string> requestedPolicies, ILoggerFactory loggerFactory)
         {
-            var registry = LoadBalancingPolicyRegistry.GetDefaultRegistry();
+            var registry = LoadBalancingPolicyRegistry.GetDefaultRegistry(loggerFactory);
             foreach (var requestedPolicyName in requestedPolicies)
             {
                 var loadBalancingPolicyProvider = registry.GetProvider(requestedPolicyName);
