@@ -11,7 +11,75 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Protobuf Include="**\*.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/annotations/deprecation.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/annotations/resource.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/api/v2/auth/cert.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/api/v2/cds.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/api/v2/cluster/circuit_breaker.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/api/v2/cluster/filter.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/api/v2/cluster/outlier_detection.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/api/v2/cluster.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/api/v2/core/address.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/api/v2/core/backoff.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/api/v2/core/base.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/api/v2/core/config_source.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/api/v2/core/grpc_service.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/api/v2/core/health_check.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/api/v2/core/http_uri.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/api/v2/core/protocol.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/api/v2/core/socket_option.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/api/v2/discovery.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/api/v2/endpoint/endpoint.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/api/v2/endpoint/endpoint_components.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/api/v2/endpoint/load_report.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/api/v2/endpoint.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/api/v2/listener/listener.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/api/v2/listener/listener_components.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/api/v2/listener/udp_listener_config.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/api/v2/listener.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/api/v2/ratelimit/ratelimit.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/api/v2/rds.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/api/v2/route/route.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/api/v2/route/route_components.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/api/v2/route.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/api/v2/scoped_route.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/config/listener/v2/api_listener.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/config/metrics/v2/stats.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/config/trace/v2/trace.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/service/discovery/v2/ads.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/service/metrics/v2/metrics_service.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/config/overload/v2alpha/overload.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/service/trace/v2/trace_service.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/type/hash_policy.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/type/http.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/type/http_status.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/type/matcher/metadata.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/type/matcher/node.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/type/matcher/number.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/type/matcher/path.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/type/matcher/regex.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/type/matcher/string.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/type/matcher/struct.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/type/matcher/value.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/type/metadata/v2/metadata.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/type/percent.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/type/range.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/type/semantic_version.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/type/tracing/v2/custom_tag.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="google/api/annotations.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="google/api/expr/v1alpha1/syntax.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="google/api/http.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="google/rpc/status.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="grpclb/load_balancer.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="metrics.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="opencensus/proto/resource/v1/resource.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="opencensus/proto/trace/v1/trace.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="opencensus/proto/trace/v1/trace_config.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="udpa/annotations/migrate.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="udpa/annotations/sensitive.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="udpa/annotations/status.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="udpa/annotations/versioning.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="validate/validate.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
   </ItemGroup>
 
 </Project>
