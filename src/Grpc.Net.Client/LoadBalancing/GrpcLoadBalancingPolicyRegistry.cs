@@ -28,7 +28,7 @@ namespace Grpc.Net.Client.LoadBalancing
         {
             if (!_providers.TryAdd(provider.PolicyName, provider))
             {
-                throw new InvalidOperationException("Deregistering load balancing policy provider failed");
+                throw new InvalidOperationException("Registering load balancing policy provider failed");
             }
         }
 
@@ -44,10 +44,10 @@ namespace Grpc.Net.Client.LoadBalancing
         }
 
         /// <summary>
-        /// Returns the provider for the given load-balancing policy 
+        /// Returns the provider for the given load-balancing policy. 
         /// </summary>
         /// <param name="policyName">Policy name written in snake_case eg. pick_first, round_robin, xds etc.</param>
-        /// <returns>Load balancing policy or null if no suitable provider can be found</returns>
+        /// <returns>Load balancing policy or null if no suitable provider can be found.</returns>
         public IGrpcLoadBalancingPolicyProvider? GetProvider(string policyName)
         {
             if(_providers.TryGetValue(policyName, out var loadBalancingPolicyProvider))
