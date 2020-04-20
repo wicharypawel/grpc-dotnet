@@ -24,16 +24,26 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions
         }
 
         /// <summary>
-        /// Creates a <seealso cref="StaticResolverPlugin"/> with configation passed as function parameter.  
+        /// Creates a <seealso cref="StaticResolverPlugin"/> using specified <seealso cref="GrpcAttributes"/>.
         /// </summary>
-        /// <param name="staticNameResolution">Define name resolution using lambda</param>
-        public StaticResolverPlugin(Func<Uri, GrpcNameResolutionResult> staticNameResolution)
+        /// <param name="attributes">Attributes with options.</param>
+        public StaticResolverPlugin(GrpcAttributes attributes)
         {
-            if(staticNameResolution == null)
+            var options = attributes.Get(GrpcAttributesLbConstants.StaticResolverOptions) as StaticResolverPluginOptions;
+            _staticNameResolution = options?.StaticNameResolution ?? throw new ArgumentNullException(nameof(options.StaticNameResolution));
+        }
+
+        /// <summary>
+        /// Creates a <seealso cref="StaticResolverPlugin"/> using specified <seealso cref="XdsResolverPluginOptions"/>.
+        /// </summary>
+        /// <param name="options">Options with defined behaviour.</param>
+        public StaticResolverPlugin(StaticResolverPluginOptions options)
+        {
+            if (options?.StaticNameResolution == null)
             {
-                throw new ArgumentNullException(nameof(staticNameResolution));
+                throw new ArgumentNullException(nameof(options.StaticNameResolution));
             }
-            _staticNameResolution = staticNameResolution;
+            _staticNameResolution = options.StaticNameResolution;
         }
 
         /// <summary>

@@ -99,9 +99,9 @@ namespace Grpc.Net.Client
         public bool ThrowOperationCanceledOnCancellation { get; set; }
 
         /// <summary>
-        /// Gets or sets name resolver.
+        /// Additional configuration passed as key-value dictionary.
         /// </summary>
-        public IGrpcResolverPlugin ResolverPlugin { get; set; }
+        public GrpcAttributes Attributes { get; set; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="GrpcChannelOptions"/> class.
@@ -109,7 +109,7 @@ namespace Grpc.Net.Client
         public GrpcChannelOptions()
         {
             MaxReceiveMessageSize = GrpcChannel.DefaultMaxReceiveMessageSize;
-            ResolverPlugin = new NoneResolverPlugin();
+            Attributes = GrpcAttributes.Empty;
         }
     }
 }

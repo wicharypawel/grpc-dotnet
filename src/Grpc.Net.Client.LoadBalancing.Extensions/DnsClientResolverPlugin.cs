@@ -42,6 +42,16 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions
         }
 
         /// <summary>
+        /// Creates a <seealso cref="DnsClientResolverPlugin"/> using specified <seealso cref="GrpcAttributes"/>.
+        /// </summary>
+        /// <param name="attributes">Attributes with options.</param>
+        public DnsClientResolverPlugin(GrpcAttributes attributes)
+        {
+            var options = attributes.Get(GrpcAttributesLbConstants.DnsResolverOptions) as DnsClientResolverPluginOptions;
+            _options = options ?? new DnsClientResolverPluginOptions();
+        }
+
+        /// <summary>
         /// Creates a <seealso cref="DnsClientResolverPlugin"/> using specified <seealso cref="DnsClientResolverPluginOptions"/>.
         /// </summary>
         /// <param name="options">Options allows override default behaviour.</param>

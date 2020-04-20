@@ -8,15 +8,23 @@ using System.Threading.Tasks;
 namespace Grpc.Net.Client.LoadBalancing.Internal
 {
     /// <summary>
-    /// Assume name was already resolved or pass through to HttpClient to handle
+    /// No-Op resolver will pass uri address to HttpClient to handle.
     /// </summary>
-    internal sealed class NoneResolverPlugin : IGrpcResolverPlugin
+    internal sealed class NoOpResolverPlugin : IGrpcResolverPlugin
     {
-        private readonly string[] WellKnownSchemes = new string[] { "dns", "xds" }; 
+        private readonly string[] WellKnownSchemes = new string[] { "dns", "xds", "xds-experimental" }; 
         private ILogger _logger = NullLogger.Instance;
         public ILoggerFactory LoggerFactory
         {
-            set => _logger = value.CreateLogger<NoneResolverPlugin>();
+            set => _logger = value.CreateLogger<NoOpResolverPlugin>();
+        }
+
+        public NoOpResolverPlugin()
+        {
+        }
+
+        public NoOpResolverPlugin(GrpcAttributes _)
+        {
         }
 
         public Task<GrpcNameResolutionResult> StartNameResolutionAsync(Uri target)
@@ -27,9 +35,9 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             }
             if (WellKnownSchemes.Contains(target.Scheme.ToLowerInvariant()))
             {
-                throw new ArgumentException($"{target.Scheme}:// scheme require non-default name resolver in channelOptions.ResolverPlugin");
+                throw new ArgumentException($"{target.Scheme}:// scheme require non-default name resolver");
             }
-            _logger.LogDebug($"Name resolver using defined target as name resolution");
+            _logger.LogDebug("Name resolver using defined target as name resolution");
             var hosts = new List<GrpcHostAddress>()
             {
                new GrpcHostAddress(target.Host, target.Port)

@@ -22,7 +22,8 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
                 var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
                 return new GrpcNameResolutionResult(hosts, config, GrpcAttributes.Empty);
             };
-            var resolverPlugin = new StaticResolverPlugin(resolveFunction);
+            var options = new StaticResolverPluginOptions(resolveFunction);
+            var resolverPlugin = new StaticResolverPlugin(options);
 
             // Act
             var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri("https://sample.host.com"));

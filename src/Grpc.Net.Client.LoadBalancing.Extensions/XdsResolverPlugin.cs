@@ -45,6 +45,16 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions
         }
 
         /// <summary>
+        /// Creates a <seealso cref="XdsResolverPlugin"/> using specified <seealso cref="GrpcAttributes"/>.
+        /// </summary>
+        /// <param name="attributes">Attributes with options.</param>
+        public XdsResolverPlugin(GrpcAttributes attributes)
+        {
+            var options = attributes.Get(GrpcAttributesLbConstants.XdsResolverOptions) as XdsResolverPluginOptions;
+            _options = options ?? new XdsResolverPluginOptions();
+        }
+
+        /// <summary>
         /// Creates a <seealso cref="XdsResolverPlugin"/> using specified <seealso cref="XdsResolverPluginOptions"/>.
         /// </summary>
         /// <param name="options">Options allows override default behaviour.</param>

@@ -24,6 +24,7 @@ using System.Threading;
 using Grpc.Core;
 using Grpc.Net.Client.Internal;
 using Grpc.Net.Client.LoadBalancing;
+using Grpc.Net.Client.LoadBalancing.Internal;
 using Grpc.Net.Compression;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -96,7 +97,7 @@ namespace Grpc.Net.Client
             {
                 throw new ArgumentException($"Can not find host in {nameof(address)}, verify host and scheme were specified");
             }
-            ResolverPlugin = channelOptions.ResolverPlugin;
+            ResolverPlugin = CreateResolverPlugin(Address, LoggerFactory, channelOptions.Attributes);
             ResolverPlugin.LoggerFactory = LoggerFactory;
             var resolutionResult = ResolverPlugin.StartNameResolutionAsync(Address).GetAwaiter().GetResult();
             var serviceConfig = resolutionResult.ServiceConfig.Config as GrpcServiceConfig ?? GrpcServiceConfig.Create("pick_first");
@@ -105,6 +106,18 @@ namespace Grpc.Net.Client
             LoadBalancingPolicy.LoggerFactory = LoggerFactory;
             var isSecureConnection = Address.Scheme == Uri.UriSchemeHttps || Address.Port == 443;
             LoadBalancingPolicy.CreateSubChannelsAsync(resolutionResult, Address.Host, isSecureConnection).Wait();
+        }
+
+        private static IGrpcResolverPlugin CreateResolverPlugin(Uri address, ILoggerFactory loggerFactory, GrpcAttributes attributes)
+        {
+            var registry = GrpcResolverPluginRegistry.GetDefaultRegistry(loggerFactory);
+            var resolverPluginProvider = registry.GetProvider(address.Scheme);
+            if (resolverPluginProvider == null)
+            {
+                //NoOpResolverPlugin guarantee backwards compatibility
+                resolverPluginProvider = registry.GetProvider(string.Empty);
+            }
+            return resolverPluginProvider!.CreateResolverPlugin(address, attributes);
         }
 
         private static IGrpcLoadBalancingPolicy CreateRequestedPolicy(IReadOnlyList<string> requestedPolicies, ILoggerFactory loggerFactory)
@@ -118,7 +131,7 @@ namespace Grpc.Net.Client
                     return loadBalancingPolicyProvider.CreateLoadBalancingPolicy();
                 }
             }
-            throw new InvalidOperationException("Requested load balancing policy not found");
+            throw new InvalidOperationException("LoadBalancingPolicyProvider for requested policy not found");
         }
 
         private static HttpClient CreateInternalHttpClient()

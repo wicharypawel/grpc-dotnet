@@ -1,7 +1,7 @@
 ﻿namespace Grpc.Net.Client.LoadBalancing
 {
     /// <summary>
-    /// Provider is responsible for creation of <seealso cref="IGrpcLoadBalancingPolicy"/>
+    /// Provider is responsible for creation of <seealso cref="IGrpcLoadBalancingPolicy"/>.
     /// </summary>
     public interface IGrpcLoadBalancingPolicyProvider
     {
@@ -11,9 +11,9 @@
         public string PolicyName { get; }
 
         /// <summary>
-        /// Factory method
+        /// Factory method.
         /// </summary>
-        /// <returns>New instance of <seealso cref="IGrpcLoadBalancingPolicy"/></returns>
+        /// <returns>New instance of <seealso cref="IGrpcLoadBalancingPolicy"/>.</returns>
         public IGrpcLoadBalancingPolicy CreateLoadBalancingPolicy();
     }
 }

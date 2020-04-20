@@ -5,13 +5,13 @@ using Xunit;
 
 namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
 {
-    public sealed class NoneResolverPluginTests
+    public sealed class NoOpResolverPluginTests
     {
         [Fact]
-        public async Task ForTarget_UseNoneResolverPlugin_ReturnResolutionResultWithTheSameValue()
+        public async Task ForTarget_UseNoOpResolverPlugin_ReturnResolutionResultWithTheSameValue()
         {
             // Arrange
-            var resolverPlugin = new NoneResolverPlugin();
+            var resolverPlugin = new NoOpResolverPlugin();
 
             // Act
             var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri("https://sample.host.com"));
@@ -24,10 +24,10 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
         }
 
         [Fact]
-        public async Task ForTargetWithDnsScheme_UseNoneResolverPlugin_ThrowArgumentException()
+        public async Task ForTargetWithDnsScheme_UseNoOpResolverPlugin_ThrowArgumentException()
         {
             // Arrange
-            var resolverPlugin = new NoneResolverPlugin();
+            var resolverPlugin = new NoOpResolverPlugin();
 
             // Act
             // Assert
