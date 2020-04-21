@@ -4,6 +4,10 @@
     {
         public string PolicyName => "round_robin";
 
+        public int Priority => 5;
+
+        public bool IsAvailable => true;
+
         public IGrpcLoadBalancingPolicy CreateLoadBalancingPolicy()
         {
             return new RoundRobinPolicy();

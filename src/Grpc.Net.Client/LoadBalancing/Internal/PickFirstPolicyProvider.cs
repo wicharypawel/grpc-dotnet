@@ -4,6 +4,10 @@
     {
         public string PolicyName => "pick_first";
 
+        public int Priority => 5;
+
+        public bool IsAvailable => true;
+
         public IGrpcLoadBalancingPolicy CreateLoadBalancingPolicy()
         {
             return new PickFirstPolicy();
