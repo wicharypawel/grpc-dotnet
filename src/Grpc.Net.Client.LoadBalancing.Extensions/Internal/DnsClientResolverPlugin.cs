@@ -18,7 +18,6 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
     {
         private DnsClientResolverPluginOptions _options;
         private ILogger _logger = NullLogger.Instance;
-        private GrpcServiceConfig? _serviceConfig;
 
         /// <summary>
         /// LoggerFactory is configured (injected) when class is being instantiated.
@@ -76,6 +75,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             }
             var host = target.Host;
             var dnsClient = GetDnsClient();
+            GrpcServiceConfig? serviceConfig = null;
             if (_options.EnableTxtServiceConfig)
             {
                 var serviceConfigDnsQuery = $"_grpc_config.{host}";
@@ -88,9 +88,9 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 {
                     _logger.LogDebug($"First grpc_config selected ");
                     _logger.LogDebug($"Parsing JSON grpc_config into service config success");
-                    var serviceConfig = serviceConfigs[0];
-                    var loadBalancingPolicies = serviceConfig.GetLoadBalancingPolicies();                  
-                    _serviceConfig = new GrpcServiceConfig
+                    var firstServiceConfig = serviceConfigs[0];
+                    var loadBalancingPolicies = firstServiceConfig.GetLoadBalancingPolicies();                  
+                    serviceConfig = new GrpcServiceConfig
                     {
                         RequestedLoadBalancingPolicies = loadBalancingPolicies
                     };
@@ -108,9 +108,9 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 var balancingDnsQueryTask = dnsClient.QueryAsync(balancingDnsQuery, QueryType.SRV);
                 await balancingDnsQueryTask.ConfigureAwait(false);
                 balancingDnsQueryResults = balancingDnsQueryTask.Result.Answers.OfType<SrvRecord>().Select(x => ParseSrvRecord(x, true)).ToArray();
-                if(_serviceConfig == null && balancingDnsQueryResults.Length > 0)
+                if (serviceConfig == null && balancingDnsQueryResults.Length > 0)
                 {
-                    _serviceConfig = GrpcServiceConfig.Create("grpclb", "pick_first");
+                    serviceConfig = GrpcServiceConfig.Create("grpclb", "pick_first");
                 }
             }
             var serversDnsQuery = host;
@@ -119,13 +119,13 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             await serversDnsQueryTask.ConfigureAwait(false);
             var serversDnsQueryResults = serversDnsQueryTask.Result.Answers.OfType<ARecord>().Select(x => ParseARecord(x, target.Port, false)).ToArray();
             var results = balancingDnsQueryResults.Union(serversDnsQueryResults).ToList();
-            if (_serviceConfig == null)
+            if (serviceConfig == null)
             {
-                _serviceConfig = GrpcServiceConfig.Create("pick_first");
+                serviceConfig = GrpcServiceConfig.Create("pick_first");
             }
             _logger.LogDebug($"NameResolution found {results.Count} DNS records");
-            var config = GrpcServiceConfigOrError.FromConfig(_serviceConfig);
-            _logger.LogDebug($"Service config created with policies: {string.Join(',', _serviceConfig.RequestedLoadBalancingPolicies)}");
+            var config = GrpcServiceConfigOrError.FromConfig(serviceConfig);
+            _logger.LogDebug($"Service config created with policies: {string.Join(',', serviceConfig.RequestedLoadBalancingPolicies)}");
             return new GrpcNameResolutionResult(results, config, GrpcAttributes.Empty);
         }
 
