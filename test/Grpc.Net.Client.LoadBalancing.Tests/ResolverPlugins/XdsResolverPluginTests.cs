@@ -1,6 +1,7 @@
 ﻿using Grpc.Net.Client.LoadBalancing.Extensions.Internal;
 using Grpc.Net.Client.LoadBalancing.Tests.Policies.Factories;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Xunit;
@@ -52,6 +53,24 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             Assert.Empty(resolutionResult.HostsAddresses);
             Assert.NotEmpty(serviceConfig.RequestedLoadBalancingPolicies);
             Assert.True(serviceConfig.RequestedLoadBalancingPolicies.First() == "xds");
+        }
+
+        [Fact]
+        public async Task ForOverrideDefaultPolicy_UseXdsResolverPlugin_ReturnServiceConfigWithOverridenPolicyName()
+        {
+            // Arrange
+            XdsBootstrapFileFactory.SetBootstrapFileEnv("XdsBootstrapFile.json");
+            var serviceHostName = "my-service";
+            var attributes = new GrpcAttributes(new Dictionary<string, object>() { { GrpcAttributesConstants.DefaultLoadBalancingPolicy, "round_robin" } });
+            var resolverPlugin = new XdsResolverPlugin(attributes);
+            
+            // Act
+            var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"xds://{serviceHostName}:443"));
+            var serviceConfig = resolutionResult.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
+
+            // Assert
+            Assert.Equal(2, serviceConfig.RequestedLoadBalancingPolicies.Count);
+            Assert.Contains("round_robin", serviceConfig.RequestedLoadBalancingPolicies[1]);
         }
     }
 }

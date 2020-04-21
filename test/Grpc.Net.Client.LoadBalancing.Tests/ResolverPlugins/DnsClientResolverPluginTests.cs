@@ -228,6 +228,44 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             Assert.True(serviceConfig.RequestedLoadBalancingPolicies.First() == "xds");
         }
 
+        [Fact]
+        public async Task ForOverrideDefaultPolicy_UseDnsClientResolverPlugin_ReturnServiceConfigWithOverridenPolicyName()
+        {
+            // Arrange
+            var serviceHostName = "my-service";
+            var txtDnsQueryResponse = new Mock<IDnsQueryResponse>(MockBehavior.Strict);
+            var srvBalancersDnsQueryResponse = new Mock<IDnsQueryResponse>(MockBehavior.Strict);
+            var aServersDnsQueryResponse = new Mock<IDnsQueryResponse>(MockBehavior.Strict);
+            var dnsClientMock = new Mock<IDnsQuery>(MockBehavior.Strict);
+
+            txtDnsQueryResponse.Setup(x => x.Answers).Returns(new List<TxtRecord>().AsReadOnly());
+            srvBalancersDnsQueryResponse.Setup(x => x.Answers).Returns(new List<SrvRecord>().AsReadOnly());
+            aServersDnsQueryResponse.Setup(x => x.Answers).Returns(new List<ARecord>(GetServersARecords(serviceHostName)).AsReadOnly());
+
+            dnsClientMock.Setup(x => x.QueryAsync($"_grpc_config.{serviceHostName}", QueryType.TXT, QueryClass.IN, default))
+                .Returns(Task.FromResult(txtDnsQueryResponse.Object));
+            dnsClientMock.Setup(x => x.QueryAsync($"_grpclb._tcp.{serviceHostName}", QueryType.SRV, QueryClass.IN, default))
+                .Returns(Task.FromResult(srvBalancersDnsQueryResponse.Object));
+            dnsClientMock.Setup(x => x.QueryAsync(serviceHostName, QueryType.A, QueryClass.IN, default))
+                .Returns(Task.FromResult(aServersDnsQueryResponse.Object));
+
+            var resolverPluginOptions = new DnsClientResolverPluginOptions() { EnableSrvGrpclb = false, EnableTxtServiceConfig = false };
+            var attributes = new GrpcAttributes(new Dictionary<string, object>() { 
+                { GrpcAttributesConstants.DefaultLoadBalancingPolicy, "round_robin" },
+                { GrpcAttributesLbConstants.DnsResolverOptions, resolverPluginOptions }
+            });
+            var resolverPlugin = new DnsClientResolverPlugin(attributes);
+            resolverPlugin.OverrideDnsClient = dnsClientMock.Object;
+
+            // Act
+            var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"dns://{serviceHostName}:443"));
+            var serviceConfig = resolutionResult.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
+
+            // Assert
+            Assert.Single(serviceConfig.RequestedLoadBalancingPolicies);
+            Assert.Equal("round_robin", serviceConfig.RequestedLoadBalancingPolicies[0]);
+        }
+
         private List<SrvRecord> GetBalancersSrvRecords(string serviceHostName)
         {
             return new List<SrvRecord>()

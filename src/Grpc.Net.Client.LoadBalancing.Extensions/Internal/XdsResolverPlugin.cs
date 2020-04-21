@@ -22,6 +22,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         private ILogger _logger = NullLogger.Instance;
         private ILoggerFactory _loggerFactory = NullLoggerFactory.Instance;
         private IXdsClient? _xdsClient;
+        private readonly string _defaultLoadBalancingPolicy;
 
         /// <summary>
         /// LoggerFactory is configured (injected) when class is being instantiated.
@@ -50,6 +51,8 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         {
             var options = attributes.Get(GrpcAttributesLbConstants.XdsResolverOptions) as XdsResolverPluginOptions;
             _options = options ?? new XdsResolverPluginOptions();
+            _defaultLoadBalancingPolicy = attributes.Get(GrpcAttributesConstants.DefaultLoadBalancingPolicy) as string
+                ?? "pick_first";
         }
 
         /// <summary>
@@ -59,6 +62,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         public XdsResolverPlugin(XdsResolverPluginOptions options)
         {
             _options = options;
+            _defaultLoadBalancingPolicy = "pick_first";
         }
 
         /// <summary>
@@ -84,7 +88,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 _xdsClient = XdsClientFactory.CreateXdsClient(_loggerFactory);
             }
             var host = target.Host;
-            var serviceConfig = GrpcServiceConfig.Create("xds", "pick_first");
+            var serviceConfig = GrpcServiceConfig.Create("xds", _defaultLoadBalancingPolicy);
             _logger.LogDebug($"NameResolution xds returns empty resolution result list");
             _logger.LogDebug($"Service config created with policies: {string.Join(',', serviceConfig.RequestedLoadBalancingPolicies)}");
             var config = GrpcServiceConfigOrError.FromConfig(serviceConfig);
