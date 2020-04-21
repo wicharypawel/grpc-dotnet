@@ -1,12 +1,12 @@
 ﻿using System;
 
-namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
+namespace Grpc.Net.Client.LoadBalancing.Internal
 {
-    internal sealed class DnsClientResolverPluginProvider : IGrpcResolverPluginProvider
+    internal sealed class DnsResolverPluginProvider : IGrpcResolverPluginProvider
     {
         public string Scheme => "dns";
 
-        public int Priority => 6;
+        public int Priority => 5;
 
         public bool IsAvailable => true;
 
@@ -16,7 +16,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             {
                 throw new ArgumentException(nameof(target));
             }
-            return new DnsClientResolverPlugin(attributes);
+            return new DnsResolverPlugin(attributes);
         }
     }
 }
