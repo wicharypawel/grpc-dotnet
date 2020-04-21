@@ -6,6 +6,10 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions
     {
         public string Scheme => "xds";
 
+        public int Priority => 4;
+
+        public bool IsAvailable => true;
+
         public IGrpcResolverPlugin CreateResolverPlugin(Uri target, GrpcAttributes attributes)
         {
             if (!target.Scheme.Equals(Scheme, StringComparison.OrdinalIgnoreCase))

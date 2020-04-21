@@ -6,6 +6,10 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
     {
         public string Scheme => string.Empty;
 
+        public int Priority => 5;
+
+        public bool IsAvailable => true;
+
         public IGrpcResolverPlugin CreateResolverPlugin(Uri target, GrpcAttributes attributes)
         {
             return new NoOpResolverPlugin(attributes);
@@ -18,6 +22,10 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
     internal sealed class HttpResolverPluginProvider : IGrpcResolverPluginProvider
     {
         public string Scheme => "http";
+
+        public int Priority => 5;
+
+        public bool IsAvailable => true;
 
         public IGrpcResolverPlugin CreateResolverPlugin(Uri target, GrpcAttributes attributes)
         {
@@ -35,6 +43,10 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
     internal sealed class HttpsResolverPluginProvider : IGrpcResolverPluginProvider
     {
         public string Scheme => "https";
+
+        public int Priority => 5;
+
+        public bool IsAvailable => true;
 
         public IGrpcResolverPlugin CreateResolverPlugin(Uri target, GrpcAttributes attributes)
         {
