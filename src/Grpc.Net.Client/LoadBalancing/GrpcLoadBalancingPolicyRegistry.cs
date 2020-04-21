@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
-using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
@@ -12,7 +12,7 @@ namespace Grpc.Net.Client.LoadBalancing
     /// </summary>
     public sealed class GrpcLoadBalancingPolicyRegistry
     {
-        private readonly ConcurrentDictionary<string, IGrpcLoadBalancingPolicyProvider> _providers = new ConcurrentDictionary<string, IGrpcLoadBalancingPolicyProvider>();
+        private readonly List<IGrpcLoadBalancingPolicyProvider> _providers = new List<IGrpcLoadBalancingPolicyProvider>();
 
         private GrpcLoadBalancingPolicyRegistry()
         {
@@ -26,9 +26,14 @@ namespace Grpc.Net.Client.LoadBalancing
         /// </summary>
         public void Register(IGrpcLoadBalancingPolicyProvider provider)
         {
-            if (!_providers.TryAdd(provider.PolicyName, provider))
+            if (!provider.IsAvailable)
             {
-                throw new InvalidOperationException("Registering load balancing policy provider failed");
+                return;
+            }
+            lock (LockObject)
+            {
+                _providers.Add(provider);
+                _providers.Sort(new ProvidersComparer());
             }
         }
 
@@ -37,9 +42,10 @@ namespace Grpc.Net.Client.LoadBalancing
         /// </summary>
         public void Deregister(IGrpcLoadBalancingPolicyProvider provider)
         {
-            if(!_providers.TryRemove(provider.PolicyName, out _))
+            lock (LockObject)
             {
-                throw new InvalidOperationException("Deregistering load balancing policy provider failed");
+                _providers.Remove(provider);
+                _providers.Sort(new ProvidersComparer());
             }
         }
 
@@ -50,14 +56,15 @@ namespace Grpc.Net.Client.LoadBalancing
         /// <returns>Load balancing policy or null if no suitable provider can be found.</returns>
         public IGrpcLoadBalancingPolicyProvider? GetProvider(string policyName)
         {
-            if(_providers.TryGetValue(policyName, out var loadBalancingPolicyProvider))
+            lock (LockObject)
+            foreach (var provider in _providers)
             {
-                return loadBalancingPolicyProvider;
+                if (policyName.Equals(provider.PolicyName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return provider;
+                }
             }
-            else
-            {
-                return null;
-            }
+            return null;
         }
 
         /// <summary>
@@ -97,6 +104,15 @@ namespace Grpc.Net.Client.LoadBalancing
             }
         }
 
+        /// <summary>
+        /// Creates an empty registry, used for tests only.
+        /// </summary>
+        /// <returns>Instance of <seealso cref="GrpcLoadBalancingPolicyRegistry"/>.</returns>
+        internal static GrpcLoadBalancingPolicyRegistry CreateEmptyRegistry()
+        {
+            return new GrpcLoadBalancingPolicyRegistry();
+        }
+
         private static IGrpcLoadBalancingPolicyProvider[] GetPolicyProvidersFromAppDomain()
         {
             var assemblies = AppDomain.CurrentDomain.GetAssemblies()
@@ -114,6 +130,14 @@ namespace Grpc.Net.Client.LoadBalancing
                 .Select(type => Activator.CreateInstance(type))
                 .Cast<IGrpcLoadBalancingPolicyProvider>()
                 .ToArray();
+        }
+
+        private sealed class ProvidersComparer : IComparer<IGrpcLoadBalancingPolicyProvider>
+        {
+            public int Compare(IGrpcLoadBalancingPolicyProvider x, IGrpcLoadBalancingPolicyProvider y)
+            {
+                return y.Priority.CompareTo(x.Priority);
+            }
         }
     }
 }
