@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
-using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
@@ -12,7 +12,7 @@ namespace Grpc.Net.Client.LoadBalancing
     /// </summary>
     public sealed class GrpcResolverPluginRegistry
     {
-        private readonly ConcurrentDictionary<string, IGrpcResolverPluginProvider> _providers = new ConcurrentDictionary<string, IGrpcResolverPluginProvider>();
+        private readonly List<IGrpcResolverPluginProvider> _providers = new List<IGrpcResolverPluginProvider>();
 
         private GrpcResolverPluginRegistry()
         {
@@ -26,9 +26,14 @@ namespace Grpc.Net.Client.LoadBalancing
         /// </summary>
         public void Register(IGrpcResolverPluginProvider provider)
         {
-            if (!_providers.TryAdd(provider.Scheme, provider))
+            if (!provider.IsAvailable)
             {
-                throw new InvalidOperationException("Registering resolver plugin provider failed");
+                return;
+            }
+            lock (LockObject)
+            {
+                _providers.Add(provider);
+                _providers.Sort(new ProvidersComparer());
             }
         }
 
@@ -37,9 +42,10 @@ namespace Grpc.Net.Client.LoadBalancing
         /// </summary>
         public void Deregister(IGrpcResolverPluginProvider provider)
         {
-            if(!_providers.TryRemove(provider.Scheme, out _))
+            lock (LockObject)
             {
-                throw new InvalidOperationException("Deregistering resolver plugin provider failed");
+                _providers.Remove(provider);
+                _providers.Sort(new ProvidersComparer());
             }
         }
 
@@ -50,14 +56,15 @@ namespace Grpc.Net.Client.LoadBalancing
         /// <returns>ResolverPluginProvider or null if no suitable provider can be found.</returns>
         public IGrpcResolverPluginProvider? GetProvider(string scheme)
         {
-            if(_providers.TryGetValue(scheme, out var resolverPluginProvider))
+            lock(LockObject)
+            foreach (var provider in _providers)
             {
-                return resolverPluginProvider;
+                if(scheme.Equals(provider.Scheme, StringComparison.OrdinalIgnoreCase))
+                {
+                    return provider;
+                }
             }
-            else
-            {
-                return null;
-            }
+            return null;
         }
 
         /// <summary>
@@ -97,6 +104,15 @@ namespace Grpc.Net.Client.LoadBalancing
             }
         }
 
+        /// <summary>
+        /// Creates an empty registry, used for tests only.
+        /// </summary>
+        /// <returns>Instance of <seealso cref="GrpcResolverPluginRegistry"/>.</returns>
+        internal static GrpcResolverPluginRegistry CreateEmptyRegistry()
+        {
+            return new GrpcResolverPluginRegistry();
+        }
+
         private static IGrpcResolverPluginProvider[] GetResolverProvidersFromAppDomain()
         {
             var assemblies = AppDomain.CurrentDomain.GetAssemblies()
@@ -114,6 +130,14 @@ namespace Grpc.Net.Client.LoadBalancing
                 .Select(type => Activator.CreateInstance(type))
                 .Cast<IGrpcResolverPluginProvider>()
                 .ToArray();
+        }
+
+        private sealed class ProvidersComparer : IComparer<IGrpcResolverPluginProvider>
+        {
+            public int Compare(IGrpcResolverPluginProvider x, IGrpcResolverPluginProvider y)
+            {
+                return y.Priority.CompareTo(x.Priority);
+            }
         }
     }
 }
