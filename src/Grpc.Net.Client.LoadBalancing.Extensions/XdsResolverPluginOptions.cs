@@ -1,4 +1,6 @@
-﻿namespace Grpc.Net.Client.LoadBalancing.Extensions
+﻿using Grpc.Net.Client.LoadBalancing.Extensions.Internal;
+
+namespace Grpc.Net.Client.LoadBalancing.Extensions
 {
     /// <summary>
     /// An options class for configuring a <see cref="XdsResolverPlugin"/>.

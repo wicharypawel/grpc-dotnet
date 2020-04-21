@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Grpc.Net.Client.LoadBalancing.Extensions.Internal;
+using System;
 
 namespace Grpc.Net.Client.LoadBalancing.Extensions
 {

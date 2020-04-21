@@ -1,12 +1,12 @@
 ﻿using System;
 
-namespace Grpc.Net.Client.LoadBalancing.Extensions
+namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 {
-    internal sealed class StaticResolverPluginProvider : IGrpcResolverPluginProvider
+    internal sealed class XdsResolverPluginProvider : IGrpcResolverPluginProvider
     {
-        public string Scheme => "static";
+        public string Scheme => "xds";
 
-        public int Priority => 5;
+        public int Priority => 4;
 
         public bool IsAvailable => true;
 
@@ -16,7 +16,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions
             {
                 throw new ArgumentException(nameof(target));
             }
-            return new StaticResolverPlugin(attributes);
+            return new XdsResolverPlugin(attributes);
         }
     }
 }

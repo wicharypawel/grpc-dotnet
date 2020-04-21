@@ -1,4 +1,4 @@
-﻿using Grpc.Net.Client.LoadBalancing.Extensions;
+﻿using Grpc.Net.Client.LoadBalancing.Extensions.Internal;
 using Grpc.Net.Client.LoadBalancing.Tests.Policies.Factories;
 using System;
 using System.Linq;

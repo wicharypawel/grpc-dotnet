@@ -3,14 +3,14 @@ using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Threading.Tasks;
 
-namespace Grpc.Net.Client.LoadBalancing.Extensions
+namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 {
     /// <summary>
     /// Resolver plugin is responsible for name resolution by reaching the authority and return 
     /// a list of resolved addresses (both IP address and port) and a service config.
     /// More: https://github.com/grpc/grpc/blob/master/doc/naming.md
     /// </summary>
-    public sealed class StaticResolverPlugin : IGrpcResolverPlugin
+    internal sealed class StaticResolverPlugin : IGrpcResolverPlugin
     {
         private readonly Func<Uri, GrpcNameResolutionResult> _staticNameResolution;
         private ILogger _logger = NullLogger.Instance;

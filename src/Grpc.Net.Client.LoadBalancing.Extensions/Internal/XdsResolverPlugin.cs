@@ -1,11 +1,10 @@
-﻿using Grpc.Net.Client.LoadBalancing.Extensions.Internal;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace Grpc.Net.Client.LoadBalancing.Extensions
+namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 {
     /// <summary>
     /// Resolver plugin is responsible for name resolution by reaching the authority and return 
@@ -17,7 +16,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions
     /// More: https://github.com/grpc/grpc/blob/master/doc/naming.md
     /// More: https://github.com/grpc/proposal/blob/master/A27-xds-global-load-balancing.md
     /// </summary>
-    public sealed class XdsResolverPlugin : IGrpcResolverPlugin
+    internal sealed class XdsResolverPlugin : IGrpcResolverPlugin
     {
         private XdsResolverPluginOptions _options;
         private ILogger _logger = NullLogger.Instance;

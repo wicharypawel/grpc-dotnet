@@ -1,4 +1,5 @@
 ﻿using Grpc.Net.Client.LoadBalancing.Extensions;
+using Grpc.Net.Client.LoadBalancing.Extensions.Internal;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;

@@ -1,6 +1,7 @@
 ﻿using DnsClient;
 using DnsClient.Protocol;
 using Grpc.Net.Client.LoadBalancing.Extensions;
+using Grpc.Net.Client.LoadBalancing.Extensions.Internal;
 using Moq;
 using System;
 using System.Collections.Generic;

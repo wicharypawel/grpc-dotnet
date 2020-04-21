@@ -1,6 +1,5 @@
 ﻿using DnsClient;
 using DnsClient.Protocol;
-using Grpc.Net.Client.LoadBalancing.Extensions.Internal;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
@@ -8,14 +7,14 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace Grpc.Net.Client.LoadBalancing.Extensions
+namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 {
     /// <summary>
     /// Resolver plugin is responsible for name resolution by reaching the authority and return 
     /// a list of resolved addresses (both IP address and port).
     /// More: https://github.com/grpc/grpc/blob/master/doc/naming.md
     /// </summary>
-    public sealed class DnsClientResolverPlugin : IGrpcResolverPlugin
+    internal sealed class DnsClientResolverPlugin : IGrpcResolverPlugin
     {
         private DnsClientResolverPluginOptions _options;
         private ILogger _logger = NullLogger.Instance;

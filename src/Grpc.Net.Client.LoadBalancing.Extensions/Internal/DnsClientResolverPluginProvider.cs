@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Grpc.Net.Client.LoadBalancing.Extensions
+namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 {
     internal sealed class DnsClientResolverPluginProvider : IGrpcResolverPluginProvider
     {
@@ -20,4 +20,3 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions
         }
     }
 }
-                                                                                                        
