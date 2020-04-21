@@ -44,21 +44,28 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
         }
 
         [Fact]
-        public async Task ForTargetWithDnsScheme_UseNoOpResolverPlugin_ThrowArgumentException()
+        public async Task ForTargetWithWellKnownScheme_UseNoOpResolverPlugin_ThrowArgumentException()
         {
             // Arrange
             var resolverPlugin = new NoOpResolverPlugin();
 
             // Act
             // Assert
-            await Assert.ThrowsAsync<ArgumentException>(async () =>
+            var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
             {
                 await resolverPlugin.StartNameResolutionAsync(new Uri("dns://sample.host.com"));
             });
-            await Assert.ThrowsAsync<ArgumentException>(async () =>
+            Assert.Contains("require non-default name resolver", exception.Message);
+            exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
             {
                 await resolverPlugin.StartNameResolutionAsync(new Uri("xds://sample.host.com"));
             });
+            Assert.Contains("require non-default name resolver", exception.Message);
+            exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
+            {
+                await resolverPlugin.StartNameResolutionAsync(new Uri("xds-experimental://sample.host.com"));
+            });
+            Assert.Contains("require non-default name resolver", exception.Message);
         }
     }
 }
