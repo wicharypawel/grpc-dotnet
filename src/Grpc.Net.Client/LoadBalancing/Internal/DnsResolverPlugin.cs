@@ -26,6 +26,11 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         }
 
         /// <summary>
+        /// Property created for testing purposes, allows setter injection
+        /// </summary>
+        internal Task<IPAddress[]>? OverrideDnsResults { private get; set; }
+
+        /// <summary>
         /// Creates a new <seealso cref="DnsResolverPlugin"/> instance, with default settings.
         /// </summary>
         public DnsResolverPlugin() : this(GrpcAttributes.Empty)
@@ -59,7 +64,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             }
             var serversDnsQuery = target.Host;
             _logger.LogDebug($"Start A lookup for {serversDnsQuery}");
-            var serversDnsQueryTask = Dns.GetHostAddressesAsync(serversDnsQuery);
+            var serversDnsQueryTask = OverrideDnsResults ?? Dns.GetHostAddressesAsync(serversDnsQuery);
             await serversDnsQueryTask.ConfigureAwait(false);
             var serversDnsQueryResults = serversDnsQueryTask.Result.Select(x => ParseARecord(x, target.Port, false)).ToArray();
             var results = serversDnsQueryResults.ToList();
