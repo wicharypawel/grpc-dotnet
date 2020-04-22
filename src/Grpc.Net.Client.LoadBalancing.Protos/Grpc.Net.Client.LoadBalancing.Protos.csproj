@@ -43,6 +43,8 @@
     <Protobuf Include="envoy/api/v2/route/route_components.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
     <Protobuf Include="envoy/api/v2/route.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
     <Protobuf Include="envoy/api/v2/scoped_route.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/config/filter/accesslog/v2/accesslog.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
+    <Protobuf Include="envoy/config/filter/network/http_connection_manager/v2/http_connection_manager.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
     <Protobuf Include="envoy/config/listener/v2/api_listener.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
     <Protobuf Include="envoy/config/metrics/v2/stats.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />
     <Protobuf Include="envoy/config/trace/v2/trace.proto" OutputDir="$(Protobuf_OutputPath)%(RelativeDir)" />

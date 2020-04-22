@@ -1,5 +1,6 @@
 ﻿using Grpc.Net.Client.LoadBalancing.Extensions.Internal;
 using Grpc.Net.Client.LoadBalancing.Tests.Policies.Factories;
+using Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins.Factories;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -63,7 +64,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             var serviceHostName = "my-service";
             var attributes = new GrpcAttributes(new Dictionary<string, object>() { { GrpcAttributesConstants.DefaultLoadBalancingPolicy, "round_robin" } });
             var resolverPlugin = new XdsResolverPlugin(attributes);
-            
+
             // Act
             var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"xds://{serviceHostName}:443"));
             var serviceConfig = resolutionResult.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
@@ -71,6 +72,20 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             // Assert
             Assert.Equal(2, serviceConfig.RequestedLoadBalancingPolicies.Count);
             Assert.Contains("round_robin", serviceConfig.RequestedLoadBalancingPolicies[1]);
+        }
+
+        [Fact]
+        public void Test()
+        {
+            var authority = "foo.googleapis.com:80";
+            var clusterName = "cluster-foo.googleapis.com";
+            // Simulate receiving an LDS response that contains cluster resolution directly in-line.
+            var ldsResponse = XdsClientTestFactory.BuildLdsResponseForCluster("0", authority, clusterName, "0000");
+            // Simulate receiving another LDS response that tells client to do RDS.
+            var routeConfigName = "route-foo.googleapis.com";
+            var ldsResponseForRds = XdsClientTestFactory.BuildLdsResponseForRdsResource("1", authority, routeConfigName, "0001");
+            // Simulate receiving an RDS response that contains the resource "route-foo.googleapis.com"
+            var rdsResponse = XdsClientTestFactory.BuildRdsResponseForCluster("0", routeConfigName, authority, "cluster-blade.googleapis.com", "0000");
         }
     }
 }
