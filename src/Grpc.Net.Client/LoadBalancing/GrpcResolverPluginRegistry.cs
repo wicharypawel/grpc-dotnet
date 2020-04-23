@@ -13,6 +13,7 @@ namespace Grpc.Net.Client.LoadBalancing
     public sealed class GrpcResolverPluginRegistry
     {
         private readonly List<IGrpcResolverPluginProvider> _providers = new List<IGrpcResolverPluginProvider>();
+        private IReadOnlyList<IGrpcResolverPluginProvider> _effectiveProviders = Array.Empty<IGrpcResolverPluginProvider>();
 
         private GrpcResolverPluginRegistry()
         {
@@ -34,6 +35,7 @@ namespace Grpc.Net.Client.LoadBalancing
             {
                 _providers.Add(provider);
                 _providers.Sort(new ProvidersComparer());
+                _effectiveProviders = _providers.ToList().AsReadOnly();
             }
         }
 
@@ -46,6 +48,7 @@ namespace Grpc.Net.Client.LoadBalancing
             {
                 _providers.Remove(provider);
                 _providers.Sort(new ProvidersComparer());
+                _effectiveProviders = _providers.ToList().AsReadOnly();
             }
         }
 
@@ -56,8 +59,7 @@ namespace Grpc.Net.Client.LoadBalancing
         /// <returns>ResolverPluginProvider or null if no suitable provider can be found.</returns>
         public IGrpcResolverPluginProvider? GetProvider(string scheme)
         {
-            lock(LockObject)
-            foreach (var provider in _providers)
+            foreach (var provider in _effectiveProviders)
             {
                 if(scheme.Equals(provider.Scheme, StringComparison.OrdinalIgnoreCase))
                 {

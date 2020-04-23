@@ -13,6 +13,7 @@ namespace Grpc.Net.Client.LoadBalancing
     public sealed class GrpcLoadBalancingPolicyRegistry
     {
         private readonly List<IGrpcLoadBalancingPolicyProvider> _providers = new List<IGrpcLoadBalancingPolicyProvider>();
+        private IReadOnlyList<IGrpcLoadBalancingPolicyProvider> _effectiveProviders = Array.Empty<IGrpcLoadBalancingPolicyProvider>();
 
         private GrpcLoadBalancingPolicyRegistry()
         {
@@ -34,6 +35,7 @@ namespace Grpc.Net.Client.LoadBalancing
             {
                 _providers.Add(provider);
                 _providers.Sort(new ProvidersComparer());
+                _effectiveProviders = _providers.ToList().AsReadOnly();
             }
         }
 
@@ -46,6 +48,7 @@ namespace Grpc.Net.Client.LoadBalancing
             {
                 _providers.Remove(provider);
                 _providers.Sort(new ProvidersComparer());
+                _effectiveProviders = _providers.ToList().AsReadOnly();
             }
         }
 
@@ -56,8 +59,7 @@ namespace Grpc.Net.Client.LoadBalancing
         /// <returns>Load balancing policy or null if no suitable provider can be found.</returns>
         public IGrpcLoadBalancingPolicyProvider? GetProvider(string policyName)
         {
-            lock (LockObject)
-            foreach (var provider in _providers)
+            foreach (var provider in _effectiveProviders)
             {
                 if (policyName.Equals(provider.PolicyName, StringComparison.OrdinalIgnoreCase))
                 {
