@@ -68,7 +68,6 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 ?? throw new InvalidOperationException("XdsPolicy can not find XdsClient");
             _isSecureConnection = isSecureConnection;
             _logger.LogDebug($"Start xds policy");
-            _logger.LogDebug($"Start connection to control plane");
             var clusters = await _xdsClient.GetCdsAsync().ConfigureAwait(false);
             var cluster = clusters
                 .Where(x => x.Type == Cluster.Types.DiscoveryType.Eds)

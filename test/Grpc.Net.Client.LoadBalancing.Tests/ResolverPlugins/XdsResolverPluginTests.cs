@@ -1,6 +1,8 @@
-﻿using Grpc.Net.Client.LoadBalancing.Extensions.Internal;
+using Envoy.Api.V2;
+using Grpc.Net.Client.LoadBalancing.Extensions.Internal;
 using Grpc.Net.Client.LoadBalancing.Tests.Policies.Factories;
 using Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins.Factories;
+using Moq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -40,10 +42,12 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
         public async Task ForTarget_UseXdsResolverPlugin_ReturnNoFinidingsAndServiceConfigWithXdsPolicy()
         {
             // Arrange
-            XdsBootstrapFileFactory.SetBootstrapFileEnv("XdsBootstrapFile.json");
             var serviceHostName = "my-service";
+            var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
+            xdsClientMock.Setup(x => x.GetLdsAsync()).Returns(Task.FromResult(new List<Listener>()));
 
             var resolverPlugin = new XdsResolverPlugin();
+            resolverPlugin.OverrideXdsClient = xdsClientMock.Object;
 
             // Act
             var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"xds://{serviceHostName}:80"));
@@ -57,13 +61,35 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
         }
 
         [Fact]
+        public async Task ForTarget_UseXdsResolverPlugin_ReturnXdsClientInAttributes()
+        {
+            // Arrange
+            var serviceHostName = "my-service";
+            var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
+            xdsClientMock.Setup(x => x.GetLdsAsync()).Returns(Task.FromResult(new List<Listener>()));
+
+            var resolverPlugin = new XdsResolverPlugin();
+            resolverPlugin.OverrideXdsClient = xdsClientMock.Object;
+
+            // Act
+            var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"xds://{serviceHostName}:80"));
+            var serviceConfig = resolutionResult.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
+
+            // Assert
+            Assert.NotNull(resolutionResult);
+            Assert.NotNull(resolutionResult.Attributes.Get(XdsAttributesConstants.XdsClientInstanceKey) as IXdsClient);
+        }
+
+        [Fact]
         public async Task ForOverrideDefaultPolicy_UseXdsResolverPlugin_ReturnServiceConfigWithOverridenPolicyName()
         {
             // Arrange
-            XdsBootstrapFileFactory.SetBootstrapFileEnv("XdsBootstrapFile.json");
             var serviceHostName = "my-service";
+            var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
+            xdsClientMock.Setup(x => x.GetLdsAsync()).Returns(Task.FromResult(new List<Listener>()));
             var attributes = new GrpcAttributes(new Dictionary<string, object>() { { GrpcAttributesConstants.DefaultLoadBalancingPolicy, "round_robin" } });
             var resolverPlugin = new XdsResolverPlugin(attributes);
+            resolverPlugin.OverrideXdsClient = xdsClientMock.Object;
 
             // Act
             var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"xds://{serviceHostName}:443"));

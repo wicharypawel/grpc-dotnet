@@ -37,6 +37,11 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         }
 
         /// <summary>
+        /// Property created for testing purposes, allows setter injection
+        /// </summary>
+        internal IXdsClient? OverrideXdsClient { private get; set; }
+
+        /// <summary>
         /// Creates a <seealso cref="XdsResolverPlugin"/> using default <seealso cref="XdsResolverPluginOptions"/>.
         /// </summary>
         public XdsResolverPlugin() : this(new XdsResolverPluginOptions())
@@ -73,7 +78,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         /// </summary>
         /// <param name="target">Server address with scheme.</param>
         /// <returns>List of resolved servers.</returns>
-        public Task<GrpcNameResolutionResult> StartNameResolutionAsync(Uri target)
+        public async Task<GrpcNameResolutionResult> StartNameResolutionAsync(Uri target)
         {
             if (target == null)
             {
@@ -85,15 +90,17 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             }
             if (_xdsClient == null)
             {
-                _xdsClient = XdsClientFactory.CreateXdsClient(_loggerFactory);
+                _xdsClient = OverrideXdsClient ?? XdsClientFactory.CreateXdsClient(_loggerFactory);
             }
+            var listeners = await _xdsClient.GetLdsAsync().ConfigureAwait(false);
+            //TODO here
             var host = target.Host;
             var serviceConfig = GrpcServiceConfig.Create("xds", _defaultLoadBalancingPolicy);
             _logger.LogDebug($"NameResolution xds returns empty resolution result list");
             _logger.LogDebug($"Service config created with policies: {string.Join(',', serviceConfig.RequestedLoadBalancingPolicies)}");
             var config = GrpcServiceConfigOrError.FromConfig(serviceConfig);
             var attributes = new GrpcAttributes(new Dictionary<string, object>() { { XdsAttributesConstants.XdsClientInstanceKey, _xdsClient } });
-            return Task.FromResult(new GrpcNameResolutionResult(new List<GrpcHostAddress>(), config, attributes));
+            return new GrpcNameResolutionResult(new List<GrpcHostAddress>(), config, attributes);
         }
 
         public void Dispose()
