@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Envoy.Api.V2;
+using Envoy.Config.Filter.Network.HttpConnectionManager.V2;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
@@ -93,13 +95,48 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             {
                 _xdsClient = OverrideXdsClient ?? XdsClientFactory.CreateXdsClient(_loggerFactory);
             }
-            var listeners = await _xdsClient.GetLdsAsync().ConfigureAwait(false);
-            var containsListenerForTarget = listeners.Any(x => x.Name.Contains(target.Host, StringComparison.OrdinalIgnoreCase));
-            var host = target.Host;
-            var serviceConfig = GrpcServiceConfig.Create("xds", _defaultLoadBalancingPolicy);
+            GrpcServiceConfig? serviceConfig = null;
+            var listenerName = $"{target.Host}:{target.Port}";
+            var listeners = await _xdsClient.GetLdsAsync(listenerName).ConfigureAwait(false);
+            Listener? listener = listeners.FirstOrDefault(x => x.Name.Equals(listenerName, StringComparison.OrdinalIgnoreCase));
+            if (listener != null) // LDS success, found matching listener
+            {
+                HttpConnectionManager? httpConnectionManager = null;
+                var hasHttpConnectionManager = listener.ApiListener?.ApiListener_?.TryUnpack(out httpConnectionManager) ?? false;
+                if (hasHttpConnectionManager && httpConnectionManager!.RouteConfig != null) // route config in-line
+                {
+                    var routeConfiguration = httpConnectionManager!.RouteConfig;
+                    serviceConfig = GetCdsFromRouteConfiguration(routeConfiguration, target);
+                }
+                else if(hasHttpConnectionManager && httpConnectionManager!.Rds != null) // make RDS request
+                {
+                    var rdsConfig = httpConnectionManager!.Rds;
+                    if (rdsConfig.ConfigSource?.Ads == null)
+                    {
+                        throw new InvalidOperationException("LDS that specify to call RDS is expected to have ADS source");
+                    }
+                    var routeConfigurations = await _xdsClient.GetRdsAsync(rdsConfig.RouteConfigName).ConfigureAwait(false);
+                    if (routeConfigurations.Count == 0)
+                    {
+                        throw new InvalidOperationException("No route configurations found during RDS");
+                    }
+                    RouteConfiguration routeConfiguration = routeConfigurations.First(x => x.Name.Equals(rdsConfig.RouteConfigName, StringComparison.OrdinalIgnoreCase));
+                    serviceConfig = GetCdsFromRouteConfiguration(routeConfiguration, target);
+                }
+                else
+                {
+                    throw new InvalidOperationException("LDS Listener has been found but it doesn't contain in-line configuration, nor point to RDS");
+                }
+            }
+            else
+            {
+                // according to gRFC documentation we should throw error here
+                // we assume everything is fine because currently used control-plane does not support this
+                serviceConfig = GrpcServiceConfig.Create("xds", _defaultLoadBalancingPolicy);
+            }
             _logger.LogDebug($"NameResolution xds returns empty resolution result list");
+            var config = GrpcServiceConfigOrError.FromConfig(serviceConfig ?? throw new InvalidOperationException("serviceConfig is null"));
             _logger.LogDebug($"Service config created with policies: {string.Join(',', serviceConfig.RequestedLoadBalancingPolicies)}");
-            var config = containsListenerForTarget ? GrpcServiceConfigOrError.FromConfig(serviceConfig) : GrpcServiceConfigOrError.FromError(Core.Status.DefaultCancelled);
             var attributes = new GrpcAttributes(new Dictionary<string, object>() { { XdsAttributesConstants.XdsClientInstanceKey, _xdsClient } });
             return new GrpcNameResolutionResult(new List<GrpcHostAddress>(), config, attributes);
         }
@@ -107,6 +144,38 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         public void Dispose()
         {
             _xdsClient?.Dispose();
+        }
+
+        private GrpcServiceConfig? GetCdsFromRouteConfiguration(RouteConfiguration routeConfiguration, Uri target)
+        {
+            if (routeConfiguration == null)
+            {
+                throw new ArgumentNullException(nameof(routeConfiguration));
+            }
+            if (target == null)
+            {
+                throw new ArgumentNullException(nameof(target));
+            }
+            var virtualHost = routeConfiguration.VirtualHosts.First(x => AnyDomainMatch(x.Domains, target.Host));
+            var defaultRoute = virtualHost.Routes.Last();
+            if (defaultRoute?.Match == null || defaultRoute.Match.Prefix != string.Empty || defaultRoute.Route_?.Cluster == null)
+            {
+                throw new InvalidOperationException("Cluster name can not be specified");
+            }
+            var clusterName = defaultRoute.Route_.Cluster;
+            return GrpcServiceConfig.Create("xds", _defaultLoadBalancingPolicy);
+        }
+
+        private static bool AnyDomainMatch(IEnumerable<string> domains, string targetDomain)
+        {
+            foreach (var domain in domains)
+            {
+                if (domain.Contains(targetDomain, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 }

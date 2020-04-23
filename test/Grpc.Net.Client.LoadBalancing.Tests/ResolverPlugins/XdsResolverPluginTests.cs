@@ -1,6 +1,5 @@
 ﻿using Envoy.Api.V2;
 using Grpc.Net.Client.LoadBalancing.Extensions.Internal;
-using Grpc.Net.Client.LoadBalancing.Tests.Policies.Factories;
 using Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins.Factories;
 using Moq;
 using System;
@@ -39,12 +38,12 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
         }
 
         [Fact]
-        public async Task ForTarget_UseXdsResolverPlugin_ReturnNoFinidingsAndServiceConfigWithXdsPolicy()
+        public async Task ForTarget_UseXdsResolverPlugin_ReturnNoHostsAddresses()
         {
             // Arrange
             var serviceHostName = "my-service";
             var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
-            xdsClientMock.Setup(x => x.GetLdsAsync()).Returns(Task.FromResult(new List<Listener>()));
+            xdsClientMock.Setup(x => x.GetLdsAsync(It.IsAny<string>())).Returns(Task.FromResult(new List<Listener>()));
 
             var resolverPlugin = new XdsResolverPlugin();
             resolverPlugin.OverrideXdsClient = xdsClientMock.Object;
@@ -56,8 +55,6 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             // Assert
             Assert.NotNull(resolutionResult);
             Assert.Empty(resolutionResult.HostsAddresses);
-            Assert.NotEmpty(serviceConfig.RequestedLoadBalancingPolicies);
-            Assert.True(serviceConfig.RequestedLoadBalancingPolicies.First() == "xds");
         }
 
         [Fact]
@@ -66,7 +63,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             // Arrange
             var serviceHostName = "my-service";
             var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
-            xdsClientMock.Setup(x => x.GetLdsAsync()).Returns(Task.FromResult(new List<Listener>()));
+            xdsClientMock.Setup(x => x.GetLdsAsync(It.IsAny<string>())).Returns(Task.FromResult(new List<Listener>()));
 
             var resolverPlugin = new XdsResolverPlugin();
             resolverPlugin.OverrideXdsClient = xdsClientMock.Object;
@@ -86,44 +83,30 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             // Arrange
             var serviceHostName = "my-service";
             var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
-            xdsClientMock.Setup(x => x.GetLdsAsync()).Returns(Task.FromResult(new List<Listener>()));
+            xdsClientMock.Setup(x => x.GetLdsAsync(It.IsAny<string>())).Returns(Task.FromResult(new List<Listener>()));
             var attributes = new GrpcAttributes(new Dictionary<string, object>() { { GrpcAttributesConstants.DefaultLoadBalancingPolicy, "round_robin" } });
+
             var resolverPlugin = new XdsResolverPlugin(attributes);
             resolverPlugin.OverrideXdsClient = xdsClientMock.Object;
 
             // Act
-            var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"xds://{serviceHostName}:443"));
+            var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"xds://{serviceHostName}:80"));
             var serviceConfig = resolutionResult.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
 
             // Assert
-            Assert.Equal(2, serviceConfig.RequestedLoadBalancingPolicies.Count);
-            Assert.Contains("round_robin", serviceConfig.RequestedLoadBalancingPolicies[1]);
+            Assert.Contains("round_robin", serviceConfig.RequestedLoadBalancingPolicies.Last());
         }
 
         [Fact]
-        public void Test()
-        {
-            var authority = "foo.googleapis.com:80";
-            var clusterName = "cluster-foo.googleapis.com";
-            // Simulate receiving an LDS response that contains cluster resolution directly in-line.
-            var ldsResponse = XdsClientTestFactory.BuildLdsResponseForCluster("0", authority, clusterName, "0000");
-            // Simulate receiving another LDS response that tells client to do RDS.
-            var routeConfigName = "route-foo.googleapis.com";
-            var ldsResponseForRds = XdsClientTestFactory.BuildLdsResponseForRdsResource("1", authority, routeConfigName, "0001");
-            // Simulate receiving an RDS response that contains the resource "route-foo.googleapis.com"
-            var rdsResponse = XdsClientTestFactory.BuildRdsResponseForCluster("0", routeConfigName, authority, "cluster-blade.googleapis.com", "0000");
-        }
-
-        [Fact]
-        public async Task ForTarget_UseXdsResolverPlugin_FoundResource()
+        public async Task ForLdsHavingRouteConfigInline_UseXdsResolverPlugin_FindClusterName()
         {
             // Arrange
+            var serviceHostName = "foo.googleapis.com";
             var authority = "foo.googleapis.com:80";
             var clusterName = "cluster-foo.googleapis.com";
-            var serviceHostName = "foo.googleapis.com";
 
             var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
-            xdsClientMock.Setup(x => x.GetLdsAsync()).Returns(Task.FromResult(new List<Listener>() { 
+            xdsClientMock.Setup(x => x.GetLdsAsync(authority)).Returns(Task.FromResult(new List<Listener>() { 
                 XdsClientTestFactory.BuildLdsResponseForCluster("0", authority, clusterName, "0000").Resources[0].Unpack<Listener>()
             }));
 
@@ -131,32 +114,54 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             resolverPlugin.OverrideXdsClient = xdsClientMock.Object;
 
             // Act
-            var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"xds://{serviceHostName}:443"));
+            var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"xds://{serviceHostName}:80"));
             var serviceConfig = resolutionResult.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
 
             // Assert
             Assert.NotNull(resolutionResult);
+            Assert.Empty(resolutionResult.HostsAddresses);
             Assert.NotNull(resolutionResult.ServiceConfig.Config);
+            //Assert verify if service config returns clusterName (require refactor of GrpcServiceConfig class) 
         }
 
         [Fact]
-        public async Task ForTarget_UseXdsResolverPlugin_ReturnResourceNotFound()
+        public async Task ForLdsPointingToRds_UseXdsResolverPlugin_FindClusterName()
         {
             // Arrange
-            var serviceHostName = "my-service";
+            var serviceHostName = "foo.googleapis.com";
+            var authority = "foo.googleapis.com:80";
+            var routeConfigName = "route-foo.googleapis.com";
+            var clusterName = "cluster-foo.googleapis.com";
 
             var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
-            xdsClientMock.Setup(x => x.GetLdsAsync()).Returns(Task.FromResult(new List<Listener>() { }));
+            xdsClientMock.Setup(x => x.GetLdsAsync(authority)).Returns(Task.FromResult(new List<Listener>() { 
+                XdsClientTestFactory.BuildLdsResponseForRdsResource("0", authority, routeConfigName, "0000").Resources[0].Unpack<Listener>()
+            }));
+            xdsClientMock.Setup(x => x.GetRdsAsync(routeConfigName)).Returns(Task.FromResult(new List<RouteConfiguration>() {
+                XdsClientTestFactory.BuildRdsResponseForCluster("0", routeConfigName, authority, clusterName, "0000").Resources[0].Unpack<RouteConfiguration>()
+            }));
 
             var resolverPlugin = new XdsResolverPlugin(GrpcAttributes.Empty);
             resolverPlugin.OverrideXdsClient = xdsClientMock.Object;
 
             // Act
-            var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"xds://{serviceHostName}:443"));
+            var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"xds://{serviceHostName}:80"));
+            var serviceConfig = resolutionResult.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
 
             // Assert
             Assert.NotNull(resolutionResult);
-            Assert.Equal(Core.Status.DefaultCancelled, resolutionResult.ServiceConfig.Status);
+            Assert.Empty(resolutionResult.HostsAddresses);
+            Assert.NotNull(resolutionResult.ServiceConfig.Config);
+            //Assert verify if service config returns clusterName (require refactor of GrpcServiceConfig class) 
+        }
+
+        [Fact]
+        public void ForNotReturnedValues_UseXdsResolverPlugin_ReturnResourceNotFound()
+        {
+            // according to gRFC documentation XdsResolverPlugin should throw error here
+            // current implementation create service config with initialized cds policy
+            // it is implemented that way because currently used control-plane does not support LDS
+            // in the future simply throw an error if not found and verify that in tests
         }
     }
 }

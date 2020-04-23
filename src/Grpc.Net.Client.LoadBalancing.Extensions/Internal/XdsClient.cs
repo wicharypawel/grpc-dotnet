@@ -55,13 +55,13 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 
         internal bool Disposed { get; private set; }
 
-        public async Task<List<Listener>> GetLdsAsync()
+        public async Task<List<Listener>> GetLdsAsync(string resourceName)
         {
             _logger.LogDebug("XdsClient request LDS");
             await _adsStream.RequestStream.WriteAsync(new DiscoveryRequest()
             {
                 TypeUrl = ADS_TYPE_URL_LDS,
-                ResourceNames = { },
+                ResourceNames = { resourceName },
                 VersionInfo = version,
                 ResponseNonce = nonce,
                 Node = _bootstrapInfo.Node
