@@ -100,7 +100,7 @@ namespace Grpc.Net.Client
             ResolverPlugin = CreateResolverPlugin(Address, LoggerFactory, channelOptions.Attributes);
             ResolverPlugin.LoggerFactory = LoggerFactory;
             var resolutionResult = ResolverPlugin.StartNameResolutionAsync(Address).GetAwaiter().GetResult();
-            var serviceConfig = resolutionResult.ServiceConfig.Config as GrpcServiceConfig ?? GrpcServiceConfig.Create("pick_first");
+            var serviceConfig = resolutionResult.ServiceConfig.Config as GrpcServiceConfig ?? GrpcServiceConfig.Create(channelOptions.DefaultLoadBalancingPolicy);
             var requestedPolicies = serviceConfig.RequestedLoadBalancingPolicies;
             LoadBalancingPolicy = CreateRequestedPolicy(requestedPolicies, LoggerFactory);
             LoadBalancingPolicy.LoggerFactory = LoggerFactory;
