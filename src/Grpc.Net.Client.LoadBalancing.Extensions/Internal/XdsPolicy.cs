@@ -66,6 +66,8 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             }
             _xdsClient = resolutionResult.Attributes.Get(XdsAttributesConstants.XdsClientInstanceKey) as IXdsClient
                 ?? throw new InvalidOperationException("XdsPolicy can not find XdsClient");
+            var clusterName = resolutionResult.Attributes.Get(XdsAttributesConstants.CdsClusterName) as string
+                ?? throw new InvalidOperationException("XdsPolicy can not find clusterName");
             _isSecureConnection = isSecureConnection;
             _logger.LogDebug($"Start xds policy");
             var clusters = await _xdsClient.GetCdsAsync().ConfigureAwait(false);
@@ -73,7 +75,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 .Where(x => x.Type == Cluster.Types.DiscoveryType.Eds)
                 .Where(x => x?.EdsClusterConfig?.EdsConfig != null)
                 .Where(x => x.LbPolicy == Cluster.Types.LbPolicy.RoundRobin)
-                .Where(x => x?.Name.Contains(serviceName, StringComparison.OrdinalIgnoreCase) ?? false).First();
+                .Where(x => IsSearchedCluster(x, clusterName, serviceName)).First();
             if (cluster.LrsServer != null && cluster.LrsServer.Self != null)
             {
                 _logger.LogDebug("XdsPolicy LRS load reporting unsupported");
@@ -146,6 +148,22 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 _logger.LogDebug($"Found a server {uri}");
             }
             return result;
+        }
+
+        private static bool IsSearchedCluster(Cluster x, string clusterName, string serviceName)
+        {
+            if (x == null)
+            {
+                return false;
+            }
+            if (clusterName == "magic-value-find-cluster-by-service-name") // if true it means LDS and RDS were not supported
+            {
+                return x.Name?.Contains(serviceName, StringComparison.OrdinalIgnoreCase) ?? false; // workaround
+            }
+            else
+            {
+                return x.Name?.Equals(clusterName, StringComparison.OrdinalIgnoreCase) ?? false; // according to docs
+            }
         }
     }
 }

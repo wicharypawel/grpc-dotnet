@@ -86,7 +86,11 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             using var policy = new XdsPolicy();
             var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(0, 0);
             var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
-            var attributes = new GrpcAttributes(new Dictionary<string, object> { { XdsAttributesConstants.XdsClientInstanceKey, xdsClientMock.Object } });
+            var attributes = new GrpcAttributes(new Dictionary<string, object> 
+            { 
+                { XdsAttributesConstants.XdsClientInstanceKey, xdsClientMock.Object }, 
+                { XdsAttributesConstants.CdsClusterName, "magic-value-find-cluster-by-service-name" } 
+            });
             var resolutionResults = new GrpcNameResolutionResult(hostsAddresses, config, attributes);
 
             // Act

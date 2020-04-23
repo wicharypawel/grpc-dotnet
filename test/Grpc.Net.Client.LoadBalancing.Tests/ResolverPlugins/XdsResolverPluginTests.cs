@@ -121,7 +121,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             Assert.NotNull(resolutionResult);
             Assert.Empty(resolutionResult.HostsAddresses);
             Assert.NotNull(resolutionResult.ServiceConfig.Config);
-            //Assert verify if service config returns clusterName (require refactor of GrpcServiceConfig class) 
+            Assert.Equal(clusterName, resolutionResult.Attributes.Get(XdsAttributesConstants.CdsClusterName) as string);
         }
 
         [Fact]
@@ -152,7 +152,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             Assert.NotNull(resolutionResult);
             Assert.Empty(resolutionResult.HostsAddresses);
             Assert.NotNull(resolutionResult.ServiceConfig.Config);
-            //Assert verify if service config returns clusterName (require refactor of GrpcServiceConfig class) 
+            Assert.Equal(clusterName, resolutionResult.Attributes.Get(XdsAttributesConstants.CdsClusterName) as string);
         }
 
         [Fact]

@@ -95,6 +95,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             {
                 _xdsClient = OverrideXdsClient ?? XdsClientFactory.CreateXdsClient(_loggerFactory);
             }
+            string? clusterName = null;
             GrpcServiceConfig? serviceConfig = null;
             var listenerName = $"{target.Host}:{target.Port}";
             var listeners = await _xdsClient.GetLdsAsync(listenerName).ConfigureAwait(false);
@@ -106,7 +107,8 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 if (hasHttpConnectionManager && httpConnectionManager!.RouteConfig != null) // route config in-line
                 {
                     var routeConfiguration = httpConnectionManager!.RouteConfig;
-                    serviceConfig = GetCdsFromRouteConfiguration(routeConfiguration, target);
+                    clusterName = GetClusterNameFromRouteConfiguration(routeConfiguration, target);
+                    serviceConfig = GrpcServiceConfig.Create("xds", _defaultLoadBalancingPolicy);
                 }
                 else if(hasHttpConnectionManager && httpConnectionManager!.Rds != null) // make RDS request
                 {
@@ -121,7 +123,8 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                         throw new InvalidOperationException("No route configurations found during RDS");
                     }
                     RouteConfiguration routeConfiguration = routeConfigurations.First(x => x.Name.Equals(rdsConfig.RouteConfigName, StringComparison.OrdinalIgnoreCase));
-                    serviceConfig = GetCdsFromRouteConfiguration(routeConfiguration, target);
+                    clusterName = GetClusterNameFromRouteConfiguration(routeConfiguration, target);
+                    serviceConfig = GrpcServiceConfig.Create("xds", _defaultLoadBalancingPolicy);
                 }
                 else
                 {
@@ -132,12 +135,17 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             {
                 // according to gRFC documentation we should throw error here
                 // we assume everything is fine because currently used control-plane does not support this
+                clusterName = "magic-value-find-cluster-by-service-name";
                 serviceConfig = GrpcServiceConfig.Create("xds", _defaultLoadBalancingPolicy);
             }
             _logger.LogDebug($"NameResolution xds returns empty resolution result list");
             var config = GrpcServiceConfigOrError.FromConfig(serviceConfig ?? throw new InvalidOperationException("serviceConfig is null"));
             _logger.LogDebug($"Service config created with policies: {string.Join(',', serviceConfig.RequestedLoadBalancingPolicies)}");
-            var attributes = new GrpcAttributes(new Dictionary<string, object>() { { XdsAttributesConstants.XdsClientInstanceKey, _xdsClient } });
+            var attributes = new GrpcAttributes(new Dictionary<string, object>() 
+            { 
+                { XdsAttributesConstants.XdsClientInstanceKey, _xdsClient },
+                { XdsAttributesConstants.CdsClusterName, clusterName }
+            });
             return new GrpcNameResolutionResult(new List<GrpcHostAddress>(), config, attributes);
         }
 
@@ -146,7 +154,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             _xdsClient?.Dispose();
         }
 
-        private GrpcServiceConfig? GetCdsFromRouteConfiguration(RouteConfiguration routeConfiguration, Uri target)
+        private string GetClusterNameFromRouteConfiguration(RouteConfiguration routeConfiguration, Uri target)
         {
             if (routeConfiguration == null)
             {
@@ -163,7 +171,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 throw new InvalidOperationException("Cluster name can not be specified");
             }
             var clusterName = defaultRoute.Route_.Cluster;
-            return GrpcServiceConfig.Create("xds", _defaultLoadBalancingPolicy);
+            return clusterName;
         }
 
         private static bool AnyDomainMatch(IEnumerable<string> domains, string targetDomain)
