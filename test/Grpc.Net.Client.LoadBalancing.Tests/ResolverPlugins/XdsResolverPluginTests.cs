@@ -1,4 +1,4 @@
-using Envoy.Api.V2;
+﻿using Envoy.Api.V2;
 using Grpc.Net.Client.LoadBalancing.Extensions.Internal;
 using Grpc.Net.Client.LoadBalancing.Tests.Policies.Factories;
 using Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins.Factories;
@@ -112,6 +112,51 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             var ldsResponseForRds = XdsClientTestFactory.BuildLdsResponseForRdsResource("1", authority, routeConfigName, "0001");
             // Simulate receiving an RDS response that contains the resource "route-foo.googleapis.com"
             var rdsResponse = XdsClientTestFactory.BuildRdsResponseForCluster("0", routeConfigName, authority, "cluster-blade.googleapis.com", "0000");
+        }
+
+        [Fact]
+        public async Task ForTarget_UseXdsResolverPlugin_FoundResource()
+        {
+            // Arrange
+            var authority = "foo.googleapis.com:80";
+            var clusterName = "cluster-foo.googleapis.com";
+            var serviceHostName = "foo.googleapis.com";
+
+            var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
+            xdsClientMock.Setup(x => x.GetLdsAsync()).Returns(Task.FromResult(new List<Listener>() { 
+                XdsClientTestFactory.BuildLdsResponseForCluster("0", authority, clusterName, "0000").Resources[0].Unpack<Listener>()
+            }));
+
+            var resolverPlugin = new XdsResolverPlugin(GrpcAttributes.Empty);
+            resolverPlugin.OverrideXdsClient = xdsClientMock.Object;
+
+            // Act
+            var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"xds://{serviceHostName}:443"));
+            var serviceConfig = resolutionResult.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
+
+            // Assert
+            Assert.NotNull(resolutionResult);
+            Assert.NotNull(resolutionResult.ServiceConfig.Config);
+        }
+
+        [Fact]
+        public async Task ForTarget_UseXdsResolverPlugin_ReturnResourceNotFound()
+        {
+            // Arrange
+            var serviceHostName = "my-service";
+
+            var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
+            xdsClientMock.Setup(x => x.GetLdsAsync()).Returns(Task.FromResult(new List<Listener>() { }));
+
+            var resolverPlugin = new XdsResolverPlugin(GrpcAttributes.Empty);
+            resolverPlugin.OverrideXdsClient = xdsClientMock.Object;
+
+            // Act
+            var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"xds://{serviceHostName}:443"));
+
+            // Assert
+            Assert.NotNull(resolutionResult);
+            Assert.Equal(Core.Status.DefaultCancelled, resolutionResult.ServiceConfig.Status);
         }
     }
 }

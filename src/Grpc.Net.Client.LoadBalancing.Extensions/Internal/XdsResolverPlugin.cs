@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
@@ -93,12 +94,12 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 _xdsClient = OverrideXdsClient ?? XdsClientFactory.CreateXdsClient(_loggerFactory);
             }
             var listeners = await _xdsClient.GetLdsAsync().ConfigureAwait(false);
-            //TODO here
+            var containsListenerForTarget = listeners.Any(x => x.Name.Contains(target.Host, StringComparison.OrdinalIgnoreCase));
             var host = target.Host;
             var serviceConfig = GrpcServiceConfig.Create("xds", _defaultLoadBalancingPolicy);
             _logger.LogDebug($"NameResolution xds returns empty resolution result list");
             _logger.LogDebug($"Service config created with policies: {string.Join(',', serviceConfig.RequestedLoadBalancingPolicies)}");
-            var config = GrpcServiceConfigOrError.FromConfig(serviceConfig);
+            var config = containsListenerForTarget ? GrpcServiceConfigOrError.FromConfig(serviceConfig) : GrpcServiceConfigOrError.FromError(Core.Status.DefaultCancelled);
             var attributes = new GrpcAttributes(new Dictionary<string, object>() { { XdsAttributesConstants.XdsClientInstanceKey, _xdsClient } });
             return new GrpcNameResolutionResult(new List<GrpcHostAddress>(), config, attributes);
         }
