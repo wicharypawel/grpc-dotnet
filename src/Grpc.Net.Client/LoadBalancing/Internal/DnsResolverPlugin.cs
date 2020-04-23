@@ -74,6 +74,10 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             return new GrpcNameResolutionResult(results, GrpcServiceConfigOrError.FromConfig(serviceConfig), GrpcAttributes.Empty);
         }
 
+        public void Dispose()
+        {
+        }
+
         private GrpcHostAddress ParseARecord(IPAddress address, int port, bool isLoadBalancer)
         {
             _logger.LogDebug($"Found a A record {address.ToString()}");

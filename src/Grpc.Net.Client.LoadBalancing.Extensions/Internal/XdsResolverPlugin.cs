@@ -95,5 +95,10 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             var attributes = new GrpcAttributes(new Dictionary<string, object>() { { XdsAttributesConstants.XdsClientInstanceKey, _xdsClient } });
             return Task.FromResult(new GrpcNameResolutionResult(new List<GrpcHostAddress>(), config, attributes));
         }
+
+        public void Dispose()
+        {
+            _xdsClient?.Dispose();
+        }
     }
 }

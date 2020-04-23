@@ -133,6 +133,10 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             return new GrpcNameResolutionResult(results, config, GrpcAttributes.Empty);
         }
 
+        public void Dispose()
+        {
+        }
+
         private IDnsQuery GetDnsClient()
         {
             if (OverrideDnsClient != null)

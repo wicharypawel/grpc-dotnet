@@ -9,7 +9,7 @@ namespace Grpc.Net.Client.LoadBalancing
     /// a list of resolved addresses (both IP address and port) and a service config.
     /// More: https://github.com/grpc/grpc/blob/master/doc/naming.md
     /// </summary>
-    public interface IGrpcResolverPlugin
+    public interface IGrpcResolverPlugin : IDisposable
     {
         /// <summary>
         /// LoggerFactory is configured (injected) when class is being instantiated.

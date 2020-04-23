@@ -51,5 +51,9 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create(_defaultLoadBalancingPolicy));
             return Task.FromResult(new GrpcNameResolutionResult(hosts, config, GrpcAttributes.Empty));
         }
+
+        public void Dispose()
+        {
+        }
     }
 }

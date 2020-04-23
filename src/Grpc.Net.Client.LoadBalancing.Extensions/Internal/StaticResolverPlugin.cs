@@ -57,5 +57,9 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             _logger.LogDebug($"Using static service config");
             return Task.FromResult(_staticNameResolution(target));
         }
+
+        public void Dispose()
+        {
+        }
     }
 }

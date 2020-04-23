@@ -317,6 +317,7 @@ namespace Grpc.Net.Client
                 return;
             }
 
+            ResolverPlugin.Dispose();
             LoadBalancingPolicy.Dispose();
 
             if (_shouldDisposeHttpClient)
