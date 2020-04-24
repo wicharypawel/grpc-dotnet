@@ -79,12 +79,13 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         {
             // Arrange
             var serviceName = "sample-service.contoso.com";
-            var xdsClientPool = new XdsClientObjectPool(NullLoggerFactory.Instance);
             var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
             xdsClientMock.Setup(x => x.Dispose());
             xdsClientMock.Setup(x => x.GetCdsAsync()).Returns(Task.FromResult(GetSampleClusters(serviceName)));
             xdsClientMock.Setup(x => x.GetEdsAsync(It.IsAny<string>())).Returns(Task.FromResult(GetSampleClusterLoadAssignments()));
-            XdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
+            var xdsClientFactory = new XdsClientFactory(NullLoggerFactory.Instance);
+            xdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
+            var xdsClientPool = new XdsClientObjectPool(xdsClientFactory, NullLoggerFactory.Instance);
 
             using var policy = new XdsPolicy();
             var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(0, 0);

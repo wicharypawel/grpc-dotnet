@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using System;
 
 namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
@@ -13,14 +12,22 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
     /// </summary>
     internal sealed class XdsClientObjectPool
     {
+        private readonly XdsClientFactory _xdsClientFactory;
         private readonly object LockObject = new object();
-        private readonly ILoggerFactory _loggerFactory;
         private IXdsClient? xdsClient;
         private int referenceCount;
 
-        public XdsClientObjectPool(ILoggerFactory loggerFactory)
+        public XdsClientObjectPool(XdsClientFactory xdsClientFactory, ILoggerFactory loggerFactory)
         {
-            _loggerFactory = loggerFactory ?? NullLoggerFactory.Instance;
+            if (xdsClientFactory == null)
+            {
+                throw new ArgumentNullException(nameof(xdsClientFactory));
+            }
+            if (loggerFactory == null)
+            {
+                throw new ArgumentNullException(nameof(loggerFactory));
+            }
+            _xdsClientFactory = xdsClientFactory;
             xdsClient = null;
             referenceCount = 0;
         }
@@ -39,7 +46,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                     {
                         throw new InvalidOperationException("referenceCount should be zero while xdsClient is null");
                     }
-                    xdsClient = XdsClientFactory.CreateXdsClient(_loggerFactory);
+                    xdsClient = _xdsClientFactory.CreateXdsClient();
                 }
                 referenceCount++;
                 return xdsClient;

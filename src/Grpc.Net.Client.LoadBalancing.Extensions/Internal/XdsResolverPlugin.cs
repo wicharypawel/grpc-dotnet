@@ -70,6 +70,11 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         }
 
         /// <summary>
+        /// Property created for testing purposes, allows setter injection
+        /// </summary>
+        internal XdsClientFactory? OverrideXdsClientFactory { private get; set; }
+
+        /// <summary>
         /// Name resolution for secified target.
         /// 
         /// Note that the xds resolver will return an empty list of addresses, because in the xDS API flow, 
@@ -89,7 +94,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             }
             if (_xdsClient == null)
             {
-                _xdsClientPool = new XdsClientObjectPool(_loggerFactory);
+                _xdsClientPool = new XdsClientObjectPool(OverrideXdsClientFactory ?? new XdsClientFactory(_loggerFactory), _loggerFactory);
                 _xdsClient = _xdsClientPool.GetObject();
             }
             string? clusterName = null;

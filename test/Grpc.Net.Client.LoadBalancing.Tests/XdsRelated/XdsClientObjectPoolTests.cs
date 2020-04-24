@@ -13,9 +13,10 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.XdsRelated
         public void ForNewPool_UseXdsClientObjectPool_ReturnInstanceOfXdsClient()
         {
             // Arrange
-            var pool = new XdsClientObjectPool(NullLoggerFactory.Instance);
+            var xdsClientFactory = new XdsClientFactory(NullLoggerFactory.Instance);
+            var pool = new XdsClientObjectPool(xdsClientFactory, NullLoggerFactory.Instance);
             var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
-            XdsClientFactory.OverrideXdsClient = xdsClientMock.Object; 
+            xdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
 
             // Act
             var xdsClient = pool.GetObject();
@@ -29,13 +30,14 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.XdsRelated
         public void ForTwoConsecutiveGetObject_UseXdsClientObjectPool_ReturnTheSameInstanceOfXdsClient()
         {
             // Arrange
-            var pool = new XdsClientObjectPool(NullLoggerFactory.Instance);
+            var xdsClientFactory = new XdsClientFactory(NullLoggerFactory.Instance);
+            var pool = new XdsClientObjectPool(xdsClientFactory, NullLoggerFactory.Instance);
             var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
-            XdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
+            xdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
 
             // Act
             var xdsClient1 = pool.GetObject();
-            XdsClientFactory.OverrideXdsClient = null; // ensure that factory is not called
+            xdsClientFactory.OverrideXdsClient = null; // ensure that factory is not called
             var xdsClient2 = pool.GetObject();
             var xdsClient3 = pool.GetObject();
 
@@ -51,10 +53,11 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.XdsRelated
         public void ForLastReference_UseXdsClientObjectPool_DisposeXdsClient()
         {
             // Arrange
-            var pool = new XdsClientObjectPool(NullLoggerFactory.Instance);
+            var xdsClientFactory = new XdsClientFactory(NullLoggerFactory.Instance);
+            var pool = new XdsClientObjectPool(xdsClientFactory, NullLoggerFactory.Instance);
             var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
             xdsClientMock.Setup(x => x.Dispose()).Verifiable();
-            XdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
+            xdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
 
             // Act
             var xdsClient = pool.GetObject(); // increment reference 1
@@ -74,9 +77,10 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.XdsRelated
         public void ForDifferentObjectReturnedToPool_UseXdsClientObjectPool_ThrowError()
         {
             // Arrange
-            var pool = new XdsClientObjectPool(NullLoggerFactory.Instance);
+            var xdsClientFactory = new XdsClientFactory(NullLoggerFactory.Instance);
+            var pool = new XdsClientObjectPool(xdsClientFactory, NullLoggerFactory.Instance);
             var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
-            XdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
+            xdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
             var xdsClientMock2 = new Mock<IXdsClient>(MockBehavior.Strict);
 
             // Act
@@ -97,9 +101,10 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.XdsRelated
         public void ForNullReturnedToEmptyPool_UseXdsClientObjectPool_ThrowError()
         {
             // Arrange
-            var pool = new XdsClientObjectPool(NullLoggerFactory.Instance);
+            var xdsClientFactory = new XdsClientFactory(NullLoggerFactory.Instance);
+            var pool = new XdsClientObjectPool(xdsClientFactory, NullLoggerFactory.Instance);
             var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
-            XdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
+            xdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
 
             // Act
             // Assert
