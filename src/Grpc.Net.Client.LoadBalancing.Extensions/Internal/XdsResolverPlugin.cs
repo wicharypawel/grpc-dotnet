@@ -114,7 +114,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                     _logger.LogDebug($"XdsResolverPlugin found listener with in-line RouteConfig");
                     var routeConfiguration = httpConnectionManager!.RouteConfig;
                     clusterName = GetClusterNameFromRouteConfiguration(routeConfiguration, target);
-                    serviceConfig = GrpcServiceConfig.Create("xds", _defaultLoadBalancingPolicy);
+                    serviceConfig = GrpcServiceConfig.Create("cds_experimental", _defaultLoadBalancingPolicy);
                 }
                 else if(hasHttpConnectionManager && httpConnectionManager!.Rds != null) // make RDS request
                 {
@@ -131,7 +131,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                     }
                     RouteConfiguration routeConfiguration = routeConfigurations.First(x => x.Name.Equals(rdsConfig.RouteConfigName, StringComparison.OrdinalIgnoreCase));
                     clusterName = GetClusterNameFromRouteConfiguration(routeConfiguration, target);
-                    serviceConfig = GrpcServiceConfig.Create("xds", _defaultLoadBalancingPolicy);
+                    serviceConfig = GrpcServiceConfig.Create("cds_experimental", _defaultLoadBalancingPolicy);
                 }
                 else
                 {
@@ -143,7 +143,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 // according to gRFC documentation we should throw error here
                 // we assume everything is fine because currently used control-plane does not support this
                 clusterName = "magic-value-find-cluster-by-service-name";
-                serviceConfig = GrpcServiceConfig.Create("xds", _defaultLoadBalancingPolicy);
+                serviceConfig = GrpcServiceConfig.Create("cds_experimental", _defaultLoadBalancingPolicy);
             }
             var config = GrpcServiceConfigOrError.FromConfig(serviceConfig ?? throw new InvalidOperationException("serviceConfig is null"));
             _logger.LogDebug($"Service config created with policies: {string.Join(',', serviceConfig.RequestedLoadBalancingPolicies)}");

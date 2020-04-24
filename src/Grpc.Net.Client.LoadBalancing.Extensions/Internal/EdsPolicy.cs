@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.Linq;
-using Envoy.Api.V2;
 using Envoy.Api.V2.Core;
 using Envoy.Api.V2.Endpoint;
 using Google.Protobuf.Collections;
@@ -16,9 +15,10 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
     /// For each RPC sent, the load balancing policy decides which subchannel (i.e., which server) the RPC should be sent to.
     /// 
     /// Official name of this policy is "xDS". It is a implementation of an xDS protocol.
+    /// This class implements a EDS part of the xDS.
     /// More: https://github.com/grpc/proposal/blob/master/A27-xds-global-load-balancing.md
     /// </summary>
-    internal sealed class XdsPolicy : IGrpcLoadBalancingPolicy
+    internal sealed class EdsPolicy : IGrpcLoadBalancingPolicy
     {
         private bool _isSecureConnection = false;
         private ILogger _logger = NullLogger.Instance;
@@ -35,7 +35,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             set
             {
                 _loggerFactory = value;
-                _logger = value.CreateLogger<XdsPolicy>();
+                _logger = value.CreateLogger<EdsPolicy>();
             }
         }
         internal bool Disposed { get; private set; }
@@ -66,27 +66,12 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 throw new ArgumentException($"{nameof(resolutionResult)} is expected to be empty");
             }
             _xdsClientPool = resolutionResult.Attributes.Get(XdsAttributesConstants.XdsClientPoolInstance) as XdsClientObjectPool
-                ?? throw new InvalidOperationException("XdsPolicy can not find XdsClientObjectPool");
+                ?? throw new InvalidOperationException("Can not find xds client pool");
             _xdsClient = _xdsClientPool.GetObject();
-            var clusterName = resolutionResult.Attributes.Get(XdsAttributesConstants.CdsClusterName) as string
-                ?? throw new InvalidOperationException("XdsPolicy can not find clusterName");
+            var edsClusterName = resolutionResult.Attributes.Get(XdsAttributesConstants.EdsClusterName) as string
+                ?? throw new InvalidOperationException("Can not find EDS cluster name");
             _isSecureConnection = isSecureConnection;
-            _logger.LogDebug($"Start xds policy");
-            var clusters = await _xdsClient.GetCdsAsync().ConfigureAwait(false);
-            var cluster = clusters
-                .Where(x => x.Type == Cluster.Types.DiscoveryType.Eds)
-                .Where(x => x?.EdsClusterConfig?.EdsConfig != null)
-                .Where(x => x.LbPolicy == Cluster.Types.LbPolicy.RoundRobin)
-                .Where(x => IsSearchedCluster(x, clusterName, serviceName)).First();
-            if (cluster.LrsServer != null && cluster.LrsServer.Self != null)
-            {
-                _logger.LogDebug("XdsPolicy LRS load reporting unsupported");
-            }
-            else
-            {
-                _logger.LogDebug("XdsPolicy LRS load reporting disabled");
-            }
-            var edsClusterName = cluster.EdsClusterConfig?.ServiceName ?? cluster.Name;
+            _logger.LogDebug($"Start EDS policy");
             var clusterLoadAssignments = await _xdsClient.GetEdsAsync(edsClusterName).ConfigureAwait(false);
             var clusterLoadAssignment = clusterLoadAssignments
                 .Where(x => x.Endpoints.Count != 0)
@@ -115,7 +100,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         }
 
         /// <summary>
-        /// Releases the resources used by the <see cref="XdsPolicy"/> class.
+        /// Releases the resources used by the <see cref="EdsPolicy"/> class.
         /// </summary>
         public void Dispose()
         {
@@ -134,8 +119,8 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         private IReadOnlyList<LocalityLbEndpoints> GetLocalitiesWithHighestPriority(RepeatedField<LocalityLbEndpoints> localities)
         {
             var groupedLocalities = localities.GroupBy(x => x.Priority).OrderBy(x => x.Key).ToList();
-            _logger.LogDebug($"XdsPolicy found {groupedLocalities.Count} groups with distinct priority");
-            _logger.LogDebug($"XdsPolicy select locality with priority {groupedLocalities[0].Key} [0-highest, N-lowest]");
+            _logger.LogDebug($"EDS found {groupedLocalities.Count} groups with distinct priority");
+            _logger.LogDebug($"EDS select locality with priority {groupedLocalities[0].Key} [0-highest, N-lowest]");
             return groupedLocalities[0].ToList();
         }
 
@@ -154,22 +139,6 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 _logger.LogDebug($"Found a server {uri}");
             }
             return result;
-        }
-
-        private static bool IsSearchedCluster(Cluster x, string clusterName, string serviceName)
-        {
-            if (x == null)
-            {
-                return false;
-            }
-            if (clusterName == "magic-value-find-cluster-by-service-name") // if true it means LDS and RDS were not supported
-            {
-                return x.Name?.Contains(serviceName, StringComparison.OrdinalIgnoreCase) ?? false; // workaround
-            }
-            else
-            {
-                return x.Name?.Equals(clusterName, StringComparison.OrdinalIgnoreCase) ?? false; // according to docs
-            }
         }
     }
 }

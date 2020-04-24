@@ -61,7 +61,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
         }
 
         [Fact]
-        public async Task ForTarget_UseXdsResolverPlugin_ReturnXdsClientInAttributes()
+        public async Task ForTarget_UseXdsResolverPlugin_ReturnXdsClientPoolInAttributes()
         {
             // Arrange
             var serviceHostName = "my-service";
@@ -131,6 +131,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             Assert.Empty(resolutionResult.HostsAddresses);
             Assert.NotNull(resolutionResult.ServiceConfig.Config);
             Assert.Equal(clusterName, resolutionResult.Attributes.Get(XdsAttributesConstants.CdsClusterName) as string);
+            Assert.Contains("cds_experimental", serviceConfig.RequestedLoadBalancingPolicies);
         }
 
         [Fact]
@@ -164,6 +165,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             Assert.Empty(resolutionResult.HostsAddresses);
             Assert.NotNull(resolutionResult.ServiceConfig.Config);
             Assert.Equal(clusterName, resolutionResult.Attributes.Get(XdsAttributesConstants.CdsClusterName) as string);
+            Assert.Contains("cds_experimental", serviceConfig.RequestedLoadBalancingPolicies);
         }
 
         [Fact]

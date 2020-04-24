@@ -25,10 +25,10 @@ namespace Grpc.Net.Client.LoadBalancing
         /// <summary>
         /// Creates new instance of <seealso cref="GrpcNameResolutionResult"/>.
         /// </summary>
-        /// <param name="hostsAddresses">List of hosts addresses.</param>
+        /// <param name="hostsAddresses">Read-only list of hosts addresses.</param>
         /// <param name="serviceConfig">Service config information.</param>
         /// <param name="attributes">List of metadata for name resolution.</param>
-        public GrpcNameResolutionResult(List<GrpcHostAddress> hostsAddresses,
+        public GrpcNameResolutionResult(IReadOnlyList<GrpcHostAddress> hostsAddresses,
             GrpcServiceConfigOrError serviceConfig, GrpcAttributes attributes)
         {
             HostsAddresses = hostsAddresses;

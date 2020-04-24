@@ -13,13 +13,13 @@ using Xunit;
 
 namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
 {
-    public sealed class XdsPolicyTests
+    public sealed class EdsPolicyTests
     {
         [Fact]
-        public async Task ForEmptyServiceName_UseXdsPolicy_ThrowArgumentException()
+        public async Task ForEmptyServiceName_UseEdsPolicy_ThrowArgumentException()
         {
             // Arrange
-            using var policy = new XdsPolicy();
+            using var policy = new EdsPolicy();
             var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(0, 0);
             var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
             var resolutionResults = new GrpcNameResolutionResult(hostsAddresses, config, GrpcAttributes.Empty);
@@ -39,10 +39,10 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         }
 
         [Fact]
-        public async Task ForBalancersResolutionPassed_UseXdsPolicy_ThrowArgumentException()
+        public async Task ForBalancersResolutionPassed_UseEdsPolicy_ThrowArgumentException()
         {
             // Arrange
-            using var policy = new XdsPolicy();
+            using var policy = new EdsPolicy();
             var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(2, 0);
             var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
             var resolutionResults = new GrpcNameResolutionResult(hostsAddresses, config, GrpcAttributes.Empty);
@@ -57,10 +57,10 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         }
 
         [Fact]
-        public async Task ForServersResolutionPassed_UseXdsPolicy_ThrowArgumentException()
+        public async Task ForServersResolutionPassed_UseEdsPolicy_ThrowArgumentException()
         {
             // Arrange
-            using var policy = new XdsPolicy();
+            using var policy = new EdsPolicy();
             var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(0, 2);
             var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
             var resolutionResults = new GrpcNameResolutionResult(hostsAddresses, config, GrpcAttributes.Empty);
@@ -75,25 +75,24 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         }
 
         [Fact]
-        public async Task ForResolutionResultWithBalancers_UseXdsPolicy_CreateSubchannelsForFoundServers()
+        public async Task ForResolutionResult_UseEdsPolicy_CreateSubchannelsForFoundServers()
         {
             // Arrange
             var serviceName = "sample-service.contoso.com";
             var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
             xdsClientMock.Setup(x => x.Dispose());
-            xdsClientMock.Setup(x => x.GetCdsAsync()).Returns(Task.FromResult(GetSampleClusters(serviceName)));
             xdsClientMock.Setup(x => x.GetEdsAsync(It.IsAny<string>())).Returns(Task.FromResult(GetSampleClusterLoadAssignments()));
             var xdsClientFactory = new XdsClientFactory(NullLoggerFactory.Instance);
             xdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
             var xdsClientPool = new XdsClientObjectPool(xdsClientFactory, NullLoggerFactory.Instance);
 
-            using var policy = new XdsPolicy();
+            using var policy = new EdsPolicy();
             var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(0, 0);
             var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
             var attributes = new GrpcAttributes(new Dictionary<string, object> 
             { 
                 { XdsAttributesConstants.XdsClientPoolInstance, xdsClientPool }, 
-                { XdsAttributesConstants.CdsClusterName, "magic-value-find-cluster-by-service-name" } 
+                { XdsAttributesConstants.EdsClusterName, "cluster-name" } 
             });
             var resolutionResults = new GrpcNameResolutionResult(hostsAddresses, config, attributes);
 
@@ -108,7 +107,6 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             Assert.All(subChannels, subChannel => Assert.Equal("http", subChannel.Address.Scheme));
             Assert.All(subChannels, subChannel => Assert.Equal(80, subChannel.Address.Port));
             Assert.All(subChannels, subChannel => Assert.StartsWith("10.1.5.", subChannel.Address.Host));
-            xdsClientMock.Verify(x => x.GetCdsAsync(), Times.Once);
             xdsClientMock.Verify(x => x.GetEdsAsync(It.IsAny<string>()), Times.Once);
             policy.Dispose();
             xdsClientMock.Verify(x => x.Dispose(), Times.Once);
@@ -154,10 +152,10 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         }
 
         [Fact]
-        public void ForGrpcSubChannels_UseXdsPolicySelectChannels_SelectChannelsInRoundRobin()
+        public void ForGrpcSubChannels_UseEdsPolicySelectChannels_SelectChannelsInRoundRobin()
         {
             // Arrange
-            using var policy = new XdsPolicy();
+            using var policy = new EdsPolicy();
             var subChannels = GrpcSubChannelFactory.GetSubChannelsWithoutLoadBalanceTokens();
             policy._subchannelPicker = new WeightedRandomPicker(new List<WeightedRandomPicker.WeightedChildPicker>()
             {
