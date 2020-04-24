@@ -44,13 +44,14 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 // https://github.com/googleapis/google-api-dotnet-client/blob/master/Src/Support/Google.Apis.Auth/OAuth2/DefaultCredentialProvider.cs
                 throw new NotImplementedException("XdsClient Channel credentials are not supported");
             }
+            _logger.LogDebug("XdsClient start control-plane connection");
             AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);                          
             var channelOptions = new GrpcChannelOptions() { LoggerFactory = loggerFactory, Credentials = ChannelCredentials.Insecure };
             _adsChannel = GrpcChannel.ForAddress(_bootstrapInfo.Servers[0].ServerUri, channelOptions);
-            _logger.LogDebug("XdsClient start ADS connection");
+            _logger.LogDebug("XdsClient start ADS stream");
             _adsClient = new AggregatedDiscoveryService.AggregatedDiscoveryServiceClient(_adsChannel);
             _adsStream = _adsClient.StreamAggregatedResources();
-            _logger.LogDebug("XdsClient ADS started");
+            _logger.LogDebug("XdsClient ADS stream started");
         }
 
         internal bool Disposed { get; private set; }

@@ -97,6 +97,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 _xdsClientPool = new XdsClientObjectPool(OverrideXdsClientFactory ?? new XdsClientFactory(_loggerFactory), _loggerFactory);
                 _xdsClient = _xdsClientPool.GetObject();
             }
+            _logger.LogDebug($"Start XdsResolverPlugin");
             string? clusterName = null;
             GrpcServiceConfig? serviceConfig = null;
             var listenerName = $"{target.Host}:{target.Port}";
@@ -104,16 +105,19 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             Listener? listener = listeners.FirstOrDefault(x => x.Name.Equals(listenerName, StringComparison.OrdinalIgnoreCase));
             if (listener != null) // LDS success, found matching listener
             {
+                _logger.LogDebug($"XdsResolverPlugin found listener");
                 HttpConnectionManager? httpConnectionManager = null;
                 var hasHttpConnectionManager = listener.ApiListener?.ApiListener_?.TryUnpack(out httpConnectionManager) ?? false;
                 if (hasHttpConnectionManager && httpConnectionManager!.RouteConfig != null) // route config in-line
                 {
+                    _logger.LogDebug($"XdsResolverPlugin found listener with in-line RouteConfig");
                     var routeConfiguration = httpConnectionManager!.RouteConfig;
                     clusterName = GetClusterNameFromRouteConfiguration(routeConfiguration, target);
                     serviceConfig = GrpcServiceConfig.Create("xds", _defaultLoadBalancingPolicy);
                 }
                 else if(hasHttpConnectionManager && httpConnectionManager!.Rds != null) // make RDS request
                 {
+                    _logger.LogDebug($"XdsResolverPlugin found listener pointing to RDS");
                     var rdsConfig = httpConnectionManager!.Rds;
                     if (rdsConfig.ConfigSource?.Ads == null)
                     {
@@ -140,7 +144,6 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 clusterName = "magic-value-find-cluster-by-service-name";
                 serviceConfig = GrpcServiceConfig.Create("xds", _defaultLoadBalancingPolicy);
             }
-            _logger.LogDebug($"NameResolution xds returns empty resolution result list");
             var config = GrpcServiceConfigOrError.FromConfig(serviceConfig ?? throw new InvalidOperationException("serviceConfig is null"));
             _logger.LogDebug($"Service config created with policies: {string.Join(',', serviceConfig.RequestedLoadBalancingPolicies)}");
             if (_xdsClientPool == null)
