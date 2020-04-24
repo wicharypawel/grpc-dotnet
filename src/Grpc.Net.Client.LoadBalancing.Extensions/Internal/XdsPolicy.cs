@@ -23,6 +23,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         private bool _isSecureConnection = false;
         private ILogger _logger = NullLogger.Instance;
         private ILoggerFactory _loggerFactory = NullLoggerFactory.Instance;
+        private XdsClientObjectPool? _xdsClientPool;
         private IXdsClient? _xdsClient;
         internal ISubchannelPicker _subchannelPicker = new EmptyPicker();
 
@@ -64,8 +65,9 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 // the addresses are not returned until the ClusterLoadAssignment resource is obtained later.
                 throw new ArgumentException($"{nameof(resolutionResult)} is expected to be empty");
             }
-            _xdsClient = resolutionResult.Attributes.Get(XdsAttributesConstants.XdsClientInstanceKey) as IXdsClient
-                ?? throw new InvalidOperationException("XdsPolicy can not find XdsClient");
+            _xdsClientPool = resolutionResult.Attributes.Get(XdsAttributesConstants.XdsClientPoolInstance) as XdsClientObjectPool
+                ?? throw new InvalidOperationException("XdsPolicy can not find XdsClientObjectPool");
+            _xdsClient = _xdsClientPool.GetObject();
             var clusterName = resolutionResult.Attributes.Get(XdsAttributesConstants.CdsClusterName) as string
                 ?? throw new InvalidOperationException("XdsPolicy can not find clusterName");
             _isSecureConnection = isSecureConnection;
@@ -121,7 +123,11 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             {
                 return;
             }
-            _xdsClient?.Dispose();
+            if (_xdsClient != null)
+            {
+                _xdsClientPool?.ReturnObject(_xdsClient); // _xdsClientPool is responsible for calling Dispose on _xdsClient
+                _xdsClient = null; // object returned to the pool should not be used
+            }
             Disposed = true;
         }
 

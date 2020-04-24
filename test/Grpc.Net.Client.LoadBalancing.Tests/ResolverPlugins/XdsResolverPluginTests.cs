@@ -44,9 +44,9 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             var serviceHostName = "my-service";
             var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
             xdsClientMock.Setup(x => x.GetLdsAsync(It.IsAny<string>())).Returns(Task.FromResult(new List<Listener>()));
+            XdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
 
             var resolverPlugin = new XdsResolverPlugin();
-            resolverPlugin.OverrideXdsClient = xdsClientMock.Object;
 
             // Act
             var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"xds://{serviceHostName}:80"));
@@ -64,9 +64,9 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             var serviceHostName = "my-service";
             var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
             xdsClientMock.Setup(x => x.GetLdsAsync(It.IsAny<string>())).Returns(Task.FromResult(new List<Listener>()));
+            XdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
 
             var resolverPlugin = new XdsResolverPlugin();
-            resolverPlugin.OverrideXdsClient = xdsClientMock.Object;
 
             // Act
             var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"xds://{serviceHostName}:80"));
@@ -74,7 +74,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
 
             // Assert
             Assert.NotNull(resolutionResult);
-            Assert.NotNull(resolutionResult.Attributes.Get(XdsAttributesConstants.XdsClientInstanceKey) as IXdsClient);
+            Assert.NotNull(resolutionResult.Attributes.Get(XdsAttributesConstants.XdsClientPoolInstance) as XdsClientObjectPool);
         }
 
         [Fact]
@@ -85,9 +85,9 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
             xdsClientMock.Setup(x => x.GetLdsAsync(It.IsAny<string>())).Returns(Task.FromResult(new List<Listener>()));
             var attributes = new GrpcAttributes(new Dictionary<string, object>() { { GrpcAttributesConstants.DefaultLoadBalancingPolicy, "round_robin" } });
+            XdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
 
             var resolverPlugin = new XdsResolverPlugin(attributes);
-            resolverPlugin.OverrideXdsClient = xdsClientMock.Object;
 
             // Act
             var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"xds://{serviceHostName}:80"));
@@ -109,9 +109,9 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             xdsClientMock.Setup(x => x.GetLdsAsync(authority)).Returns(Task.FromResult(new List<Listener>() { 
                 XdsClientTestFactory.BuildLdsResponseForCluster("0", authority, clusterName, "0000").Resources[0].Unpack<Listener>()
             }));
+            XdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
 
             var resolverPlugin = new XdsResolverPlugin(GrpcAttributes.Empty);
-            resolverPlugin.OverrideXdsClient = xdsClientMock.Object;
 
             // Act
             var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"xds://{serviceHostName}:80"));
@@ -140,9 +140,9 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             xdsClientMock.Setup(x => x.GetRdsAsync(routeConfigName)).Returns(Task.FromResult(new List<RouteConfiguration>() {
                 XdsClientTestFactory.BuildRdsResponseForCluster("0", routeConfigName, authority, clusterName, "0000").Resources[0].Unpack<RouteConfiguration>()
             }));
+            XdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
 
             var resolverPlugin = new XdsResolverPlugin(GrpcAttributes.Empty);
-            resolverPlugin.OverrideXdsClient = xdsClientMock.Object;
 
             // Act
             var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"xds://{serviceHostName}:80"));

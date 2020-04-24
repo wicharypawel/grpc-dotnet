@@ -2,7 +2,7 @@
 {
     internal sealed class XdsAttributesConstants
     {
-        public static readonly string XdsClientInstanceKey = "xds-client-instance";
+        public static readonly string XdsClientPoolInstance = "xds-client-pool-instance";
         public static readonly string CdsClusterName = "cds-cluster-name";
     }
 }

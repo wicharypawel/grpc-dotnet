@@ -3,6 +3,7 @@ using Envoy.Api.V2.Core;
 using Envoy.Api.V2.Endpoint;
 using Grpc.Net.Client.LoadBalancing.Extensions.Internal;
 using Grpc.Net.Client.LoadBalancing.Tests.Policies.Factories;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System;
 using System.Collections.Generic;
@@ -78,17 +79,19 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         {
             // Arrange
             var serviceName = "sample-service.contoso.com";
+            var xdsClientPool = new XdsClientObjectPool(NullLoggerFactory.Instance);
             var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
             xdsClientMock.Setup(x => x.Dispose());
             xdsClientMock.Setup(x => x.GetCdsAsync()).Returns(Task.FromResult(GetSampleClusters(serviceName)));
             xdsClientMock.Setup(x => x.GetEdsAsync(It.IsAny<string>())).Returns(Task.FromResult(GetSampleClusterLoadAssignments()));
+            XdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
 
             using var policy = new XdsPolicy();
             var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(0, 0);
             var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
             var attributes = new GrpcAttributes(new Dictionary<string, object> 
             { 
-                { XdsAttributesConstants.XdsClientInstanceKey, xdsClientMock.Object }, 
+                { XdsAttributesConstants.XdsClientPoolInstance, xdsClientPool }, 
                 { XdsAttributesConstants.CdsClusterName, "magic-value-find-cluster-by-service-name" } 
             });
             var resolutionResults = new GrpcNameResolutionResult(hostsAddresses, config, attributes);

@@ -24,6 +24,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         private XdsResolverPluginOptions _options;
         private ILogger _logger = NullLogger.Instance;
         private ILoggerFactory _loggerFactory = NullLoggerFactory.Instance;
+        private XdsClientObjectPool? _xdsClientPool;
         private IXdsClient? _xdsClient;
         private readonly string _defaultLoadBalancingPolicy;
 
@@ -38,11 +39,6 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 _logger = value.CreateLogger<XdsResolverPlugin>();
             }
         }
-
-        /// <summary>
-        /// Property created for testing purposes, allows setter injection
-        /// </summary>
-        internal IXdsClient? OverrideXdsClient { private get; set; }
 
         /// <summary>
         /// Creates a <seealso cref="XdsResolverPlugin"/> using default <seealso cref="XdsResolverPluginOptions"/>.
@@ -93,7 +89,8 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             }
             if (_xdsClient == null)
             {
-                _xdsClient = OverrideXdsClient ?? XdsClientFactory.CreateXdsClient(_loggerFactory);
+                _xdsClientPool = new XdsClientObjectPool(_loggerFactory);
+                _xdsClient = _xdsClientPool.GetObject();
             }
             string? clusterName = null;
             GrpcServiceConfig? serviceConfig = null;
@@ -141,9 +138,13 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             _logger.LogDebug($"NameResolution xds returns empty resolution result list");
             var config = GrpcServiceConfigOrError.FromConfig(serviceConfig ?? throw new InvalidOperationException("serviceConfig is null"));
             _logger.LogDebug($"Service config created with policies: {string.Join(',', serviceConfig.RequestedLoadBalancingPolicies)}");
+            if (_xdsClientPool == null)
+            {
+                throw new InvalidOperationException("XdsClientPool not initialized");
+            }
             var attributes = new GrpcAttributes(new Dictionary<string, object>() 
             { 
-                { XdsAttributesConstants.XdsClientInstanceKey, _xdsClient },
+                { XdsAttributesConstants.XdsClientPoolInstance, _xdsClientPool },
                 { XdsAttributesConstants.CdsClusterName, clusterName }
             });
             return new GrpcNameResolutionResult(new List<GrpcHostAddress>(), config, attributes);
@@ -151,7 +152,11 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 
         public void Dispose()
         {
-            _xdsClient?.Dispose();
+            if (_xdsClient != null)
+            {
+                _xdsClientPool?.ReturnObject(_xdsClient); // _xdsClientPool is responsible for calling Dispose on _xdsClient
+                _xdsClient = null; // object returned to the pool should not be used
+            }
         }
 
         private string GetClusterNameFromRouteConfiguration(RouteConfiguration routeConfiguration, Uri target)
