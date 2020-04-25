@@ -28,7 +28,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             }
             if (weightedChildPickers.Count == 0)
             {
-                throw new ArgumentException($"{nameof(weightedChildPickers)} is empty");
+                throw new ArgumentException($"{nameof(weightedChildPickers)} is empty.");
             }
             _weightedPickers = weightedChildPickers;
             _random = random;
@@ -51,7 +51,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                     return _weightedPickers[i].ChildPicker.PickSubchannel();
                 }
             }
-            throw new InvalidOperationException("ChildPicker not found");
+            throw new InvalidOperationException("ChildPicker not found.");
         }
 
         internal sealed class WeightedChildPicker
@@ -63,7 +63,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             {
                 if (!(weight >= 0))
                 {
-                    throw new ArgumentException($"{nameof(weight)} can not be negative value");
+                    throw new ArgumentException($"{nameof(weight)} can not be negative value.");
                 }
                 if (childPicker == null)
                 {
@@ -95,7 +95,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
     {
         public GrpcSubChannel PickSubchannel()
         {
-            throw new InvalidOperationException("SubChannel not found");
+            throw new InvalidOperationException("SubChannel not found.");
         }
     }
 

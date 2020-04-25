@@ -46,7 +46,7 @@ namespace Grpc.Net.Client.LoadBalancing
         {
             if (status.StatusCode == StatusCode.OK)
             {
-                throw new System.ArgumentException($"Can not use OK {nameof(status)}");
+                throw new System.ArgumentException($"Can not use OK {nameof(status)}.");
             }
             return new GrpcServiceConfigOrError(null, status);
         }

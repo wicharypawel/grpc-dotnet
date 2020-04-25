@@ -44,7 +44,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         {
             if (string.IsNullOrWhiteSpace(inlineBootstrapFile))
             {
-                throw new InvalidOperationException($"XdsBootstrapper Empty bootstrap file");
+                throw new InvalidOperationException($"XdsBootstrapper Empty bootstrap file.");
             }
             return ParseConfig(inlineBootstrapFile);
         }
@@ -138,7 +138,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 }
                 else
                 {
-                    throw new InvalidOperationException("XdsBootstrapper unsupported type of value in dictionary");
+                    throw new InvalidOperationException("XdsBootstrapper unsupported type of value in dictionary.");
                 }
             }
             else

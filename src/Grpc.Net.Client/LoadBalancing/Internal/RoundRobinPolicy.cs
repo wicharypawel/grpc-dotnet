@@ -46,13 +46,13 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             }
             if (string.IsNullOrWhiteSpace(serviceName))
             {
-                throw new ArgumentException($"{nameof(serviceName)} not defined");
+                throw new ArgumentException($"{nameof(serviceName)} not defined.");
             }
             var hostsAddresses = resolutionResult.HostsAddresses;
             hostsAddresses = hostsAddresses.Where(x => !x.IsLoadBalancer).ToList();
             if (hostsAddresses.Count == 0)
             {
-                throw new ArgumentException($"{nameof(resolutionResult)} must contain at least one non-blancer address");
+                throw new ArgumentException($"{nameof(resolutionResult)} must contain at least one non-blancer address.");
             }
             _logger.LogDebug($"Start round_robin policy");
             var result = hostsAddresses.Select(x =>

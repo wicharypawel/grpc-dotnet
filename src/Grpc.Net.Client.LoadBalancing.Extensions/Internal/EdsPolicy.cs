@@ -56,20 +56,20 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             }
             if (string.IsNullOrWhiteSpace(serviceName))
             {
-                throw new ArgumentException($"{nameof(serviceName)} not defined");
+                throw new ArgumentException($"{nameof(serviceName)} not defined.");
             }
             var hostsAddresses = resolutionResult.HostsAddresses;
             if (hostsAddresses.Count != 0)
             {
                 // Note that the xds resolver will return an empty list of addresses, because in the xDS API flow, 
                 // the addresses are not returned until the ClusterLoadAssignment resource is obtained later.
-                throw new ArgumentException($"{nameof(resolutionResult)} is expected to be empty");
+                throw new ArgumentException($"{nameof(resolutionResult)} is expected to be empty.");
             }
             _xdsClientPool = resolutionResult.Attributes.Get(XdsAttributesConstants.XdsClientPoolInstance) as XdsClientObjectPool
-                ?? throw new InvalidOperationException("Can not find xds client pool");
+                ?? throw new InvalidOperationException("Can not find xds client pool.");
             _xdsClient = _xdsClientPool.GetObject();
             var edsClusterName = resolutionResult.Attributes.Get(XdsAttributesConstants.EdsClusterName) as string
-                ?? throw new InvalidOperationException("Can not find EDS cluster name");
+                ?? throw new InvalidOperationException("Can not find EDS cluster name.");
             _isSecureConnection = isSecureConnection;
             _logger.LogDebug($"Start EDS policy");
             var clusterLoadAssignments = await _xdsClient.GetEdsAsync(edsClusterName).ConfigureAwait(false);

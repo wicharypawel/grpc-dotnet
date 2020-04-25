@@ -90,11 +90,11 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.XdsRelated
             var exception = Assert.Throws<InvalidOperationException>(() => {
                 pool.ReturnObject(xdsClientMock2.Object);
             });
-            Assert.Equal("the returned instance does not match current XdsClient", exception.Message);
+            Assert.Equal("the returned instance does not match current XdsClient.", exception.Message);
             exception = Assert.Throws<InvalidOperationException>(() => {
                 pool.ReturnObject(null);
             });
-            Assert.Equal("the returned instance does not match current XdsClient", exception.Message);
+            Assert.Equal("the returned instance does not match current XdsClient.", exception.Message);
         }
 
         [Fact]
@@ -111,7 +111,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.XdsRelated
             var exception = Assert.Throws<InvalidOperationException>(() => {
                 pool.ReturnObject(null);
             });
-            Assert.Equal("referenceCount of XdsClient less than 0", exception.Message);
+            Assert.Equal("referenceCount of XdsClient less than 0.", exception.Message);
         }
     }
 #pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.

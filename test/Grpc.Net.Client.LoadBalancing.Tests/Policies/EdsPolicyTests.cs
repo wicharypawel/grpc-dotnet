@@ -30,12 +30,12 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             {
                 await policy.CreateSubChannelsAsync(resolutionResults, "", false);
             });
-            Assert.Equal("serviceName not defined", exception.Message);
+            Assert.Equal("serviceName not defined.", exception.Message);
             exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
             {
                 await policy.CreateSubChannelsAsync(resolutionResults, string.Empty, false);
             });
-            Assert.Equal("serviceName not defined", exception.Message);
+            Assert.Equal("serviceName not defined.", exception.Message);
         }
 
         [Fact]
@@ -53,7 +53,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             {
                 await policy.CreateSubChannelsAsync(resolutionResults, "sample-service.contoso.com", false);
             });
-            Assert.Equal("resolutionResult is expected to be empty", exception.Message);
+            Assert.Equal("resolutionResult is expected to be empty.", exception.Message);
         }
 
         [Fact]
@@ -71,7 +71,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             {
                 await policy.CreateSubChannelsAsync(resolutionResults, "sample-service.contoso.com", true);
             });
-            Assert.Equal("resolutionResult is expected to be empty", exception.Message);
+            Assert.Equal("resolutionResult is expected to be empty.", exception.Message);
         }
 
         [Fact]

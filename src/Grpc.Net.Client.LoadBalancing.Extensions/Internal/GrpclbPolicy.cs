@@ -75,14 +75,14 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             }
             if (string.IsNullOrWhiteSpace(serviceName))
             {
-                throw new ArgumentException($"{nameof(serviceName)} not defined");
+                throw new ArgumentException($"{nameof(serviceName)} not defined.");
             }
             var hostsAddresses = resolutionResult.HostsAddresses;
             _fallbackAddresses = hostsAddresses.Where(x => !x.IsLoadBalancer).ToList();
             hostsAddresses = hostsAddresses.Where(x => x.IsLoadBalancer).ToList();
             if (hostsAddresses.Count == 0)
             {
-                throw new ArgumentException($"{nameof(resolutionResult)} must contain at least one blancer address");
+                throw new ArgumentException($"{nameof(resolutionResult)} must contain at least one blancer address.");
             }
             _isSecureConnection = isSecureConnection;
             _logger.LogDebug($"Start grpclb policy");
@@ -146,7 +146,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             await responseStream.MoveNext(CancellationToken.None).ConfigureAwait(false);
             if (responseStream.Current.LoadBalanceResponseTypeCase != LoadBalanceResponse.LoadBalanceResponseTypeOneofCase.InitialResponse)
             {
-                throw new InvalidOperationException("InitialLoadBalanceRequest was not followed by InitialLoadBalanceResponse");
+                throw new InvalidOperationException("InitialLoadBalanceRequest was not followed by InitialLoadBalanceResponse.");
             }
             var initialResponse = responseStream.Current.InitialResponse;
             _clientStatsReportInterval = initialResponse.ClientStatsReportInterval.ToTimeSpan();
@@ -158,7 +158,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             switch (responseStream.Current.LoadBalanceResponseTypeCase)
             {
                 case LoadBalanceResponse.LoadBalanceResponseTypeOneofCase.InitialResponse:
-                    throw new InvalidOperationException("Unexpected InitialResponse");
+                    throw new InvalidOperationException("Unexpected InitialResponse.");
                 case LoadBalanceResponse.LoadBalanceResponseTypeOneofCase.ServerList:
                     _isFallback = false;
                     await UseServerListSubChannelsAsync(responseStream.Current.ServerList).ConfigureAwait(false);

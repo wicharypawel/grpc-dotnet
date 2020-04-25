@@ -91,7 +91,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             }
             if (!target.Scheme.Equals("xds", StringComparison.OrdinalIgnoreCase))
             {
-                throw new ArgumentException($"{nameof(XdsResolverPlugin)} require xds:// scheme to set as target address");
+                throw new ArgumentException($"{nameof(XdsResolverPlugin)} require xds:// scheme to set as target address.");
             }
             if (_xdsClient == null)
             {
@@ -122,12 +122,12 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                     var rdsConfig = httpConnectionManager!.Rds;
                     if (rdsConfig.ConfigSource?.Ads == null)
                     {
-                        throw new InvalidOperationException("LDS that specify to call RDS is expected to have ADS source");
+                        throw new InvalidOperationException("LDS that specify to call RDS is expected to have ADS source.");
                     }
                     var routeConfigurations = await _xdsClient.GetRdsAsync(rdsConfig.RouteConfigName).ConfigureAwait(false);
                     if (routeConfigurations.Count == 0)
                     {
-                        throw new InvalidOperationException("No route configurations found during RDS");
+                        throw new InvalidOperationException("No route configurations found during RDS.");
                     }
                     RouteConfiguration routeConfiguration = routeConfigurations.First(x => x.Name.Equals(rdsConfig.RouteConfigName, StringComparison.OrdinalIgnoreCase));
                     clusterName = GetClusterNameFromRouteConfiguration(routeConfiguration, target);
@@ -135,7 +135,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 }
                 else
                 {
-                    throw new InvalidOperationException("LDS Listener has been found but it doesn't contain in-line configuration, nor point to RDS");
+                    throw new InvalidOperationException("LDS Listener has been found but it doesn't contain in-line configuration, nor point to RDS.");
                 }
             }
             else
@@ -145,11 +145,11 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 clusterName = "magic-value-find-cluster-by-service-name";
                 serviceConfig = GrpcServiceConfig.Create("cds_experimental", _defaultLoadBalancingPolicy);
             }
-            var config = GrpcServiceConfigOrError.FromConfig(serviceConfig ?? throw new InvalidOperationException("serviceConfig is null"));
+            var config = GrpcServiceConfigOrError.FromConfig(serviceConfig ?? throw new InvalidOperationException("serviceConfig is null."));
             _logger.LogDebug($"Service config created with policies: {string.Join(',', serviceConfig.RequestedLoadBalancingPolicies)}");
             if (_xdsClientPool == null)
             {
-                throw new InvalidOperationException("XdsClientPool not initialized");
+                throw new InvalidOperationException("XdsClientPool not initialized.");
             }
             var attributes = new GrpcAttributes(new Dictionary<string, object>() 
             { 
@@ -182,7 +182,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             var defaultRoute = routes?.Last();
             if (defaultRoute?.Match == null || defaultRoute.Match.Prefix != string.Empty || defaultRoute.Route_?.Cluster == null)
             {
-                throw new InvalidOperationException("Cluster name can not be specified");
+                throw new InvalidOperationException("Cluster name can not be specified.");
             }
             var clusterName = defaultRoute.Route_.Cluster;
             return clusterName;
@@ -256,11 +256,11 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         {
             if (hostName == null || hostName.Length == 0 || hostName.StartsWith('.') || hostName.EndsWith('.'))
             {
-                throw new ArgumentException("Invalid host name");
+                throw new ArgumentException("Invalid host name.");
             }
             if (pattern == null || pattern.Length == 0 || pattern.StartsWith('.') || pattern.EndsWith('.'))
             {
-                throw new ArgumentException("Invalid pattern/domain name");
+                throw new ArgumentException("Invalid pattern/domain name.");
             }
             // hostName and pattern are now in lower case -- domain names are case-insensitive.
             hostName = hostName.ToLowerInvariant();

@@ -24,12 +24,12 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             {
                 await policy.CreateSubChannelsAsync(resolutionResults, "", false);
             });
-            Assert.Equal("serviceName not defined", exception.Message);
+            Assert.Equal("serviceName not defined.", exception.Message);
             exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
             {
                 await policy.CreateSubChannelsAsync(resolutionResults, string.Empty, false);
             });
-            Assert.Equal("serviceName not defined", exception.Message);
+            Assert.Equal("serviceName not defined.", exception.Message);
         }
 
         [Fact]
@@ -47,7 +47,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             {
                 await policy.CreateSubChannelsAsync(resolutionResults, "sample-service.contoso.com", false);
             });
-            Assert.Equal("resolutionResult must contain at least one non-blancer address", exception.Message);
+            Assert.Equal("resolutionResult must contain at least one non-blancer address.", exception.Message);
         }
 
         [Fact]
@@ -65,7 +65,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             {
                 await policy.CreateSubChannelsAsync(resolutionResults, "sample-service.contoso.com", false); // load balancers are ignored
             });
-            Assert.Equal("resolutionResult must contain at least one non-blancer address", exception.Message);
+            Assert.Equal("resolutionResult must contain at least one non-blancer address.", exception.Message);
         }
 
         [Fact]

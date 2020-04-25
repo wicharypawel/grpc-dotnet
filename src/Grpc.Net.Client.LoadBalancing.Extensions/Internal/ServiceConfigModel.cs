@@ -32,7 +32,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             }
             else
             {
-                throw new InvalidOperationException("Invalid ServiceConfig, load balancing policy must be specified");
+                throw new InvalidOperationException("Invalid ServiceConfig, load balancing policy must be specified.");
             }
         }
     }
@@ -54,7 +54,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             // according to proto file only one configuration can be specified 
             return Grpclb?.ToString() ?? RoundRobin?.ToString() ?? PickFirst?.ToString()
                 ?? Xds?.ToString() ?? XdsExperimental?.ToString() ?? Cds?.ToString()
-                ?? throw new InvalidOperationException("Load balancing config without policy defined");
+                ?? throw new InvalidOperationException("Load balancing config without policy defined.");
         }
     }
 

@@ -60,7 +60,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             }
             if (!target.Scheme.Equals("dns", StringComparison.OrdinalIgnoreCase))
             {
-                throw new ArgumentException($"{nameof(DnsResolverPlugin)} require dns:// scheme to set as target address");
+                throw new ArgumentException($"{nameof(DnsResolverPlugin)} require dns:// scheme to set as target address.");
             }
             var serversDnsQuery = target.Host;
             _logger.LogDebug($"Start A lookup for {serversDnsQuery}");

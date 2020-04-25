@@ -40,7 +40,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             }
             if (WellKnownSchemes.Contains(target.Scheme.ToLowerInvariant()))
             {
-                throw new ArgumentException($"{target.Scheme}:// scheme require non-default name resolver");
+                throw new ArgumentException($"{target.Scheme}:// scheme require non-default name resolver.");
             }
             _logger.LogDebug("NoOpResolverPlugin using defined target as name resolution");
             var hosts = new List<GrpcHostAddress>()

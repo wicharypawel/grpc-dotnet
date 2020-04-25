@@ -32,7 +32,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             _bootstrapInfo = bootstrapper.ReadBootstrap();
             if(_bootstrapInfo.Servers.Count == 0)
             {
-                throw new InvalidOperationException("XdsClient No management server provided by bootstrap");
+                throw new InvalidOperationException("XdsClient No management server provided by bootstrap.");
             }
             if (_bootstrapInfo.Servers[0].ChannelCredsList.Count != 0)
             {
@@ -42,7 +42,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 // CreateDefaultCredentialAsync, CreateDefaultCredentialFromFile, CreateDefaultCredentialFromParameters, CreateServiceAccountCredentialFromParameters
                 // https://github.com/googleapis/google-api-dotnet-client/blob/master/Src/Support/Google.Apis.Auth/OAuth2/GoogleCredential.cs
                 // https://github.com/googleapis/google-api-dotnet-client/blob/master/Src/Support/Google.Apis.Auth/OAuth2/DefaultCredentialProvider.cs
-                throw new NotImplementedException("XdsClient Channel credentials are not supported");
+                throw new NotImplementedException("XdsClient Channel credentials are not supported.");
             }
             _logger.LogDebug("XdsClient start control-plane connection");
             AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);                          

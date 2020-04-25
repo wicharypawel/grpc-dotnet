@@ -44,7 +44,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 {
                     if (referenceCount != 0)
                     {
-                        throw new InvalidOperationException("referenceCount should be zero while xdsClient is null");
+                        throw new InvalidOperationException("referenceCount should be zero while xdsClient is null.");
                     }
                     xdsClient = _xdsClientFactory.CreateXdsClient();
                 }
@@ -64,12 +64,12 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             {
                 if (xdsClient != instance)
                 {
-                    throw new InvalidOperationException("the returned instance does not match current XdsClient");
+                    throw new InvalidOperationException("the returned instance does not match current XdsClient.");
                 }
                 referenceCount--;
                 if (referenceCount < 0)
                 {
-                    throw new InvalidOperationException("referenceCount of XdsClient less than 0");
+                    throw new InvalidOperationException("referenceCount of XdsClient less than 0.");
                 }
                 if (referenceCount == 0)
                 {
