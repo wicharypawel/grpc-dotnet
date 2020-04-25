@@ -198,5 +198,63 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             }
             return false;
         }
+
+        /// <summary>
+        /// Matches hostName with pattern.
+        /// 
+        /// Wildcard pattern rules:
+        ///  - A single asterisk (*) matches any domain.
+        ///  - Asterisk (*) is only permitted in the left-most or the right-most part of the pattern, but not both.
+        /// </summary>
+        /// <param name="hostName">Not empty hostName string. Can not start or end with dot.</param>
+        /// <param name="pattern">Not empty pattern string. Can not start or end with dot.</param>
+        /// <returns>Returns true if hostName matches the domain name pattern with case-insensitive.</returns>
+        internal static bool MatchHostName(string hostName, string pattern)
+        {
+            if (hostName == null || hostName.Length == 0 || hostName.StartsWith('.') || hostName.EndsWith('.'))
+            {
+                throw new ArgumentException("Invalid host name");
+            }
+            if (pattern == null || pattern.Length == 0 || pattern.StartsWith('.') || pattern.EndsWith('.'))
+            {
+                throw new ArgumentException("Invalid pattern/domain name");
+            }
+            // hostName and pattern are now in lower case -- domain names are case-insensitive.
+            hostName = hostName.ToLowerInvariant();
+            pattern = pattern.ToLowerInvariant();
+            if (!pattern.Contains('*', StringComparison.Ordinal))
+            {
+                // Not a wildcard pattern -- hostName and pattern must match exactly.
+                return hostName.Equals(pattern, StringComparison.Ordinal);
+            }
+            // Wildcard pattern
+            if (pattern.Length == 1)
+            {
+                return true;
+            }
+            int wildcardIndex = pattern.IndexOf('*', StringComparison.Ordinal);
+            // At most one asterisk (*) is allowed.
+            if (pattern.IndexOf('*', wildcardIndex + 1) != -1)
+            {
+                return false;
+            }
+            // Asterisk can only match prefix or suffix.
+            if (wildcardIndex != 0 && wildcardIndex != pattern.Length - 1)
+            {
+                return false;
+            }
+            // HostName must be at least as long as the pattern because asterisk has to
+            // match one or more characters.
+            if (hostName.Length < pattern.Length)
+            {
+                return false;
+            }
+            if (wildcardIndex == 0 && hostName.EndsWith(pattern.Substring(1), StringComparison.Ordinal))
+            {
+                return true;
+            }
+            return wildcardIndex == pattern.Length - 1
+                && hostName.StartsWith(pattern.Substring(0, pattern.Length - 1), StringComparison.Ordinal);
+        }
     }
 }
