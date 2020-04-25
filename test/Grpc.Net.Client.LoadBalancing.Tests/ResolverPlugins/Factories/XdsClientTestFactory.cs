@@ -73,9 +73,11 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins.Factories
 
         public static DiscoveryResponse BuildLdsResponseForCluster(string versionInfo, string host, string clusterName, string nonce)
         {
+            //domain name should not have port
+            var domainName = !host.Contains(':') ? host : host.Substring(0, host.IndexOf(':'));
             var virtualHosts = new List<VirtualHost>()
             {
-                BuildVirtualHost(new List<string>() { host }, clusterName)
+                BuildVirtualHost(new List<string>() { domainName }, clusterName)
             };
             var connectionManager = new HttpConnectionManager()
             {
@@ -108,9 +110,11 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins.Factories
 
         public static DiscoveryResponse BuildRdsResponseForCluster(string versionInfo, string routeConfigName, string host, string clusterName, string nonce)
         {
+            //domain name should not have port
+            var domainName = !host.Contains(':') ? host : host.Substring(0, host.IndexOf(':'));
             var virtualHosts = new List<VirtualHost>()
             {
-                BuildVirtualHost(new List<string>() { host }, clusterName)
+                BuildVirtualHost(new List<string>() { domainName }, clusterName)
             };
             var routeConfigs = new List<Any>()
             {

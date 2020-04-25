@@ -178,26 +178,14 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             {
                 throw new ArgumentNullException(nameof(target));
             }
-            var virtualHost = routeConfiguration.VirtualHosts.First(x => AnyDomainMatch(x.Domains, target.Host));
-            var defaultRoute = virtualHost.Routes.Last();
+            var routes = FindRoutesInRouteConfig(routeConfiguration, target.Host);
+            var defaultRoute = routes?.Last();
             if (defaultRoute?.Match == null || defaultRoute.Match.Prefix != string.Empty || defaultRoute.Route_?.Cluster == null)
             {
                 throw new InvalidOperationException("Cluster name can not be specified");
             }
             var clusterName = defaultRoute.Route_.Cluster;
             return clusterName;
-        }
-
-        private static bool AnyDomainMatch(IEnumerable<string> domains, string targetDomain)
-        {
-            foreach (var domain in domains)
-            {
-                if (domain.Contains(targetDomain, StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
-            return false;
         }
 
         internal static List<Route> FindRoutesInRouteConfig(RouteConfiguration config, string hostName)
