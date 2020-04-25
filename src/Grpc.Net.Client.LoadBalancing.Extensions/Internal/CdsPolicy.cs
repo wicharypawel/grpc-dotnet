@@ -79,13 +79,20 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 .Where(x => x?.EdsClusterConfig?.EdsConfig != null)
                 .Where(x => x.LbPolicy == Cluster.Types.LbPolicy.RoundRobin)
                 .Where(x => IsSearchedCluster(x, clusterName, serviceName)).First();
-            if (cluster.LrsServer != null && cluster.LrsServer.Self != null)
+            if (cluster.LrsServer == null)
             {
-                _logger.LogDebug("LRS load reporting unsupported");
+                _logger.LogDebug("LRS load reporting disabled");
             }
             else
             {
-                _logger.LogDebug("LRS load reporting disabled");
+                if (cluster.LrsServer.Self == null)
+                {
+                    _logger.LogDebug("LRS load reporting disabled (LRS to different management server isn't supported)");
+                }
+                else
+                {
+                    _logger.LogDebug("LRS load reporting disabled (LRS to the same management server isn't supported)");
+                }
             }
             var edsClusterName = cluster.EdsClusterConfig?.ServiceName ?? cluster.Name;
             var registry = GrpcLoadBalancingPolicyRegistry.GetDefaultRegistry(_loggerFactory);

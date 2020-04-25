@@ -78,7 +78,6 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         public async Task ForResolutionResultWithBalancers_UseCdsPolicy_CreateSubchannelsForFoundServers()
         {
             // Arrange
-            var edsPolicyMock = new Mock<IGrpcLoadBalancingPolicy>(MockBehavior.Loose);
             var serviceName = "sample-service.contoso.com";
             var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
             xdsClientMock.Setup(x => x.Dispose());
@@ -95,6 +94,12 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
                 { XdsAttributesConstants.CdsClusterName, "magic-value-find-cluster-by-service-name" }
             });
             var resolutionResults = new GrpcNameResolutionResult(hostsAddresses, config, attributes);
+            
+            GrpcNameResolutionResult? edsResolutionResult = null;
+            var edsPolicyMock = new Mock<IGrpcLoadBalancingPolicy>(MockBehavior.Loose);
+            edsPolicyMock.Setup(x => x.CreateSubChannelsAsync(It.IsAny<GrpcNameResolutionResult>(), It.IsAny<string>(), It.IsAny<bool>()))
+                .Callback<GrpcNameResolutionResult, string, bool>((resolutionResult, _, __) => { edsResolutionResult = resolutionResult; })
+                .Returns(Task.CompletedTask);
 
             // Act
             using var policy = new CdsPolicy();
@@ -105,6 +110,9 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             xdsClientMock.Verify(x => x.GetCdsAsync(), Times.Once);
             policy.Dispose();
             xdsClientMock.Verify(x => x.Dispose(), Times.Once);
+            Assert.NotNull(edsResolutionResult);
+            Assert.NotNull(edsResolutionResult!.Attributes.Get(XdsAttributesConstants.XdsClientPoolInstance));
+            Assert.NotNull(edsResolutionResult!.Attributes.Get(XdsAttributesConstants.EdsClusterName));
         }
 
         private static List<Cluster> GetSampleClusters(string serviceName)
