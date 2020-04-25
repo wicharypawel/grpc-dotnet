@@ -1,4 +1,5 @@
 ﻿using Envoy.Api.V2;
+using Envoy.Api.V2.Route;
 using Envoy.Config.Filter.Network.HttpConnectionManager.V2;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -197,6 +198,60 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 }
             }
             return false;
+        }
+
+        internal static List<Route> FindRoutesInRouteConfig(RouteConfiguration config, string hostName)
+        {
+            var matchingLenght = -1; // longest length of wildcard pattern that matches host name
+            var exactMatchFound = false;  // true if a virtual host with exactly matched domain found
+            VirtualHost? targetVirtualHost = null;  // target VirtualHost with longest matched domain
+            foreach (var virtualHost in config.VirtualHosts)
+            {
+                foreach (var domain in virtualHost.Domains)
+                {
+                    var isSelected = false;
+                    if (MatchHostName(hostName, domain))
+                    {
+                        if (!domain.Contains('*', StringComparison.Ordinal)) // exact matching
+                        { 
+                            exactMatchFound = true;
+                            targetVirtualHost = virtualHost;
+                            break;
+                        }
+                        else if (domain.Length > matchingLenght) // longer matching pattern
+                        { 
+                            isSelected = true;
+                        }
+                        else if (domain.Length == matchingLenght && domain.StartsWith('*')) // suffix matching
+                        { 
+                            isSelected = true;
+                        }
+                    }
+                    if (isSelected)
+                    {
+                        matchingLenght = domain.Length;
+                        targetVirtualHost = virtualHost;
+                    }
+                }
+                if (exactMatchFound)
+                {
+                    break;
+                }
+            }
+            // Proceed with the virtual host that has longest wildcard matched domain name with the
+            // hostname in original "xds:" URI.
+            // Note we would consider upstream cluster not found if the virtual host is not configured
+            // correctly for gRPC, even if there exist other virtual hosts with (lower priority)
+            // matching domains.
+            var routes = new List<Route>();
+            if (targetVirtualHost != null)
+            {
+                foreach (var route in targetVirtualHost.Routes)
+                {
+                    routes.Add(route);
+                }
+            }
+            return routes;
         }
 
         /// <summary>
