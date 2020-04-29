@@ -211,9 +211,8 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 
             public static RouteAction FromEnvoyProtoRouteAction(Envoy.Api.V2.Route.RouteAction routeAction)
             {
-                var clusterWeights = routeAction.WeightedClusters.Clusters;
-                return new RouteAction(routeAction.Cluster, routeAction.ClusterHeader,
-                    clusterWeights.Select(ClusterWeight.FromEnvoyProtoClusterWeight).ToList());
+                var clusterWeights = routeAction.WeightedClusters?.Clusters?.Select(ClusterWeight.FromEnvoyProtoClusterWeight).ToList() ?? new List<ClusterWeight>();
+                return new RouteAction(routeAction.Cluster, routeAction.ClusterHeader, clusterWeights);
             }
         }
 
