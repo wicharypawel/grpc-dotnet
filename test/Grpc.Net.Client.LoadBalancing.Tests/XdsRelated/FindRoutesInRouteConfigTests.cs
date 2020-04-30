@@ -38,7 +38,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.XdsRelated
             var routeConfig = XdsClientTestFactory.BuildRouteConfiguration("route-foo.googleapis.com", new List<VirtualHost>() { vHost1, vHost2, vHost3 });
 
             // Act
-            var routes = XdsResolverPlugin.FindRoutesInRouteConfig(routeConfig, hostname);
+            var routes = XdsClient.FindRoutesInRouteConfig(routeConfig, hostname);
 
             // Assert
             Assert.Single(routes);
@@ -75,7 +75,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.XdsRelated
             var routeConfig = XdsClientTestFactory.BuildRouteConfiguration("route-foo.googleapis.com", new List<VirtualHost>() { vHost1, vHost2, vHost3 });
             
             // Act
-            var routes = XdsResolverPlugin.FindRoutesInRouteConfig(routeConfig, hostname);
+            var routes = XdsClient.FindRoutesInRouteConfig(routeConfig, hostname);
 
             // Assert
             Assert.Single(routes);
@@ -105,7 +105,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.XdsRelated
             var routeConfig = XdsClientTestFactory.BuildRouteConfiguration("route-foo.googleapis.com", new List<VirtualHost>() { vHost1, vHost2 });
 
             // Act
-            var routes = XdsResolverPlugin.FindRoutesInRouteConfig(routeConfig, hostname);
+            var routes = XdsClient.FindRoutesInRouteConfig(routeConfig, hostname);
 
             // Assert
             Assert.Single(routes);

@@ -1,5 +1,4 @@
 ﻿using Envoy.Api.V2;
-using Envoy.Api.V2.Route;
 using Envoy.Config.Filter.Network.HttpConnectionManager.V2;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -178,7 +177,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             {
                 throw new ArgumentNullException(nameof(target));
             }
-            var routes = FindRoutesInRouteConfig(routeConfiguration, target.Host);
+            var routes = XdsClient.FindRoutesInRouteConfig(routeConfiguration, target.Host);
             var defaultRoute = routes?.Last();
             if (defaultRoute?.Match == null || defaultRoute.Match.Prefix != string.Empty || defaultRoute.Route_?.Cluster == null)
             {
@@ -186,118 +185,6 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             }
             var clusterName = defaultRoute.Route_.Cluster;
             return clusterName;
-        }
-
-        internal static List<Route> FindRoutesInRouteConfig(RouteConfiguration config, string hostName)
-        {
-            var matchingLenght = -1; // longest length of wildcard pattern that matches host name
-            var exactMatchFound = false;  // true if a virtual host with exactly matched domain found
-            VirtualHost? targetVirtualHost = null;  // target VirtualHost with longest matched domain
-            foreach (var virtualHost in config.VirtualHosts)
-            {
-                foreach (var domain in virtualHost.Domains)
-                {
-                    var isSelected = false;
-                    if (MatchHostName(hostName, domain))
-                    {
-                        if (!domain.Contains('*', StringComparison.Ordinal)) // exact matching
-                        { 
-                            exactMatchFound = true;
-                            targetVirtualHost = virtualHost;
-                            break;
-                        }
-                        else if (domain.Length > matchingLenght) // longer matching pattern
-                        { 
-                            isSelected = true;
-                        }
-                        else if (domain.Length == matchingLenght && domain.StartsWith('*')) // suffix matching
-                        { 
-                            isSelected = true;
-                        }
-                    }
-                    if (isSelected)
-                    {
-                        matchingLenght = domain.Length;
-                        targetVirtualHost = virtualHost;
-                    }
-                }
-                if (exactMatchFound)
-                {
-                    break;
-                }
-            }
-            // Proceed with the virtual host that has longest wildcard matched domain name with the
-            // hostname in original "xds:" URI.
-            // Note we would consider upstream cluster not found if the virtual host is not configured
-            // correctly for gRPC, even if there exist other virtual hosts with (lower priority)
-            // matching domains.
-            var routes = new List<Route>();
-            if (targetVirtualHost != null)
-            {
-                foreach (var route in targetVirtualHost.Routes)
-                {
-                    routes.Add(route);
-                }
-            }
-            return routes;
-        }
-
-        /// <summary>
-        /// Matches hostName with pattern.
-        /// 
-        /// Wildcard pattern rules:
-        ///  - A single asterisk (*) matches any domain.
-        ///  - Asterisk (*) is only permitted in the left-most or the right-most part of the pattern, but not both.
-        /// </summary>
-        /// <param name="hostName">Not empty hostName string. Can not start or end with dot.</param>
-        /// <param name="pattern">Not empty pattern string. Can not start or end with dot.</param>
-        /// <returns>Returns true if hostName matches the domain name pattern with case-insensitive.</returns>
-        internal static bool MatchHostName(string hostName, string pattern)
-        {
-            if (hostName == null || hostName.Length == 0 || hostName.StartsWith('.') || hostName.EndsWith('.'))
-            {
-                throw new ArgumentException("Invalid host name.");
-            }
-            if (pattern == null || pattern.Length == 0 || pattern.StartsWith('.') || pattern.EndsWith('.'))
-            {
-                throw new ArgumentException("Invalid pattern/domain name.");
-            }
-            // hostName and pattern are now in lower case -- domain names are case-insensitive.
-            hostName = hostName.ToLowerInvariant();
-            pattern = pattern.ToLowerInvariant();
-            if (!pattern.Contains('*', StringComparison.Ordinal))
-            {
-                // Not a wildcard pattern -- hostName and pattern must match exactly.
-                return hostName.Equals(pattern, StringComparison.Ordinal);
-            }
-            // Wildcard pattern
-            if (pattern.Length == 1)
-            {
-                return true;
-            }
-            int wildcardIndex = pattern.IndexOf('*', StringComparison.Ordinal);
-            // At most one asterisk (*) is allowed.
-            if (pattern.IndexOf('*', wildcardIndex + 1) != -1)
-            {
-                return false;
-            }
-            // Asterisk can only match prefix or suffix.
-            if (wildcardIndex != 0 && wildcardIndex != pattern.Length - 1)
-            {
-                return false;
-            }
-            // HostName must be at least as long as the pattern because asterisk has to
-            // match one or more characters.
-            if (hostName.Length < pattern.Length)
-            {
-                return false;
-            }
-            if (wildcardIndex == 0 && hostName.EndsWith(pattern.Substring(1), StringComparison.Ordinal))
-            {
-                return true;
-            }
-            return wildcardIndex == pattern.Length - 1
-                && hostName.StartsWith(pattern.Substring(0, pattern.Length - 1), StringComparison.Ordinal);
         }
     }
 }
