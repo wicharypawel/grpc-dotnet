@@ -1,12 +1,11 @@
 ﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging.Abstractions;
 using System.Linq;
-using Envoy.Api.V2.Core;
-using Envoy.Api.V2.Endpoint;
+using System.Threading.Tasks;
 using Google.Protobuf.Collections;
+using static Grpc.Net.Client.LoadBalancing.Extensions.Internal.EnvoyProtoData;
 
 namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 {
@@ -72,19 +71,13 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 ?? throw new InvalidOperationException("Can not find EDS cluster name.");
             _isSecureConnection = isSecureConnection;
             _logger.LogDebug($"Start EDS policy");
-            var clusterLoadAssignments = await _xdsClient.GetEdsAsync(edsClusterName).ConfigureAwait(false);
-            var clusterLoadAssignment = clusterLoadAssignments
-                .Where(x => x.Endpoints.Count != 0)
-                .Where(x => x.Endpoints[0].LbEndpoints.Count != 0)
-                .First();
-            var localities = GetLocalitiesWithHighestPriority(clusterLoadAssignment.Endpoints);
+            var endpointUpdate = await _xdsClient.GetEdsAsync(edsClusterName).ConfigureAwait(false);
+            var localities = endpointUpdate.LocalityLbEndpoints.Values.ToList();
             var childPolicies = localities.Select(locality =>
             {
-                var serverAddressList = locality.LbEndpoints
-                    .Where(x => x.HealthStatus == HealthStatus.Healthy || x.HealthStatus == HealthStatus.Unknown)
-                    .Select(x => x.Endpoint.Address.SocketAddress);
-                var childPicker = new RoundRobinPicker(AddressListToGrcpSubChannel(serverAddressList));
-                return new WeightedRandomPicker.WeightedChildPicker(Convert.ToInt32(locality.LoadBalancingWeight ?? 0), childPicker);
+                var serverAddressList = locality.Endpoints.Select(x => x.HostsAddresses).SelectMany(x => x);
+                var childPicker = new RoundRobinPicker(GrpcHostAddressListToGrcpSubChannel(serverAddressList));
+                return new WeightedRandomPicker.WeightedChildPicker(locality.LocalityWeight, childPicker);
             }).ToList();
             _subchannelPicker = new WeightedRandomPicker(childPolicies);
             _logger.LogDebug($"SubChannels list created");
@@ -116,23 +109,15 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             Disposed = true;
         }
 
-        private IReadOnlyList<LocalityLbEndpoints> GetLocalitiesWithHighestPriority(RepeatedField<LocalityLbEndpoints> localities)
-        {
-            var groupedLocalities = localities.GroupBy(x => x.Priority).OrderBy(x => x.Key).ToList();
-            _logger.LogDebug($"EDS found {groupedLocalities.Count} groups with distinct priority");
-            _logger.LogDebug($"EDS select locality with priority {groupedLocalities[0].Key} [0-highest, N-lowest]");
-            return groupedLocalities[0].ToList();
-        }
-
-        private List<GrpcSubChannel> AddressListToGrcpSubChannel(IEnumerable<SocketAddress> serverList)
+        private List<GrpcSubChannel> GrpcHostAddressListToGrcpSubChannel(IEnumerable<GrpcHostAddress> serverList)
         {
             _logger.LogDebug($"xds received server list for locality");
             var result = new List<GrpcSubChannel>();
             foreach (var server in serverList)
             {
                 var uriBuilder = new UriBuilder();
-                uriBuilder.Host = server.Address;
-                uriBuilder.Port = Convert.ToInt32(server.PortValue);
+                uriBuilder.Host = server.Host;
+                uriBuilder.Port = server.Port ?? (_isSecureConnection ? 443 : 80);
                 uriBuilder.Scheme = _isSecureConnection ? "https" : "http";
                 var uri = uriBuilder.Uri;
                 result.Add(new GrpcSubChannel(uri, string.Empty));

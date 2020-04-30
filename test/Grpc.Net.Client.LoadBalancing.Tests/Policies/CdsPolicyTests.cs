@@ -1,13 +1,9 @@
-using Envoy.Api.V2;
-using Envoy.Api.V2.Core;
-using Envoy.Api.V2.Endpoint;
 using Grpc.Net.Client.LoadBalancing.Extensions.Internal;
 using Grpc.Net.Client.LoadBalancing.Tests.Policies.Factories;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -81,7 +77,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             var serviceName = "sample-service.contoso.com";
             var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
             xdsClientMock.Setup(x => x.Dispose());
-            xdsClientMock.Setup(x => x.GetCdsAsync()).Returns(Task.FromResult(GetSampleClusters(serviceName)));
+            xdsClientMock.Setup(x => x.GetCdsAsync(It.IsAny<string>(), It.IsAny<string>())).Returns(Task.FromResult(GetSampleClusterUpdate(serviceName)));
             var xdsClientFactory = new XdsClientFactory(NullLoggerFactory.Instance);
             xdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
             var xdsClientPool = new XdsClientObjectPool(xdsClientFactory, NullLoggerFactory.Instance);
@@ -107,7 +103,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             await policy.CreateSubChannelsAsync(resolutionResults, serviceName, false);
 
             // Assert
-            xdsClientMock.Verify(x => x.GetCdsAsync(), Times.Once);
+            xdsClientMock.Verify(x => x.GetCdsAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Once);
             policy.Dispose();
             xdsClientMock.Verify(x => x.Dispose(), Times.Once);
             Assert.NotNull(edsResolutionResult);
@@ -115,21 +111,10 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             Assert.NotNull(edsResolutionResult!.Attributes.Get(XdsAttributesConstants.EdsClusterName));
         }
 
-        private static List<Cluster> GetSampleClusters(string serviceName)
+        private static ClusterUpdate GetSampleClusterUpdate(string serviceName)
         {
-            var cluster = new Cluster();
-            cluster.Name = $"outbound|8000||{serviceName}";
-            cluster.Type = Cluster.Types.DiscoveryType.Eds;
-            cluster.LbPolicy = Cluster.Types.LbPolicy.RoundRobin;
-            cluster.EdsClusterConfig = new Cluster.Types.EdsClusterConfig()
-            {
-                ServiceName = $"outbound|8000||{serviceName}",
-                EdsConfig = new ConfigSource()
-                {
-                    Ads = new AggregatedConfigSource()
-                }
-            };
-            return new List<Cluster>() { cluster };
+            return new ClusterUpdate($"outbound|8000||{serviceName}", $"outbound|8000||{serviceName}", "eds_experimental", null);
+
         }
     }
 }

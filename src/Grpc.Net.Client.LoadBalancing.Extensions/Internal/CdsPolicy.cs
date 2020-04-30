@@ -3,7 +3,7 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.Linq;
-using Envoy.Api.V2;
+using static Grpc.Net.Client.LoadBalancing.Extensions.Internal.EnvoyProtoData;
 
 namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 {
@@ -73,34 +73,13 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             var clusterName = resolutionResult.Attributes.Get(XdsAttributesConstants.CdsClusterName) as string
                 ?? throw new InvalidOperationException("Can not find CDS cluster name.");
             _logger.LogDebug($"Start CDS policy");
-            var clusters = await _xdsClient.GetCdsAsync().ConfigureAwait(false);
-            var cluster = clusters
-                .Where(x => x.Type == Cluster.Types.DiscoveryType.Eds)
-                .Where(x => x?.EdsClusterConfig?.EdsConfig != null)
-                .Where(x => x.LbPolicy == Cluster.Types.LbPolicy.RoundRobin)
-                .Where(x => IsSearchedCluster(x, clusterName, serviceName)).First();
-            if (cluster.LrsServer == null)
-            {
-                _logger.LogDebug("LRS load reporting disabled");
-            }
-            else
-            {
-                if (cluster.LrsServer.Self == null)
-                {
-                    _logger.LogDebug("LRS load reporting disabled (LRS to different management server isn't supported)");
-                }
-                else
-                {
-                    _logger.LogDebug("LRS load reporting disabled (LRS to the same management server isn't supported)");
-                }
-            }
-            var edsClusterName = cluster.EdsClusterConfig?.ServiceName ?? cluster.Name;
+            var clustersUpdate = await _xdsClient.GetCdsAsync(clusterName, serviceName).ConfigureAwait(false);
             var registry = GrpcLoadBalancingPolicyRegistry.GetDefaultRegistry(_loggerFactory);
-            var edsPolicyProvider = registry.GetProvider("eds_experimental");
+            var edsPolicyProvider = registry.GetProvider(clustersUpdate.LbPolicy);
             _edsPolicy = OverrideEdsPolicy ?? edsPolicyProvider!.CreateLoadBalancingPolicy();
             _edsPolicy.LoggerFactory = _loggerFactory;
             var resolutionResultNewAttributes = new GrpcNameResolutionResult(resolutionResult.HostsAddresses, resolutionResult.ServiceConfig,
-                resolutionResult.Attributes.Add(XdsAttributesConstants.EdsClusterName, edsClusterName)); 
+                resolutionResult.Attributes.Add(XdsAttributesConstants.EdsClusterName, clustersUpdate.EdsServiceName ?? clusterName)); 
             _logger.LogDebug($"CDS create EDS");
             await _edsPolicy.CreateSubChannelsAsync(resolutionResultNewAttributes, serviceName, isSecureConnection).ConfigureAwait(false);
         }
@@ -130,22 +109,6 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             }
             _edsPolicy?.Dispose();
             Disposed = true;
-        }
-
-        private static bool IsSearchedCluster(Cluster x, string clusterName, string serviceName)
-        {
-            if (x == null)
-            {
-                return false;
-            }
-            if (clusterName == "magic-value-find-cluster-by-service-name") // if true it means LDS and RDS were not supported
-            {
-                return x.Name?.Contains(serviceName, StringComparison.OrdinalIgnoreCase) ?? false; // workaround
-            }
-            else
-            {
-                return x.Name?.Equals(clusterName, StringComparison.OrdinalIgnoreCase) ?? false; // according to docs
-            }
         }
     }
 }

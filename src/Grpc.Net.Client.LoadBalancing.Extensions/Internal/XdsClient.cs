@@ -1,5 +1,4 @@
-﻿using Envoy.Api.V2;
-using Envoy.Service.Discovery.V2;
+using Google.Protobuf.Collections;
 using Grpc.Core;
 using Microsoft.Extensions.Logging;
 using System;
@@ -7,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using static Grpc.Net.Client.LoadBalancing.Extensions.Internal.EnvoyProtoData;
 
 namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 {
@@ -21,8 +21,8 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         private string nonce = string.Empty;
 
         private readonly GrpcChannel _adsChannel;
-        private readonly AggregatedDiscoveryService.AggregatedDiscoveryServiceClient _adsClient;
-        private readonly AsyncDuplexStreamingCall<DiscoveryRequest, DiscoveryResponse> _adsStream;
+        private readonly Envoy.Service.Discovery.V2.AggregatedDiscoveryService.AggregatedDiscoveryServiceClient _adsClient;
+        private readonly AsyncDuplexStreamingCall<Envoy.Api.V2.DiscoveryRequest, Envoy.Api.V2.DiscoveryResponse> _adsStream;
         private readonly XdsBootstrapInfo _bootstrapInfo;
         private readonly ILogger _logger;
 
@@ -49,17 +49,17 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             var channelOptions = new GrpcChannelOptions() { LoggerFactory = loggerFactory, Credentials = ChannelCredentials.Insecure };
             _adsChannel = GrpcChannel.ForAddress(_bootstrapInfo.Servers[0].ServerUri, channelOptions);
             _logger.LogDebug("XdsClient start ADS stream");
-            _adsClient = new AggregatedDiscoveryService.AggregatedDiscoveryServiceClient(_adsChannel);
+            _adsClient = new Envoy.Service.Discovery.V2.AggregatedDiscoveryService.AggregatedDiscoveryServiceClient(_adsChannel);
             _adsStream = _adsClient.StreamAggregatedResources();
             _logger.LogDebug("XdsClient ADS stream started");
         }
 
         internal bool Disposed { get; private set; }
 
-        public async Task<List<Listener>> GetLdsAsync(string resourceName)
+        public async Task<ConfigUpdate> GetLdsRdsAsync(string resourceName)
         {
             _logger.LogDebug("XdsClient request LDS");
-            await _adsStream.RequestStream.WriteAsync(new DiscoveryRequest()
+            await _adsStream.RequestStream.WriteAsync(new Envoy.Api.V2.DiscoveryRequest()
             {
                 TypeUrl = ADS_TYPE_URL_LDS,
                 ResourceNames = { resourceName },
@@ -72,15 +72,61 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             version = discoveryResponse.VersionInfo;
             nonce = discoveryResponse.Nonce;
             var listeners = discoveryResponse.Resources
-                .Select(x => Listener.Parser.ParseFrom(x.Value))
+                .Select(x => Envoy.Api.V2.Listener.Parser.ParseFrom(x.Value))
                 .ToList();
-            return listeners;
+            Envoy.Api.V2.Listener? listener = listeners.FirstOrDefault(x => x.Name.Equals(resourceName, StringComparison.OrdinalIgnoreCase));
+            List<Envoy.Api.V2.Route.Route> routes = new List<Envoy.Api.V2.Route.Route>();
+            if (listener != null) // LDS success, found matching listener
+            {
+                _logger.LogDebug($"LDS found listener");
+                Envoy.Config.Filter.Network.HttpConnectionManager.V2.HttpConnectionManager? httpConnectionManager = null;
+                var hasHttpConnectionManager = listener.ApiListener?.ApiListener_?.TryUnpack(out httpConnectionManager) ?? false;
+                if (hasHttpConnectionManager && httpConnectionManager!.RouteConfig != null) // route config in-line
+                {
+                    _logger.LogDebug($"LDS found listener with in-line RouteConfig");
+                    var routeConfiguration = httpConnectionManager!.RouteConfig;
+                    routes = FindRoutesInRouteConfig(routeConfiguration, resourceName);
+                }
+                else if (hasHttpConnectionManager && httpConnectionManager!.Rds != null) // make RDS request
+                {
+                    _logger.LogDebug($"LDS found listener pointing to RDS");
+                    var rdsConfig = httpConnectionManager!.Rds;
+                    if (rdsConfig.ConfigSource?.Ads == null)
+                    {
+                        throw new InvalidOperationException("LDS that specify to call RDS is expected to have ADS source.");
+                    }
+                    var routeConfigurations = await GetRdsAsync(rdsConfig.RouteConfigName).ConfigureAwait(false);
+                    if (routeConfigurations.Count == 0)
+                    {
+                        throw new InvalidOperationException("No route configurations found during RDS.");
+                    }
+                    var routeConfiguration = routeConfigurations.First(x => x.Name.Equals(rdsConfig.RouteConfigName, StringComparison.OrdinalIgnoreCase));
+                    routes = FindRoutesInRouteConfig(routeConfiguration, resourceName);
+                }
+                else
+                {
+                    throw new InvalidOperationException("LDS Listener has been found but it doesn't contain in-line configuration, nor point to RDS.");
+                }
+            }
+            else
+            {
+                _logger.LogDebug($"LDS not found listener, trying to use legacy istio-pilot");
+                routes = new List<Envoy.Api.V2.Route.Route>()
+                {
+                    new Envoy.Api.V2.Route.Route()
+                    {
+                        Match = new Envoy.Api.V2.Route.RouteMatch() { Prefix = ""},
+                        Route_ = new Envoy.Api.V2.Route.RouteAction() { Cluster = "magic-value-find-cluster-by-service-name" }
+                    }
+                };
+            }
+            return new ConfigUpdate(routes.Select(Route.FromEnvoyProtoRoute).ToList());
         }
 
-        public async Task<List<RouteConfiguration>> GetRdsAsync(string listenerName)
-        {
+        private async Task<List<Envoy.Api.V2.RouteConfiguration>> GetRdsAsync(string listenerName)
+        { 
             _logger.LogDebug("XdsClient request RDS");
-            await _adsStream.RequestStream.WriteAsync(new DiscoveryRequest()
+            await _adsStream.RequestStream.WriteAsync(new Envoy.Api.V2.DiscoveryRequest()
             {
                 TypeUrl = ADS_TYPE_URL_RDS,
                 ResourceNames = { listenerName },
@@ -93,15 +139,15 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             version = discoveryResponse.VersionInfo;
             nonce = discoveryResponse.Nonce;
             var routeConfigurations = discoveryResponse.Resources
-                .Select(x => RouteConfiguration.Parser.ParseFrom(x.Value))
+                .Select(x => Envoy.Api.V2.RouteConfiguration.Parser.ParseFrom(x.Value))
                 .ToList();
             return routeConfigurations;
         }
 
-        public async Task<List<Cluster>> GetCdsAsync()
+        public async Task<ClusterUpdate> GetCdsAsync(string clusterName, string serviceName)
         {
             _logger.LogDebug("XdsClient request CDS");
-            await _adsStream.RequestStream.WriteAsync(new DiscoveryRequest()
+            await _adsStream.RequestStream.WriteAsync(new Envoy.Api.V2.DiscoveryRequest()
             {
                 TypeUrl = ADS_TYPE_URL_CDS,
                 ResourceNames = { },
@@ -114,15 +160,53 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             version = discoveryResponse.VersionInfo;
             nonce = discoveryResponse.Nonce;
             var clusters = discoveryResponse.Resources
-                .Select(x => Cluster.Parser.ParseFrom(x.Value))
+                .Select(x => Envoy.Api.V2.Cluster.Parser.ParseFrom(x.Value))
                 .ToList();
-            return clusters;
+            var cluster = clusters
+                .Where(x => x.Type == Envoy.Api.V2.Cluster.Types.DiscoveryType.Eds)
+                .Where(x => x?.EdsClusterConfig?.EdsConfig != null)
+                .Where(x => x.LbPolicy == Envoy.Api.V2.Cluster.Types.LbPolicy.RoundRobin)
+                .Where(x => IsSearchedCluster(x, clusterName, serviceName)).First();
+            if (cluster.LrsServer == null)
+            {
+                _logger.LogDebug("LRS load reporting disabled");
+            }
+            else
+            {
+                if (cluster.LrsServer.Self == null)
+                {
+                    _logger.LogDebug("LRS load reporting disabled (LRS to different management server isn't supported)");
+                }
+                else
+                {
+                    _logger.LogDebug("LRS load reporting disabled (LRS to the same management server isn't supported)");
+                }
+            }
+            string? edsClusterName = cluster.EdsClusterConfig?.ServiceName;
+            var clusterUpdate = new ClusterUpdate(clusterName, edsClusterName, "eds_experimental", null);
+            return clusterUpdate;
+        }
+        
+        private static bool IsSearchedCluster(Envoy.Api.V2.Cluster x, string clusterName, string serviceName)
+        {
+            if (x == null)
+            {
+                return false;
+            }
+            if (clusterName == "magic-value-find-cluster-by-service-name") // if true it means LDS and RDS were not supported
+            {
+                return x.Name?.Contains(serviceName, StringComparison.OrdinalIgnoreCase) ?? false; // workaround
+            }
+            else
+            {
+                return x.Name?.Equals(clusterName, StringComparison.OrdinalIgnoreCase) ?? false; // according to docs
+            }
         }
 
-        public async Task<List<ClusterLoadAssignment>> GetEdsAsync(string clusterName)
+        public async Task<EndpointUpdate> GetEdsAsync(string clusterName)
         {
             _logger.LogDebug("XdsClient request EDS");
-            await _adsStream.RequestStream.WriteAsync(new DiscoveryRequest()
+            await _adsStream.RequestStream.WriteAsync(new Envoy.Api.V2.DiscoveryRequest()
             {
                 TypeUrl = ADS_TYPE_URL_EDS,
                 ResourceNames = { clusterName },
@@ -135,9 +219,26 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             version = discoveryResponse.VersionInfo;
             nonce = discoveryResponse.Nonce;
             var clusterLoadAssignments = discoveryResponse.Resources
-                .Select(x => ClusterLoadAssignment.Parser.ParseFrom(x.Value))
+                .Select(x => Envoy.Api.V2.ClusterLoadAssignment.Parser.ParseFrom(x.Value))
                 .ToList();
-            return clusterLoadAssignments;
+            var clusterLoadAssignment = clusterLoadAssignments
+                .Where(x => x.Endpoints.Count != 0)
+                .Where(x => x.Endpoints[0].LbEndpoints.Count != 0)
+                .First();
+            var localities = GetLocalitiesWithHighestPriority(clusterLoadAssignment.Endpoints);
+            var firstLocality = Locality.FromEnvoyProtoLocality(localities.First().Locality);
+            var firstLocalityLbEndpoints = LocalityLbEndpoints.FromEnvoyProtoLocalityLbEndpoints(localities.First());
+            var localityLbEndpoints = new Dictionary<Locality, LocalityLbEndpoints>() { { firstLocality, firstLocalityLbEndpoints } };
+            var endpointUpdate = new EndpointUpdate(clusterName, localityLbEndpoints, new List<DropOverload>());
+            return endpointUpdate;
+        }
+
+        private IReadOnlyList<Envoy.Api.V2.Endpoint.LocalityLbEndpoints> GetLocalitiesWithHighestPriority(RepeatedField<Envoy.Api.V2.Endpoint.LocalityLbEndpoints> localities)
+        {
+            var groupedLocalities = localities.GroupBy(x => x.Priority).OrderBy(x => x.Key).ToList();
+            _logger.LogDebug($"EDS found {groupedLocalities.Count} groups with distinct priority");
+            _logger.LogDebug($"EDS select locality with priority {groupedLocalities[0].Key} [0-highest, N-lowest]");
+            return groupedLocalities[0].ToList();
         }
 
         public void Dispose()
@@ -158,7 +259,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             Disposed = true;
         }
 
-        internal static List<Envoy.Api.V2.Route.Route> FindRoutesInRouteConfig(RouteConfiguration config, string hostName)
+        internal static List<Envoy.Api.V2.Route.Route> FindRoutesInRouteConfig(Envoy.Api.V2.RouteConfiguration config, string hostName)
         {
             var matchingLenght = -1; // longest length of wildcard pattern that matches host name
             var exactMatchFound = false;  // true if a virtual host with exactly matched domain found

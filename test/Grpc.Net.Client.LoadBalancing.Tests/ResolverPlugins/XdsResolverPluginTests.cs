@@ -1,6 +1,4 @@
-﻿using Envoy.Api.V2;
-using Grpc.Net.Client.LoadBalancing.Extensions.Internal;
-using Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins.Factories;
+﻿using Grpc.Net.Client.LoadBalancing.Extensions.Internal;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System;
@@ -44,7 +42,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             // Arrange
             var serviceHostName = "my-service";
             var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
-            xdsClientMock.Setup(x => x.GetLdsAsync(It.IsAny<string>())).Returns(Task.FromResult(new List<Listener>()));
+            xdsClientMock.Setup(x => x.GetLdsRdsAsync(It.IsAny<string>())).Returns(Task.FromResult(GetSampleConfigUpdate()));
             var xdsClientFactory = new XdsClientFactory(NullLoggerFactory.Instance);
             xdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
 
@@ -66,7 +64,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             // Arrange
             var serviceHostName = "my-service";
             var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
-            xdsClientMock.Setup(x => x.GetLdsAsync(It.IsAny<string>())).Returns(Task.FromResult(new List<Listener>()));
+            xdsClientMock.Setup(x => x.GetLdsRdsAsync(It.IsAny<string>())).Returns(Task.FromResult(GetSampleConfigUpdate()));
             var xdsClientFactory = new XdsClientFactory(NullLoggerFactory.Instance);
             xdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
 
@@ -88,7 +86,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             // Arrange
             var serviceHostName = "my-service";
             var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
-            xdsClientMock.Setup(x => x.GetLdsAsync(It.IsAny<string>())).Returns(Task.FromResult(new List<Listener>()));
+            xdsClientMock.Setup(x => x.GetLdsRdsAsync(It.IsAny<string>())).Returns(Task.FromResult(GetSampleConfigUpdate()));
             var attributes = new GrpcAttributes(new Dictionary<string, object>() { { GrpcAttributesConstants.DefaultLoadBalancingPolicy, "round_robin" } });
             var xdsClientFactory = new XdsClientFactory(NullLoggerFactory.Instance);
             xdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
@@ -113,9 +111,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             var clusterName = "cluster-foo.googleapis.com";
 
             var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
-            xdsClientMock.Setup(x => x.GetLdsAsync(authority)).Returns(Task.FromResult(new List<Listener>() { 
-                XdsClientTestFactory.BuildLdsResponseForCluster("0", authority, clusterName, "0000").Resources[0].Unpack<Listener>()
-            }));
+            xdsClientMock.Setup(x => x.GetLdsRdsAsync(authority)).Returns(Task.FromResult(GetSampleConfigUpdate()));
             var xdsClientFactory = new XdsClientFactory(NullLoggerFactory.Instance);
             xdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
 
@@ -140,16 +136,10 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             // Arrange
             var serviceHostName = "foo.googleapis.com";
             var authority = "foo.googleapis.com:80";
-            var routeConfigName = "route-foo.googleapis.com";
             var clusterName = "cluster-foo.googleapis.com";
 
             var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
-            xdsClientMock.Setup(x => x.GetLdsAsync(authority)).Returns(Task.FromResult(new List<Listener>() { 
-                XdsClientTestFactory.BuildLdsResponseForRdsResource("0", authority, routeConfigName, "0000").Resources[0].Unpack<Listener>()
-            }));
-            xdsClientMock.Setup(x => x.GetRdsAsync(routeConfigName)).Returns(Task.FromResult(new List<RouteConfiguration>() {
-                XdsClientTestFactory.BuildRdsResponseForCluster("0", routeConfigName, authority, clusterName, "0000").Resources[0].Unpack<RouteConfiguration>()
-            }));
+            xdsClientMock.Setup(x => x.GetLdsRdsAsync(authority)).Returns(Task.FromResult(GetSampleConfigUpdate()));
             var xdsClientFactory = new XdsClientFactory(NullLoggerFactory.Instance);
             xdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
 
@@ -175,6 +165,15 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             // current implementation create service config with initialized cds policy
             // it is implemented that way because currently used control-plane does not support LDS
             // in the future simply throw an error if not found and verify that in tests
+        }
+
+        private static ConfigUpdate GetSampleConfigUpdate()
+        {
+            var routes = new List<EnvoyProtoData.Route>()
+            {
+                new EnvoyProtoData.Route(new EnvoyProtoData.RouteMatch("", "sample-path", true, true), new EnvoyProtoData.RouteAction("cluster-foo.googleapis.com", "", new List<EnvoyProtoData.ClusterWeight>()))
+            };
+            return new ConfigUpdate(routes);
         }
     }
 }

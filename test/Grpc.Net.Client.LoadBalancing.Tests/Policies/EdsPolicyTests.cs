@@ -1,4 +1,3 @@
-using Envoy.Api.V2;
 using Envoy.Api.V2.Core;
 using Envoy.Api.V2.Endpoint;
 using Grpc.Net.Client.LoadBalancing.Extensions.Internal;
@@ -81,7 +80,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             var serviceName = "sample-service.contoso.com";
             var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
             xdsClientMock.Setup(x => x.Dispose());
-            xdsClientMock.Setup(x => x.GetEdsAsync(It.IsAny<string>())).Returns(Task.FromResult(GetSampleClusterLoadAssignments()));
+            xdsClientMock.Setup(x => x.GetEdsAsync(It.IsAny<string>())).Returns(Task.FromResult(GetSampleEndpointUpdate()));
             var xdsClientFactory = new XdsClientFactory(NullLoggerFactory.Instance);
             xdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
             var xdsClientPool = new XdsClientObjectPool(xdsClientFactory, NullLoggerFactory.Instance);
@@ -112,32 +111,17 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             xdsClientMock.Verify(x => x.Dispose(), Times.Once);
         }
 
-        private static List<Cluster> GetSampleClusters(string serviceName)
+        private static EndpointUpdate GetSampleEndpointUpdate()
         {
-            var cluster = new Cluster();
-            cluster.Name = $"outbound|8000||{serviceName}";
-            cluster.Type = Cluster.Types.DiscoveryType.Eds;
-            cluster.LbPolicy = Cluster.Types.LbPolicy.RoundRobin;
-            cluster.EdsClusterConfig = new Cluster.Types.EdsClusterConfig()
+            var endpoints = new List<EnvoyProtoData.LbEndpoint>()
             {
-                ServiceName = $"outbound|8000||{serviceName}",
-                EdsConfig = new ConfigSource()
-                {
-                    Ads = new AggregatedConfigSource()
-                }
+                new EnvoyProtoData.LbEndpoint(new List<GrpcHostAddress>(){ new GrpcHostAddress("10.1.5.5", 80) }, 1, true),
+                new EnvoyProtoData.LbEndpoint(new List<GrpcHostAddress>(){ new GrpcHostAddress("10.1.5.6", 80) }, 1, true),
+                new EnvoyProtoData.LbEndpoint(new List<GrpcHostAddress>(){ new GrpcHostAddress("10.1.5.7", 80) }, 1, true)
             };
-            return new List<Cluster>() { cluster };
-        }
-
-        private static List<ClusterLoadAssignment> GetSampleClusterLoadAssignments()
-        {
-            var localityLbEndpoints = new LocalityLbEndpoints();
-            localityLbEndpoints.LbEndpoints.Add(GetLbEndpoint("10.1.5.210", 80));
-            localityLbEndpoints.LbEndpoints.Add(GetLbEndpoint("10.1.5.211", 80));
-            localityLbEndpoints.LbEndpoints.Add(GetLbEndpoint("10.1.5.212", 80));
-            var clusterLoadAssignment = new ClusterLoadAssignment();
-            clusterLoadAssignment.Endpoints.Add(localityLbEndpoints);
-            return new List<ClusterLoadAssignment>() { clusterLoadAssignment };
+            var locality = new EnvoyProtoData.Locality("test-cluster-region", "a", "");
+            var localityEndpoints = new EnvoyProtoData.LocalityLbEndpoints(endpoints, 3, 1);
+            return new EndpointUpdate("cluster-name", new Dictionary<EnvoyProtoData.Locality, EnvoyProtoData.LocalityLbEndpoints>() { { locality, localityEndpoints } }, new List<EnvoyProtoData.DropOverload>());
         }
 
         private static LbEndpoint GetLbEndpoint(string address, int port)

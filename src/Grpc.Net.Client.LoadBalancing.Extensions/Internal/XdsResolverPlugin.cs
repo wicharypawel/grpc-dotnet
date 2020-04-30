@@ -98,61 +98,24 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 _xdsClient = _xdsClientPool.GetObject();
             }
             _logger.LogDebug($"Start XdsResolverPlugin");
-            string? clusterName = null;
-            GrpcServiceConfig? serviceConfig = null;
             var listenerName = $"{target.Host}:{target.Port}";
-            var listeners = await _xdsClient.GetLdsAsync(listenerName).ConfigureAwait(false);
-            Listener? listener = listeners.FirstOrDefault(x => x.Name.Equals(listenerName, StringComparison.OrdinalIgnoreCase));
-            if (listener != null) // LDS success, found matching listener
+            var configUpdate = await _xdsClient.GetLdsRdsAsync(listenerName).ConfigureAwait(false);
+            if (configUpdate == null)
             {
-                _logger.LogDebug($"XdsResolverPlugin found listener");
-                HttpConnectionManager? httpConnectionManager = null;
-                var hasHttpConnectionManager = listener.ApiListener?.ApiListener_?.TryUnpack(out httpConnectionManager) ?? false;
-                if (hasHttpConnectionManager && httpConnectionManager!.RouteConfig != null) // route config in-line
-                {
-                    _logger.LogDebug($"XdsResolverPlugin found listener with in-line RouteConfig");
-                    var routeConfiguration = httpConnectionManager!.RouteConfig;
-                    clusterName = GetClusterNameFromRouteConfiguration(routeConfiguration, target);
-                    serviceConfig = GrpcServiceConfig.Create("cds_experimental", _defaultLoadBalancingPolicy);
-                }
-                else if(hasHttpConnectionManager && httpConnectionManager!.Rds != null) // make RDS request
-                {
-                    _logger.LogDebug($"XdsResolverPlugin found listener pointing to RDS");
-                    var rdsConfig = httpConnectionManager!.Rds;
-                    if (rdsConfig.ConfigSource?.Ads == null)
-                    {
-                        throw new InvalidOperationException("LDS that specify to call RDS is expected to have ADS source.");
-                    }
-                    var routeConfigurations = await _xdsClient.GetRdsAsync(rdsConfig.RouteConfigName).ConfigureAwait(false);
-                    if (routeConfigurations.Count == 0)
-                    {
-                        throw new InvalidOperationException("No route configurations found during RDS.");
-                    }
-                    RouteConfiguration routeConfiguration = routeConfigurations.First(x => x.Name.Equals(rdsConfig.RouteConfigName, StringComparison.OrdinalIgnoreCase));
-                    clusterName = GetClusterNameFromRouteConfiguration(routeConfiguration, target);
-                    serviceConfig = GrpcServiceConfig.Create("cds_experimental", _defaultLoadBalancingPolicy);
-                }
-                else
-                {
-                    throw new InvalidOperationException("LDS Listener has been found but it doesn't contain in-line configuration, nor point to RDS.");
-                }
+                throw new InvalidOperationException("Empty ConfigUpdate resolved after LDS/RDS");
             }
-            else
+            var defaultRoute = configUpdate.Routes?.Last();
+            if (defaultRoute?.RouteMatch == null || defaultRoute.RouteMatch.Prefix != string.Empty || defaultRoute.RouteAction?.Cluster == null)
             {
-                // according to gRFC documentation we should throw error here
-                // we assume everything is fine because currently used control-plane does not support this
-                clusterName = "magic-value-find-cluster-by-service-name";
-                serviceConfig = GrpcServiceConfig.Create("cds_experimental", _defaultLoadBalancingPolicy);
+                throw new InvalidOperationException("Cluster name can not be specified.");
             }
-            var config = GrpcServiceConfigOrError.FromConfig(serviceConfig ?? throw new InvalidOperationException("serviceConfig is null."));
+            var clusterName = defaultRoute.RouteAction.Cluster;
+            var serviceConfig = GrpcServiceConfig.Create("cds_experimental", _defaultLoadBalancingPolicy);
+            var config = GrpcServiceConfigOrError.FromConfig(serviceConfig);
             _logger.LogDebug($"Service config created with policies: {string.Join(',', serviceConfig.RequestedLoadBalancingPolicies)}");
-            if (_xdsClientPool == null)
-            {
-                throw new InvalidOperationException("XdsClientPool not initialized.");
-            }
             var attributes = new GrpcAttributes(new Dictionary<string, object>() 
             { 
-                { XdsAttributesConstants.XdsClientPoolInstance, _xdsClientPool },
+                { XdsAttributesConstants.XdsClientPoolInstance, _xdsClientPool ?? throw new ArgumentNullException(nameof(_xdsClientPool)) },
                 { XdsAttributesConstants.CdsClusterName, clusterName }
             });
             return new GrpcNameResolutionResult(new List<GrpcHostAddress>(), config, attributes);
@@ -165,26 +128,6 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 _xdsClientPool?.ReturnObject(_xdsClient); // _xdsClientPool is responsible for calling Dispose on _xdsClient
                 _xdsClient = null; // object returned to the pool should not be used
             }
-        }
-
-        private string GetClusterNameFromRouteConfiguration(RouteConfiguration routeConfiguration, Uri target)
-        {
-            if (routeConfiguration == null)
-            {
-                throw new ArgumentNullException(nameof(routeConfiguration));
-            }
-            if (target == null)
-            {
-                throw new ArgumentNullException(nameof(target));
-            }
-            var routes = XdsClient.FindRoutesInRouteConfig(routeConfiguration, target.Host);
-            var defaultRoute = routes?.Last();
-            if (defaultRoute?.Match == null || defaultRoute.Match.Prefix != string.Empty || defaultRoute.Route_?.Cluster == null)
-            {
-                throw new InvalidOperationException("Cluster name can not be specified.");
-            }
-            var clusterName = defaultRoute.Route_.Cluster;
-            return clusterName;
         }
     }
 }
