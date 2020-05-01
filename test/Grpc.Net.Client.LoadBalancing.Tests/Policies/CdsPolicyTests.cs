@@ -34,12 +34,14 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             Assert.Equal("serviceName not defined.", exception.Message);
         }
 
-        [Fact]
-        public async Task ForBalancersResolutionPassed_UseCdsPolicy_ThrowArgumentException()
+        [Theory]
+        [InlineData(2, 0)]
+        [InlineData(0, 2)]
+        public async Task ForNonEmptyResolutionPassed_UseCdsPolicy_ThrowArgumentException(int balancersCount, int serversCount)
         {
             // Arrange
             using var policy = new CdsPolicy();
-            var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(2, 0);
+            var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(balancersCount, serversCount);
             var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
             var resolutionResults = new GrpcNameResolutionResult(hostsAddresses, config, GrpcAttributes.Empty);
 
@@ -53,21 +55,45 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         }
 
         [Fact]
-        public async Task ForServersResolutionPassed_UseCdsPolicy_ThrowArgumentException()
+        public async Task ForEmptyXdsClientPool_UseCdsPolicy_Throw()
         {
             // Arrange
             using var policy = new CdsPolicy();
-            var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(0, 2);
+            var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(0, 0);
             var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
             var resolutionResults = new GrpcNameResolutionResult(hostsAddresses, config, GrpcAttributes.Empty);
 
             // Act
             // Assert
-            var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
+            var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
             {
-                await policy.CreateSubChannelsAsync(resolutionResults, "sample-service.contoso.com", true);
+                await policy.CreateSubChannelsAsync(resolutionResults, "sample-service.contoso.com", false);
             });
-            Assert.Equal("resolutionResult is expected to be empty.", exception.Message);
+            Assert.Equal("Can not find xds client pool.", exception.Message);
+        }
+
+        [Fact]
+        public async Task ForEmptyCdsClusterName_UseCdsPolicy_Throw()
+        {
+            // Arrange
+            using var policy = new CdsPolicy();
+            var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(0, 0);
+            var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
+            var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
+            xdsClientMock.Setup(x => x.Dispose());
+            var xdsClientFactory = new XdsClientFactory(NullLoggerFactory.Instance);
+            xdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
+            var xdsClientPool = new XdsClientObjectPool(xdsClientFactory, NullLoggerFactory.Instance);
+            var attributes = new GrpcAttributes(new Dictionary<string, object> { { XdsAttributesConstants.XdsClientPoolInstance, xdsClientPool } });
+            var resolutionResults = new GrpcNameResolutionResult(hostsAddresses, config, attributes);
+
+            // Act
+            // Assert
+            var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            {
+                await policy.CreateSubChannelsAsync(resolutionResults, "sample-service.contoso.com", false);
+            });
+            Assert.Equal("Can not find CDS cluster name.", exception.Message);
         }
 
         [Fact]
@@ -75,19 +101,20 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         {
             // Arrange
             var serviceName = "sample-service.contoso.com";
+            var clusterName = "cluster-test-name";
+            
             var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
             xdsClientMock.Setup(x => x.Dispose());
-            xdsClientMock.Setup(x => x.GetCdsAsync(It.IsAny<string>(), It.IsAny<string>())).Returns(Task.FromResult(GetSampleClusterUpdate(serviceName)));
+            xdsClientMock.Setup(x => x.GetCdsAsync(clusterName, serviceName)).Returns(Task.FromResult(GetSampleClusterUpdate(serviceName)));
             var xdsClientFactory = new XdsClientFactory(NullLoggerFactory.Instance);
             xdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
             var xdsClientPool = new XdsClientObjectPool(xdsClientFactory, NullLoggerFactory.Instance);
-            
             var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(0, 0);
             var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
             var attributes = new GrpcAttributes(new Dictionary<string, object>
             {
                 { XdsAttributesConstants.XdsClientPoolInstance, xdsClientPool },
-                { XdsAttributesConstants.CdsClusterName, "magic-value-find-cluster-by-service-name" }
+                { XdsAttributesConstants.CdsClusterName, clusterName }
             });
             var resolutionResults = new GrpcNameResolutionResult(hostsAddresses, config, attributes);
             
@@ -103,12 +130,13 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             await policy.CreateSubChannelsAsync(resolutionResults, serviceName, false);
 
             // Assert
-            xdsClientMock.Verify(x => x.GetCdsAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Once);
+            xdsClientMock.Verify(x => x.GetCdsAsync(clusterName, serviceName), Times.Once);
             policy.Dispose();
             xdsClientMock.Verify(x => x.Dispose(), Times.Once);
             Assert.NotNull(edsResolutionResult);
             Assert.NotNull(edsResolutionResult!.Attributes.Get(XdsAttributesConstants.XdsClientPoolInstance));
             Assert.NotNull(edsResolutionResult!.Attributes.Get(XdsAttributesConstants.EdsClusterName));
+            edsPolicyMock.Verify(x => x.CreateSubChannelsAsync(It.IsAny<GrpcNameResolutionResult>(), It.IsAny<string>(), It.IsAny<bool>()), Times.Once);
         }
 
         private static ClusterUpdate GetSampleClusterUpdate(string serviceName)
