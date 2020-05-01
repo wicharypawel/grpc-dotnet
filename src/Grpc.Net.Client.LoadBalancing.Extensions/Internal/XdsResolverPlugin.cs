@@ -104,10 +104,11 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             {
                 throw new InvalidOperationException("Empty ConfigUpdate resolved after LDS/RDS");
             }
-            var defaultRoute = configUpdate.Routes?.Last();
+            var defaultRoute = configUpdate.Routes?.LastOrDefault();
             if (defaultRoute?.RouteMatch == null || defaultRoute.RouteMatch.Prefix != string.Empty || defaultRoute.RouteAction?.Cluster == null)
             {
-                throw new InvalidOperationException("Cluster name can not be specified.");
+                var routesCount = configUpdate.Routes?.Count ?? 0;
+                throw new InvalidOperationException($"Cluster name can not be specified. Config update contains ${routesCount} routes.");
             }
             var clusterName = defaultRoute.RouteAction.Cluster;
             var serviceConfig = GrpcServiceConfig.Create("cds_experimental", _defaultLoadBalancingPolicy);
