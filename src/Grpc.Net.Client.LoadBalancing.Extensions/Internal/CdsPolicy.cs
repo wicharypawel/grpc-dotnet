@@ -1,9 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging.Abstractions;
-using System.Linq;
-using static Grpc.Net.Client.LoadBalancing.Extensions.Internal.EnvoyProtoData;
 
 namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 {
