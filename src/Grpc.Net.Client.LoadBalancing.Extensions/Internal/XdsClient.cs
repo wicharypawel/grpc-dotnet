@@ -20,13 +20,13 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         private string version = string.Empty;
         private string nonce = string.Empty;
 
-        private readonly GrpcChannel _adsChannel;
+        private readonly ChannelBase _adsChannel;
         private readonly Envoy.Service.Discovery.V2.AggregatedDiscoveryService.AggregatedDiscoveryServiceClient _adsClient;
         private readonly AsyncDuplexStreamingCall<Envoy.Api.V2.DiscoveryRequest, Envoy.Api.V2.DiscoveryResponse> _adsStream;
         private readonly XdsBootstrapInfo _bootstrapInfo;
         private readonly ILogger _logger;
 
-        public XdsClient(IXdsBootstrapper bootstrapper, ILoggerFactory loggerFactory)
+        public XdsClient(IXdsBootstrapper bootstrapper, ILoggerFactory loggerFactory, XdsChannelFactory channelFactory)
         {
             _logger = loggerFactory.CreateLogger<XdsClient>();
             _bootstrapInfo = bootstrapper.ReadBootstrap();
@@ -47,7 +47,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             _logger.LogDebug("XdsClient start control-plane connection");
             AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);                          
             var channelOptions = new GrpcChannelOptions() { LoggerFactory = loggerFactory, Credentials = ChannelCredentials.Insecure };
-            _adsChannel = GrpcChannel.ForAddress(_bootstrapInfo.Servers[0].ServerUri, channelOptions);
+            _adsChannel = channelFactory.CreateChannel(_bootstrapInfo.Servers[0].ServerUri, channelOptions);
             _logger.LogDebug("XdsClient start ADS stream");
             _adsClient = new Envoy.Service.Discovery.V2.AggregatedDiscoveryService.AggregatedDiscoveryServiceClient(_adsChannel);
             _adsStream = _adsClient.StreamAggregatedResources();
