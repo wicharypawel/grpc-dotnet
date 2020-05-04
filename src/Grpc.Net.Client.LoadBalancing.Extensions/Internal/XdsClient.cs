@@ -4,7 +4,6 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using static Grpc.Net.Client.LoadBalancing.Extensions.Internal.EnvoyProtoData;
 
@@ -18,7 +17,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         private static readonly string ADS_TYPE_URL_EDS = "type.googleapis.com/envoy.api.v2.ClusterLoadAssignment";
 
         private readonly ChannelBase _adsChannel;
-        private AdsStream? _adsStreamWrapper;
+        private AdsStreamWrapper? _adsStreamWrapper;
         private readonly XdsBootstrapInfo _bootstrapInfo;
         private readonly ILogger _logger;
 
@@ -35,7 +34,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         {
             _logger = loggerFactory.CreateLogger<XdsClient>();
             _bootstrapInfo = bootstrapper.ReadBootstrap();
-            if(_bootstrapInfo.Servers.Count == 0)
+            if (_bootstrapInfo.Servers.Count == 0)
             {
                 throw new InvalidOperationException("XdsClient No management server provided by bootstrap.");
             }
@@ -50,21 +49,9 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 throw new NotImplementedException("XdsClient Channel credentials are not supported.");
             }
             _logger.LogDebug("Create channel to control-plane");
-            AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);                          
+            AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
             var channelOptions = new GrpcChannelOptions() { LoggerFactory = loggerFactory, Credentials = ChannelCredentials.Insecure };
             _adsChannel = channelFactory.CreateChannel(_bootstrapInfo.Servers[0].ServerUri, channelOptions);
-        }
-
-        private void StartRpcStream()
-        {
-            if (_adsStreamWrapper != null) 
-            {
-                throw new InvalidOperationException("Previous adsStream has not been cleared yet");
-            };
-            var adsClient = new Envoy.Service.Discovery.V2.AggregatedDiscoveryService.AggregatedDiscoveryServiceClient(_adsChannel);
-            _adsStreamWrapper = new AdsStream(this, adsClient, _logger, _bootstrapInfo.Node);
-            _adsStreamWrapper.Start();
-            _logger.LogDebug("ADS stream started");
         }
 
         internal bool Disposed { get; private set; }
@@ -86,7 +73,9 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             _configUpdate = null;
             return result;
         }
-        public void HandleLdsResponse(Envoy.Api.V2.DiscoveryResponse discoveryResponse) { 
+        
+        internal void HandleLdsResponse(Envoy.Api.V2.DiscoveryResponse discoveryResponse)
+        {
             var listeners = discoveryResponse.Resources
                 .Select(x => Envoy.Api.V2.Listener.Parser.ParseFrom(x.Value))
                 .ToList();
@@ -137,7 +126,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             }
         }
 
-        public void HandleRdsResponse(Envoy.Api.V2.DiscoveryResponse discoveryResponse)
+        internal void HandleRdsResponse(Envoy.Api.V2.DiscoveryResponse discoveryResponse)
         {
             var routeConfigurations = discoveryResponse.Resources
                 .Select(x => Envoy.Api.V2.RouteConfiguration.Parser.ParseFrom(x.Value))
@@ -170,8 +159,9 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             _clusterUpdate = null;
             return result;
         }
-        
-        public void HandleCdsResponse(Envoy.Api.V2.DiscoveryResponse discoveryResponse) { 
+
+        internal void HandleCdsResponse(Envoy.Api.V2.DiscoveryResponse discoveryResponse)
+        {
             var clusters = discoveryResponse.Resources
                 .Select(x => Envoy.Api.V2.Cluster.Parser.ParseFrom(x.Value))
                 .ToList();
@@ -208,7 +198,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 StartRpcStream();
             }
             await _adsStreamWrapper!.SendXdsRequestAsync(ADS_TYPE_URL_EDS, new List<string>() { clusterName }).ConfigureAwait(false);
-            while(_endpointUpdate == null)
+            while (_endpointUpdate == null)
             {
                 await Task.Delay(TimeSpan.FromMilliseconds(200)).ConfigureAwait(false);
             }
@@ -217,7 +207,8 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             return result;
         }
 
-        private void HandleEdsResponse(Envoy.Api.V2.DiscoveryResponse discoveryResponse) {
+        internal void HandleEdsResponse(Envoy.Api.V2.DiscoveryResponse discoveryResponse)
+        {
 
             var clusterLoadAssignments = discoveryResponse.Resources
                 .Select(x => Envoy.Api.V2.ClusterLoadAssignment.Parser.ParseFrom(x.Value))
@@ -226,7 +217,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 .Where(x => x.Endpoints.Count != 0)
                 .Where(x => x.Endpoints[0].LbEndpoints.Count != 0)
                 .First();
-            var localities = GetLocalitiesWithHighestPriority(clusterLoadAssignment.Endpoints);
+            var localities = GetLocalitiesWithHighestPriority(clusterLoadAssignment.Endpoints, _logger);
             var firstLocality = Locality.FromEnvoyProtoLocality(localities.First().Locality);
             var firstLocalityLbEndpoints = LocalityLbEndpoints.FromEnvoyProtoLocalityLbEndpoints(localities.First());
             var localityLbEndpoints = new Dictionary<Locality, LocalityLbEndpoints>() { { firstLocality, firstLocalityLbEndpoints } };
@@ -240,6 +231,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             {
                 return;
             }
+            Disposed = true;
             try
             {
                 _adsStreamWrapper?.Dispose();
@@ -249,7 +241,18 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             {
                 (_adsChannel as GrpcChannel)?.Dispose();
             }
-            Disposed = true;
+        }
+
+        private void StartRpcStream()
+        {
+            if (_adsStreamWrapper != null)
+            {
+                throw new InvalidOperationException("Previous adsStream has not been cleared yet");
+            };
+            var adsClient = new Envoy.Service.Discovery.V2.AggregatedDiscoveryService.AggregatedDiscoveryServiceClient(_adsChannel);
+            _adsStreamWrapper = new AdsStreamWrapper(this, adsClient, _logger, _bootstrapInfo.Node);
+            _adsStreamWrapper.Start();
+            _logger.LogDebug("ADS stream started");
         }
 
         private static bool IsSearchedCluster(Envoy.Api.V2.Cluster x, string clusterName, string serviceName)
@@ -268,14 +271,21 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             }
         }
 
-        private IReadOnlyList<Envoy.Api.V2.Endpoint.LocalityLbEndpoints> GetLocalitiesWithHighestPriority(RepeatedField<Envoy.Api.V2.Endpoint.LocalityLbEndpoints> localities)
+        private static IReadOnlyList<Envoy.Api.V2.Endpoint.LocalityLbEndpoints> GetLocalitiesWithHighestPriority(RepeatedField<Envoy.Api.V2.Endpoint.LocalityLbEndpoints> localities, ILogger logger)
         {
             var groupedLocalities = localities.GroupBy(x => x.Priority).OrderBy(x => x.Key).ToList();
-            _logger.LogDebug($"EDS found {groupedLocalities.Count} groups with distinct priority");
-            _logger.LogDebug($"EDS select locality with priority {groupedLocalities[0].Key} [0-highest, N-lowest]");
+            logger.LogDebug($"EDS found {groupedLocalities.Count} groups with distinct priority");
+            logger.LogDebug($"EDS select locality with priority {groupedLocalities[0].Key} [0-highest, N-lowest]");
             return groupedLocalities[0].ToList();
         }
 
+        /// <summary>
+        /// Processes a RouteConfiguration message to find the routes that requests for the given host will
+        /// be routed to. Method has internal access in order to be visible for testing.
+        /// </summary>
+        /// <param name="config">Message that contains routes.</param>
+        /// <param name="hostName">Not empty hostName string. Can not start or end with dot.</param>
+        /// <returns>List of routes for matching hostname.</returns>
         internal static List<Envoy.Api.V2.Route.Route> FindRoutesInRouteConfig(Envoy.Api.V2.RouteConfiguration config, string hostName)
         {
             var matchingLenght = -1; // longest length of wildcard pattern that matches host name
@@ -331,7 +341,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         }
 
         /// <summary>
-        /// Matches hostName with pattern.
+        /// Matches hostName with pattern. Method has internal access in order to be visible for testing.
         /// 
         /// Wildcard pattern rules:
         ///  - A single asterisk (*) matches any domain.
@@ -386,290 +396,6 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             }
             return wildcardIndex == pattern.Length - 1
                 && hostName.StartsWith(pattern.Substring(0, pattern.Length - 1), StringComparison.Ordinal);
-        }
-
-        private sealed class AdsStream : IDisposable
-        {
-            private readonly XdsClient _parentXdsClient;
-            private readonly Envoy.Service.Discovery.V2.AggregatedDiscoveryService.AggregatedDiscoveryServiceClient _adsClient;
-            private readonly ILogger _logger;
-            private readonly Envoy.Api.V2.Core.Node _node;
-            private AsyncDuplexStreamingCall<Envoy.Api.V2.DiscoveryRequest, Envoy.Api.V2.DiscoveryResponse>? _adsStream;
-            private CancellationTokenSource? _tokenSource;
-            private string? _rdsResourceName;
-            private bool _disposed = false;
-            private bool closed = false;
-            private string ldsVersion = string.Empty;
-            private string rdsVersion = string.Empty;
-            private string cdsVersion = string.Empty;
-            private string edsVersion = string.Empty;
-            private string ldsRespNonce = string.Empty;
-            private string rdsRespNonce = string.Empty;
-            private string cdsRespNonce = string.Empty;
-            private string edsRespNonce = string.Empty;
-
-            public AdsStream(XdsClient xdsClient, Envoy.Service.Discovery.V2.AggregatedDiscoveryService.AggregatedDiscoveryServiceClient adsClient, 
-                ILogger logger, Envoy.Api.V2.Core.Node node)
-            {
-                _parentXdsClient = xdsClient ?? throw new ArgumentNullException(nameof(xdsClient));
-                _adsClient = adsClient ?? throw new ArgumentNullException(nameof(adsClient));
-                _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-                _node = node ?? throw new ArgumentNullException(nameof(node));
-            }
-
-            public void Start()
-            {
-                _adsStream = _adsClient.StreamAggregatedResources();
-                _tokenSource = new CancellationTokenSource();
-                var streamObserver = this;
-                Task.Factory.StartNew(async () =>
-                {
-                    try
-                    {
-                        while (await _adsStream.ResponseStream.MoveNext(_tokenSource.Token).ConfigureAwait(false))
-                        {
-                            streamObserver.OnNext(_adsStream.ResponseStream.Current);
-                        }
-                        streamObserver.OnCompleted();
-                    }
-                    catch (Exception exception)
-                    {
-                        streamObserver.OnError(exception);
-                    }
-                }, _tokenSource.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
-            }
-
-            public void Close()
-            {
-                if (closed)
-                {
-                    return;
-                }
-                closed = true;
-                _logger.LogDebug($"ADS stream closed requested.");
-                try
-                {
-                    _adsStream?.RequestStream.CompleteAsync().Wait();
-                }
-                finally
-                {
-                    Dispose();
-                }
-            }
-
-            public void OnNext(Envoy.Api.V2.DiscoveryResponse response)
-            {
-                if (closed)
-                {
-                    return;
-                }
-                string typeUrl = response.TypeUrl;
-                // Nonce in each response is echoed back in the following ACK/NACK request. It is
-                // used for management server to identify which response the client is ACKing/NACking.
-                // To avoid confusion, client-initiated requests will always use the nonce in
-                // most recently received responses of each resource type.
-                if (typeUrl.Equals(ADS_TYPE_URL_LDS, StringComparison.Ordinal))
-                {
-                    ldsRespNonce = response.Nonce;
-                    _parentXdsClient.HandleLdsResponse(response);
-                }
-                else if (typeUrl.Equals(ADS_TYPE_URL_RDS, StringComparison.Ordinal))
-                {
-                    rdsRespNonce = response.Nonce;
-                    _parentXdsClient.HandleRdsResponse(response);
-                }
-                else if (typeUrl.Equals(ADS_TYPE_URL_CDS, StringComparison.Ordinal))
-                {
-                    cdsRespNonce = response.Nonce;
-                    _parentXdsClient.HandleCdsResponse(response);
-                }
-                else if (typeUrl.Equals(ADS_TYPE_URL_EDS, StringComparison.Ordinal))
-                {
-                    edsRespNonce = response.Nonce;
-                    _parentXdsClient.HandleEdsResponse(response);
-                }
-                else
-                {
-                    _logger.LogDebug("Received an unknown type of DiscoveryResponse");
-                }
-            }
-
-            public void OnError(Exception exception)
-            {
-                HandleStreamClosed(new Status(StatusCode.Unknown, exception.Message));
-            }
-
-            public void OnCompleted()
-            {
-                HandleStreamClosed(new Status(StatusCode.Unavailable, "Closed by server"));
-            }
-
-            private void HandleStreamClosed(Status error)
-            {
-                if (error.StatusCode == StatusCode.OK)
-                {
-                    throw new InvalidOperationException("Unexpected OK status");
-                }
-                if (closed)
-                {
-                    return;
-                }
-                closed = true;
-                _logger.LogDebug($"ADS stream closed with status {error.StatusCode}: {error.Detail}.");
-                Dispose();
-            }
-
-            public async Task SendXdsRequestAsync(string typeUrl, IReadOnlyList<string> resourceNames)
-            {
-                if (_adsStream == null)
-                {
-                    throw new InvalidOperationException("ADS stream has not been started");
-                }
-                string versionInfo = string.Empty;
-                string nonce = string.Empty;
-                if (typeUrl.Equals(ADS_TYPE_URL_LDS, StringComparison.Ordinal))
-                {
-                    versionInfo = ldsVersion;
-                    nonce = ldsRespNonce;
-                    _logger.LogDebug($"Sending LDS request for resources: {string.Join(',', resourceNames)}");
-                }
-                else if (typeUrl.Equals(ADS_TYPE_URL_RDS, StringComparison.Ordinal))
-                {
-                    if (resourceNames.Count != 1)
-                    {
-                        throw new InvalidOperationException("RDS request requesting for more than one resource");
-                    }
-                    versionInfo = rdsVersion;
-                    nonce = rdsRespNonce;
-                    _rdsResourceName = resourceNames[0];
-                    _logger.LogDebug($"Sending RDS request for resources: {string.Join(',', resourceNames)}");
-                }
-                else if (typeUrl.Equals(ADS_TYPE_URL_CDS, StringComparison.Ordinal))
-                {
-                    versionInfo = cdsVersion;
-                    nonce = cdsRespNonce;
-                    _logger.LogDebug($"Sending CDS request for resources: {string.Join(',', resourceNames)}");
-                }
-                else if (typeUrl.Equals(ADS_TYPE_URL_EDS, StringComparison.Ordinal))
-                {
-                    versionInfo = edsVersion;
-                    nonce = edsRespNonce;
-                    _logger.LogDebug($"Sending EDS request for resources: {string.Join(',', resourceNames)}");
-                }
-                var request = new Envoy.Api.V2.DiscoveryRequest()
-                {
-                    VersionInfo = versionInfo,
-                    Node = _node,
-                    TypeUrl = typeUrl,
-                    ResponseNonce = nonce
-                };
-                request.ResourceNames.AddRange(resourceNames);
-                await _adsStream.RequestStream.WriteAsync(request).ConfigureAwait(false);
-                _logger.LogDebug($"Sent DiscoveryRequest");
-            }
-
-            public async Task SendAckRequestAsync(string typeUrl, IReadOnlyList<string> resourceNames, string versionInfo)
-            {
-                if (_adsStream == null)
-                {
-                    throw new InvalidOperationException("ADS stream has not been started");
-                }
-                string nonce = string.Empty;
-                if (typeUrl.Equals(ADS_TYPE_URL_LDS, StringComparison.Ordinal))
-                {
-                    ldsVersion = versionInfo;
-                    nonce = ldsRespNonce;
-                }
-                else if (typeUrl.Equals(ADS_TYPE_URL_RDS, StringComparison.Ordinal))
-                {
-                    rdsVersion = versionInfo;
-                    nonce = rdsRespNonce;
-                }
-                else if (typeUrl.Equals(ADS_TYPE_URL_CDS, StringComparison.Ordinal))
-                {
-                    cdsVersion = versionInfo;
-                    nonce = cdsRespNonce;
-                }
-                else if (typeUrl.Equals(ADS_TYPE_URL_EDS, StringComparison.Ordinal))
-                {
-                    edsVersion = versionInfo;
-                    nonce = edsRespNonce;
-                }
-                var request = new Envoy.Api.V2.DiscoveryRequest()
-                {
-                    VersionInfo = versionInfo,
-                    Node = _node,
-                    TypeUrl = typeUrl,
-                    ResponseNonce = nonce
-                };
-                request.ResourceNames.AddRange(resourceNames);
-                await _adsStream.RequestStream.WriteAsync(request).ConfigureAwait(false);
-                _logger.LogDebug($"Sent ACK request");
-            }
-
-            public async Task SendNackRequestAsync(string typeUrl, IReadOnlyList<string> resourceNames, string rejectVersion, string message)
-            {
-                if (_adsStream == null)
-                {
-                    throw new InvalidOperationException("ADS stream has not been started");
-                }
-                string versionInfo = string.Empty;
-                string nonce = string.Empty;
-                if (typeUrl.Equals(ADS_TYPE_URL_LDS, StringComparison.Ordinal))
-                {
-                    versionInfo = ldsVersion;
-                    nonce = ldsRespNonce;
-                }
-                else if (typeUrl.Equals(ADS_TYPE_URL_RDS, StringComparison.Ordinal))
-                {
-                    versionInfo = rdsVersion;
-                    nonce = rdsRespNonce;
-                }
-                else if (typeUrl.Equals(ADS_TYPE_URL_CDS, StringComparison.Ordinal))
-                {
-                    versionInfo = cdsVersion;
-                    nonce = cdsRespNonce;
-                }
-                else if (typeUrl.Equals(ADS_TYPE_URL_EDS, StringComparison.Ordinal))
-                {
-                    versionInfo = edsVersion;
-                    nonce = edsRespNonce;
-                }
-                var request = new Envoy.Api.V2.DiscoveryRequest()
-                {
-                    VersionInfo = versionInfo,
-                    Node = _node,
-                    TypeUrl = typeUrl,
-                    ResponseNonce = nonce,
-                    ErrorDetail = new Google.Rpc.Status()
-                    {
-                        Code = (int)StatusCode.InvalidArgument,
-                        Message = message
-                    }
-                };
-                request.ResourceNames.AddRange(resourceNames);
-                await _adsStream.RequestStream.WriteAsync(request).ConfigureAwait(false);
-                _logger.LogDebug($"Sent NACK request");
-            }
-
-            public void Dispose()
-            {
-                if (_disposed)
-                {
-                    return;
-                }
-                _disposed = true;
-                try
-                {
-                    _tokenSource?.Cancel();
-                }
-                finally
-                {
-                    _tokenSource?.Dispose();
-                    _adsStream?.Dispose();
-                }
-                // _parentXdsClient should not be disposed here
-            }
         }
     }
 }
