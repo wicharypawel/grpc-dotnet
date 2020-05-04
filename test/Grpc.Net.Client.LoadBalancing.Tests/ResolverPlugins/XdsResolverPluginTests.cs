@@ -154,16 +154,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
                 await resolverPlugin.StartNameResolutionAsync(new Uri($"xds://{serviceHostName}:80"));
             });
             Assert.StartsWith("Cluster name can not be specified.", exception.Message);
-        }
-
-        [Fact]
-        public void ForNotReturnedValues_UseXdsResolverPlugin_ReturnResourceNotFound()
-        {
-            // according to gRFC documentation XdsResolverPlugin should throw error here
-            // current implementation create service config with initialized cds policy
-            // it is implemented that way because currently used control-plane does not support LDS
-            // in the future simply throw an error if not found and verify that in tests
-        }
+        }        
 
         private static ConfigUpdate GetSampleConfigUpdate()
         {

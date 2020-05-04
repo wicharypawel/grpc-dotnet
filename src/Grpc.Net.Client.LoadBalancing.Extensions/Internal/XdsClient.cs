@@ -85,7 +85,8 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 {
                     _logger.LogDebug($"LDS found listener with in-line RouteConfig");
                     var routeConfiguration = httpConnectionManager!.RouteConfig;
-                    routes = FindRoutesInRouteConfig(routeConfiguration, resourceName);
+                    var hostName = resourceName.Substring(0, resourceName.LastIndexOf(':'));
+                    routes = FindRoutesInRouteConfig(routeConfiguration, hostName);
                 }
                 else if (hasHttpConnectionManager && httpConnectionManager!.Rds != null) // make RDS request
                 {
@@ -101,7 +102,8 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                         throw new InvalidOperationException("No route configurations found during RDS.");
                     }
                     var routeConfiguration = routeConfigurations.First(x => x.Name.Equals(rdsConfig.RouteConfigName, StringComparison.OrdinalIgnoreCase));
-                    routes = FindRoutesInRouteConfig(routeConfiguration, resourceName);
+                    var hostName = resourceName.Substring(0, resourceName.LastIndexOf(':'));
+                    routes = FindRoutesInRouteConfig(routeConfiguration, hostName);
                 }
                 else
                 {
