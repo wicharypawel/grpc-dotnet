@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Grpc.Core;
 
 namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 {
@@ -76,5 +77,32 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             LocalityLbEndpoints = localityLbEndpoints;
             DropPolicies = dropPolicies;
         }
+    }
+
+    /// <summary>
+    /// An interface for objects that react to changes of <seealso cref="ConfigUpdate"/>.
+    /// </summary>
+    internal interface ConfigUpdateObserver
+    {
+        void OnNext(ConfigUpdate value);
+        void OnError(Status error);
+    }
+
+    /// <summary>
+    /// An interface for objects that react to changes of <seealso cref="ClusterUpdate"/>.
+    /// </summary>
+    internal interface ClusterUpdateObserver
+    {
+        void OnNext(ClusterUpdate value);
+        void OnError(Status error);
+    }
+
+    /// <summary>
+    /// An interface for objects that react to changes of <seealso cref="EndpointUpdate"/>.
+    /// </summary>
+    internal interface EndpointUpdateObserver
+    {
+        void OnNext(EndpointUpdate value);
+        void OnError(Status error);
     }
 }
