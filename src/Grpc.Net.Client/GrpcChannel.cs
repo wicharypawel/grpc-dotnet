@@ -24,6 +24,7 @@ using System.Threading;
 using Grpc.Core;
 using Grpc.Net.Client.Internal;
 using Grpc.Net.Client.LoadBalancing;
+using Grpc.Net.Client.LoadBalancing.Internal;
 using Grpc.Net.Compression;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -53,7 +54,7 @@ namespace Grpc.Net.Client
         internal Dictionary<string, ICompressionProvider> CompressionProviders { get; }
         internal string MessageAcceptEncoding { get; }
         internal IGrpcResolverPlugin ResolverPlugin { get; }
-        internal IGrpcLoadBalancingPolicy LoadBalancingPolicy { get; }
+        internal IGrpcLoadBalancingPolicy LoadBalancingPolicy { get; set; }
         internal bool Disposed { get; private set; }
         // Timing related options that are set in unit tests
         internal ISystemClock Clock = SystemClock.Instance;
@@ -96,16 +97,27 @@ namespace Grpc.Net.Client
             {
                 throw new ArgumentException($"Can not find host in {nameof(address)}, verify host and scheme were specified");
             }
+            LoadBalancingPolicy = new EmptyPolicy();
             channelOptions.Attributes = channelOptions.Attributes.Add(GrpcAttributesConstants.DefaultLoadBalancingPolicy, channelOptions.DefaultLoadBalancingPolicy);
             ResolverPlugin = CreateResolverPlugin(Address, LoggerFactory, channelOptions.Attributes);
             ResolverPlugin.LoggerFactory = LoggerFactory;
-            var resolutionResult = ResolverPlugin.StartNameResolutionAsync(Address).GetAwaiter().GetResult();
-            var serviceConfig = resolutionResult.ServiceConfig.Config as GrpcServiceConfig ?? GrpcServiceConfig.Create(channelOptions.DefaultLoadBalancingPolicy);
+            var nameResolutionObserver = new GrpcNameResolutionObserver(this);
+            ResolverPlugin.Subscribe(Address, nameResolutionObserver);
+        }
+
+        internal void HandleResolvedAddresses(GrpcNameResolutionResult resolutionResult)
+        {
+            var serviceConfig = resolutionResult.ServiceConfig.Config as GrpcServiceConfig ?? GrpcServiceConfig.Create("pick_first");
             var requestedPolicies = serviceConfig.RequestedLoadBalancingPolicies;
             LoadBalancingPolicy = CreateRequestedPolicy(requestedPolicies, LoggerFactory);
             LoadBalancingPolicy.LoggerFactory = LoggerFactory;
             var isSecureConnection = Address.Scheme == Uri.UriSchemeHttps || Address.Port == 443;
             LoadBalancingPolicy.CreateSubChannelsAsync(resolutionResult, Address.Host, isSecureConnection).Wait();
+        }
+
+        internal void HandleResolvedAddressesError()
+        {
+            LoadBalancingPolicy = new EmptyPolicy();
         }
 
         private static IGrpcResolverPlugin CreateResolverPlugin(Uri address, ILoggerFactory loggerFactory, GrpcAttributes attributes)

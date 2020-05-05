@@ -130,6 +130,11 @@ namespace Grpc.Net.Client.Internal
             }
 
             var subchannel = Channel.LoadBalancingPolicy.GetNextSubChannel();
+            while (subchannel == LoadBalancing.Internal.EmptyPolicy.NoResultSubChannel)
+            {
+                Task.Delay(TimeSpan.FromSeconds(5)).Wait();
+                subchannel = Channel.LoadBalancingPolicy.GetNextSubChannel();
+            }
             var scope = Channel.GetCachedGrpcCallScope(method);
             var methodInfo = new GrpcMethodInfo(scope, new Uri(subchannel.Address, scope.Uri));
             var call = new GrpcCall<TRequest, TResponse>(method, methodInfo, options, Channel, subchannel.LoadBalanceToken);
