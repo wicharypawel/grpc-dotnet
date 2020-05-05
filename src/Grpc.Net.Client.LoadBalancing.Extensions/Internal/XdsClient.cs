@@ -21,6 +21,8 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         private readonly XdsBootstrapInfo _bootstrapInfo;
         private readonly ILogger _logger;
 
+        private ConfigUpdateObserver? _configUpdateObserver = null;
+
         //temp crap
         private ConfigUpdate? _configUpdate = null;
         private ClusterUpdate? _clusterUpdate = null;
@@ -227,7 +229,18 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 
         public void Subscribe(string targetAuthority, ConfigUpdateObserver observer)
         {
-            throw new NotImplementedException();
+            if (_configUpdateObserver != null)
+            {
+                throw new InvalidOperationException($"Observer for {targetAuthority} already registered.");
+            }
+            _resourceName = targetAuthority ?? throw new ArgumentNullException(nameof(targetAuthority));
+            _configUpdateObserver = observer ?? throw new ArgumentNullException(nameof(observer));
+            _logger.LogDebug($"Started watching config {_resourceName}");
+            if (_adsStreamWrapper == null)
+            {
+                StartRpcStream();
+            }
+            _adsStreamWrapper!.SendXdsRequestAsync(ADS_TYPE_URL_LDS, new string[] { _resourceName }).Wait();
         }
 
         public void Subscribe(string clusterName, ClusterUpdateObserver observer)
