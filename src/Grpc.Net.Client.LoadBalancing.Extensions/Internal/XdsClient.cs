@@ -225,6 +225,31 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             _endpointUpdate = endpointUpdate;
         }
 
+        public void Subscribe(string targetAuthority, ConfigUpdateObserver observer)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Subscribe(string clusterName, ClusterUpdateObserver observer)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Unsubscribe(string clusterName, ClusterUpdateObserver observer)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Subscribe(string clusterName, EndpointUpdateObserver observer)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Unsubscribe(string clusterName, EndpointUpdateObserver observer)
+        {
+            throw new NotImplementedException();
+        }
+
         public void Dispose()
         {
             if (Disposed)

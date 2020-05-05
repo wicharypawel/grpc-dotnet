@@ -17,6 +17,12 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         Task<ConfigUpdate> GetLdsRdsAsync(string resourceName);
         Task<ClusterUpdate> GetCdsAsync(string clusterName, string serviceName); // service name is required only because of legacy reasons, remove in the near future
         Task<EndpointUpdate> GetEdsAsync(string clusterName);
+
+        void Subscribe(string targetAuthority, ConfigUpdateObserver observer);
+        void Subscribe(string clusterName, ClusterUpdateObserver observer);
+        void Unsubscribe(string clusterName, ClusterUpdateObserver observer);
+        void Subscribe(string clusterName, EndpointUpdateObserver observer);
+        void Unsubscribe(string clusterName, EndpointUpdateObserver observer);
     }
 
     /// <summary>
