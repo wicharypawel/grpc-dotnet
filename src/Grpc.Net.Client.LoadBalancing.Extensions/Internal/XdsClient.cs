@@ -21,15 +21,14 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         private readonly XdsBootstrapInfo _bootstrapInfo;
         private readonly ILogger _logger;
 
-        private ConfigUpdateObserver? _configUpdateObserver = null;
+        private IConfigUpdateObserver? _configUpdateObserver = null;
 
         //temp crap
-        private ConfigUpdate? _configUpdate = null;
         private ClusterUpdate? _clusterUpdate = null;
         private EndpointUpdate? _endpointUpdate = null;
         private string _clusterName = string.Empty;
         private string _serviceName = string.Empty;
-        private string _resourceName = string.Empty;
+        private string _resourceName = string.Empty; // this one is important
         private string _routeConfigName = string.Empty;
 
         public XdsClient(IXdsBootstrapper bootstrapper, ILoggerFactory loggerFactory, XdsChannelFactory channelFactory)
@@ -58,24 +57,6 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 
         internal bool Disposed { get; private set; }
 
-        public async Task<ConfigUpdate> GetLdsRdsAsync(string resourceName)
-        {
-            _logger.LogDebug("XdsClient request LDS");
-            if (_adsStreamWrapper == null)
-            {
-                StartRpcStream();
-            }
-            _resourceName = resourceName;
-            await _adsStreamWrapper!.SendXdsRequestAsync(ADS_TYPE_URL_LDS, new List<string>() { resourceName }).ConfigureAwait(false);
-            while (_configUpdate == null)
-            {
-                await Task.Delay(TimeSpan.FromMilliseconds(200)).ConfigureAwait(false);
-            }
-            var result = _configUpdate;
-            _configUpdate = null;
-            return result;
-        }
-        
         internal void HandleLdsResponse(Envoy.Api.V2.DiscoveryResponse discoveryResponse)
         {
             var listeners = discoveryResponse.Resources
@@ -94,7 +75,8 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                     var routeConfiguration = httpConnectionManager!.RouteConfig;
                     var hostName = _resourceName.Substring(0, _resourceName.LastIndexOf(':'));
                     routes = FindRoutesInRouteConfig(routeConfiguration, hostName);
-                    _configUpdate = new ConfigUpdate(routes.Select(Route.FromEnvoyProtoRoute).ToList());
+                    var configUpdate = new ConfigUpdate(routes.Select(Route.FromEnvoyProtoRoute).ToList());
+                    _configUpdateObserver!.OnNext(configUpdate);
                 }
                 else if (hasHttpConnectionManager && httpConnectionManager!.Rds != null) // make RDS request
                 {
@@ -124,7 +106,8 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                         Route_ = new Envoy.Api.V2.Route.RouteAction() { Cluster = "magic-value-find-cluster-by-service-name" }
                     }
                 };
-                _configUpdate = new ConfigUpdate(routes.Select(Route.FromEnvoyProtoRoute).ToList());
+                var configUpdate = new ConfigUpdate(routes.Select(Route.FromEnvoyProtoRoute).ToList());
+                _configUpdateObserver!.OnNext(configUpdate);
             }
         }
 
@@ -140,7 +123,8 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             var routeConfiguration = routeConfigurations.First(x => x.Name.Equals(_routeConfigName, StringComparison.OrdinalIgnoreCase));
             var hostName = _resourceName.Substring(0, _resourceName.LastIndexOf(':'));
             var routes = FindRoutesInRouteConfig(routeConfiguration, hostName);
-            _configUpdate = new ConfigUpdate(routes.Select(Route.FromEnvoyProtoRoute).ToList());
+            var configUpdate = new ConfigUpdate(routes.Select(Route.FromEnvoyProtoRoute).ToList());
+            _configUpdateObserver!.OnNext(configUpdate);
         }
 
         public async Task<ClusterUpdate> GetCdsAsync(string clusterName, string serviceName)
@@ -227,7 +211,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             _endpointUpdate = endpointUpdate;
         }
 
-        public void Subscribe(string targetAuthority, ConfigUpdateObserver observer)
+        public void Subscribe(string targetAuthority, IConfigUpdateObserver observer)
         {
             if (_configUpdateObserver != null)
             {
@@ -243,22 +227,22 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             _adsStreamWrapper!.SendXdsRequestAsync(ADS_TYPE_URL_LDS, new string[] { _resourceName }).Wait();
         }
 
-        public void Subscribe(string clusterName, ClusterUpdateObserver observer)
+        public void Subscribe(string clusterName, IClusterUpdateObserver observer)
         {
             throw new NotImplementedException();
         }
 
-        public void Unsubscribe(string clusterName, ClusterUpdateObserver observer)
+        public void Unsubscribe(string clusterName, IClusterUpdateObserver observer)
         {
             throw new NotImplementedException();
         }
 
-        public void Subscribe(string clusterName, EndpointUpdateObserver observer)
+        public void Subscribe(string clusterName, IEndpointUpdateObserver observer)
         {
             throw new NotImplementedException();
         }
 
-        public void Unsubscribe(string clusterName, EndpointUpdateObserver observer)
+        public void Unsubscribe(string clusterName, IEndpointUpdateObserver observer)
         {
             throw new NotImplementedException();
         }

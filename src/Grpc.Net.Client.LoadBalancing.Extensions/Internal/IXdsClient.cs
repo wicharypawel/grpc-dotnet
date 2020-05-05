@@ -13,16 +13,14 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
     /// </summary>
     internal interface IXdsClient : IDisposable
     {
-        /// <param name="resourceName">Resource name needs to be in host or host:port syntax.</param>
-        Task<ConfigUpdate> GetLdsRdsAsync(string resourceName);
         Task<ClusterUpdate> GetCdsAsync(string clusterName, string serviceName); // service name is required only because of legacy reasons, remove in the near future
         Task<EndpointUpdate> GetEdsAsync(string clusterName);
 
-        void Subscribe(string targetAuthority, ConfigUpdateObserver observer);
-        void Subscribe(string clusterName, ClusterUpdateObserver observer);
-        void Unsubscribe(string clusterName, ClusterUpdateObserver observer);
-        void Subscribe(string clusterName, EndpointUpdateObserver observer);
-        void Unsubscribe(string clusterName, EndpointUpdateObserver observer);
+        void Subscribe(string targetAuthority, IConfigUpdateObserver observer);
+        void Subscribe(string clusterName, IClusterUpdateObserver observer);
+        void Unsubscribe(string clusterName, IClusterUpdateObserver observer);
+        void Subscribe(string clusterName, IEndpointUpdateObserver observer);
+        void Unsubscribe(string clusterName, IEndpointUpdateObserver observer);
     }
 
     /// <summary>
@@ -88,7 +86,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
     /// <summary>
     /// An interface for objects that react to changes of <seealso cref="ConfigUpdate"/>.
     /// </summary>
-    internal interface ConfigUpdateObserver
+    internal interface IConfigUpdateObserver
     {
         void OnNext(ConfigUpdate value);
         void OnError(Status error);
@@ -97,7 +95,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
     /// <summary>
     /// An interface for objects that react to changes of <seealso cref="ClusterUpdate"/>.
     /// </summary>
-    internal interface ClusterUpdateObserver
+    internal interface IClusterUpdateObserver
     {
         void OnNext(ClusterUpdate value);
         void OnError(Status error);
@@ -106,7 +104,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
     /// <summary>
     /// An interface for objects that react to changes of <seealso cref="EndpointUpdate"/>.
     /// </summary>
-    internal interface EndpointUpdateObserver
+    internal interface IEndpointUpdateObserver
     {
         void OnNext(EndpointUpdate value);
         void OnError(Status error);
