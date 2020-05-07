@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
-using System.Threading.Tasks;
 
 namespace Grpc.Net.Client.LoadBalancing
 {
@@ -17,10 +16,24 @@ namespace Grpc.Net.Client.LoadBalancing
         ILoggerFactory LoggerFactory { set; }
 
         /// <summary>
-        /// Name resolution for secified target.
+        /// Starts the resolution.
         /// </summary>
         /// <param name="target">Server address with scheme.</param>
-        /// <returns>List of resolved hosts, service config and metadata.</returns>
-        Task<GrpcNameResolutionResult> StartNameResolutionAsync(Uri target);
+        /// <param name="observer">Observer used to receive updates on the target.</param>
+        void Subscribe(Uri target, IGrpcNameResolutionObserver observer);
+
+        /// <summary>
+        /// Stops the resolution. Updates to the Listener will stop.
+        /// </summary>
+        void Unsubscribe();
+
+        /// <summary>
+        /// Re-resolve the name. Can only be called after Start method has been called.
+        /// This is only a hint. Implementation takes it as a signal but may not start resolution 
+        /// immediately. It should never throw.
+        /// 
+        /// It is possible to leave this operation empty (no-op). 
+        /// </summary>
+        void RefreshResolution();
     }
 }
