@@ -1,4 +1,5 @@
 ﻿using Grpc.Net.Client.LoadBalancing.Extensions.Internal;
+using Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins.Fakes;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System;
@@ -12,26 +13,29 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
     public sealed class XdsResolverPluginTests
     {
         [Fact]
-        public async Task ForTargetWithNonXdsScheme_UseXdsResolverPlugin_ThrowArgumentException()
+        public void ForTargetWithNonXdsScheme_UseXdsResolverPlugin_ThrowArgumentException()
         {
             // Arrange
-            var resolverPlugin = new XdsResolverPlugin();
+            var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
             // Act
             // Assert
-            var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
+            var exception = Assert.Throws<ArgumentException>(() =>
             {
-                await resolverPlugin.StartNameResolutionAsync(new Uri("http://sample.host.com"));
+                using var resolverPlugin = new XdsResolverPlugin();
+                resolverPlugin.Subscribe(new Uri("http://sample.host.com"), nameResolutionObserver);
             });
             Assert.Contains("require xds://", exception.Message, StringComparison.Ordinal);
-            exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
+            exception = Assert.Throws<ArgumentException>(() =>
             {
-                await resolverPlugin.StartNameResolutionAsync(new Uri("https://sample.host.com"));
+                using var resolverPlugin = new XdsResolverPlugin();
+                resolverPlugin.Subscribe(new Uri("https://sample.host.com"), nameResolutionObserver);
             });
             Assert.Contains("require xds://", exception.Message, StringComparison.Ordinal);
-            exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
+            exception = Assert.Throws<ArgumentException>(() =>
             {
-                await resolverPlugin.StartNameResolutionAsync(new Uri("unknown://sample.host.com"));
+                using var resolverPlugin = new XdsResolverPlugin();
+                resolverPlugin.Subscribe(new Uri("unknown://sample.host.com"), nameResolutionObserver);
             });
             Assert.Contains("require xds://", exception.Message, StringComparison.Ordinal);
         }
@@ -42,21 +46,23 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             // Arrange
             var serviceHostName = "my-service.googleapis.com";
             var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
-            xdsClientMock.Setup(x => x.GetLdsRdsAsync($"{serviceHostName}:80")).Returns(Task.FromResult(GetSampleConfigUpdate()));
+            xdsClientMock.Setup(x => x.Subscribe($"{serviceHostName}:80", It.IsAny<IConfigUpdateObserver>())).Callback<string, IConfigUpdateObserver>((_, observer) => observer.OnNext(GetSampleConfigUpdate()));
             var xdsClientFactory = new XdsClientFactory(NullLoggerFactory.Instance);
             xdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
 
             var resolverPlugin = new XdsResolverPlugin();
             resolverPlugin.OverrideXdsClientFactory = xdsClientFactory;
+            var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
             // Act
-            var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"xds://{serviceHostName}:80"));
-            var serviceConfig = resolutionResult.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
+            resolverPlugin.Subscribe(new Uri($"xds://{serviceHostName}:80"), nameResolutionObserver);
+            var resolutionResult = await nameResolutionObserver.GetFirstValueOrDefaultAsync();
+            Assert.NotNull(resolutionResult);
+            var serviceConfig = resolutionResult!.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
 
             // Assert
-            Assert.NotNull(resolutionResult);
             Assert.Empty(resolutionResult.HostsAddresses);
-            xdsClientMock.Verify(x => x.GetLdsRdsAsync($"{serviceHostName}:80"));
+            xdsClientMock.Verify(x => x.Subscribe($"{serviceHostName}:80", It.IsAny<IConfigUpdateObserver>()));
         }
 
         [Fact]
@@ -65,21 +71,23 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             // Arrange
             var serviceHostName = "my-service.googleapis.com";
             var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
-            xdsClientMock.Setup(x => x.GetLdsRdsAsync($"{serviceHostName}:443")).Returns(Task.FromResult(GetSampleConfigUpdate()));
+            xdsClientMock.Setup(x => x.Subscribe($"{serviceHostName}:443", It.IsAny<IConfigUpdateObserver>())).Callback<string, IConfigUpdateObserver>((_, observer) => observer.OnNext(GetSampleConfigUpdate()));
             var xdsClientFactory = new XdsClientFactory(NullLoggerFactory.Instance);
             xdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
 
             var resolverPlugin = new XdsResolverPlugin();
             resolverPlugin.OverrideXdsClientFactory = xdsClientFactory;
+            var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
             // Act
-            var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"xds://{serviceHostName}:443"));
-            var serviceConfig = resolutionResult.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
+            resolverPlugin.Subscribe(new Uri($"xds://{serviceHostName}:443"), nameResolutionObserver);
+            var resolutionResult = await nameResolutionObserver.GetFirstValueOrDefaultAsync();
+            Assert.NotNull(resolutionResult);
+            var serviceConfig = resolutionResult!.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
 
             // Assert
-            Assert.NotNull(resolutionResult);
             Assert.NotNull(resolutionResult.Attributes.Get(XdsAttributesConstants.XdsClientPoolInstance) as XdsClientObjectPool);
-            xdsClientMock.Verify(x => x.GetLdsRdsAsync($"{serviceHostName}:443"));
+            xdsClientMock.Verify(x => x.Subscribe($"{serviceHostName}:443", It.IsAny<IConfigUpdateObserver>()));
         }
 
         [Fact]
@@ -88,17 +96,20 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             // Arrange
             var serviceHostName = "my-service.googleapis.com";
             var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
-            xdsClientMock.Setup(x => x.GetLdsRdsAsync($"{serviceHostName}:80")).Returns(Task.FromResult(GetSampleConfigUpdate()));
+            xdsClientMock.Setup(x => x.Subscribe($"{serviceHostName}:80", It.IsAny<IConfigUpdateObserver>())).Callback<string, IConfigUpdateObserver>((_, observer) => observer.OnNext(GetSampleConfigUpdate()));
             var attributes = new GrpcAttributes(new Dictionary<string, object>() { { GrpcAttributesConstants.DefaultLoadBalancingPolicy, "round_robin" } });
             var xdsClientFactory = new XdsClientFactory(NullLoggerFactory.Instance);
             xdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
 
             var resolverPlugin = new XdsResolverPlugin(attributes);
             resolverPlugin.OverrideXdsClientFactory = xdsClientFactory;
+            var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
             // Act
-            var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"xds://{serviceHostName}:80"));
-            var serviceConfig = resolutionResult.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
+            resolverPlugin.Subscribe(new Uri($"xds://{serviceHostName}:80"), nameResolutionObserver);
+            var resolutionResult = await nameResolutionObserver.GetFirstValueOrDefaultAsync();
+            Assert.NotNull(resolutionResult);
+            var serviceConfig = resolutionResult!.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
 
             // Assert
             Assert.Contains("round_robin", serviceConfig.RequestedLoadBalancingPolicies.Last());
@@ -113,19 +124,21 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             var clusterName = "cluster-foo.googleapis.com";
 
             var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
-            xdsClientMock.Setup(x => x.GetLdsRdsAsync(authority)).Returns(Task.FromResult(GetSampleConfigUpdate()));
+            xdsClientMock.Setup(x => x.Subscribe(authority, It.IsAny<IConfigUpdateObserver>())).Callback<string, IConfigUpdateObserver>((_, observer) => observer.OnNext(GetSampleConfigUpdate()));
             var xdsClientFactory = new XdsClientFactory(NullLoggerFactory.Instance);
             xdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
 
             var resolverPlugin = new XdsResolverPlugin(GrpcAttributes.Empty);
             resolverPlugin.OverrideXdsClientFactory = xdsClientFactory;
+            var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
             // Act
-            var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"xds://{serviceHostName}:80"));
-            var serviceConfig = resolutionResult.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
+            resolverPlugin.Subscribe(new Uri($"xds://{serviceHostName}:80"), nameResolutionObserver);
+            var resolutionResult = await nameResolutionObserver.GetFirstValueOrDefaultAsync();
+            Assert.NotNull(resolutionResult);
+            var serviceConfig = resolutionResult!.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
 
             // Assert
-            Assert.NotNull(resolutionResult);
             Assert.Empty(resolutionResult.HostsAddresses);
             Assert.NotNull(resolutionResult.ServiceConfig.Config);
             Assert.Equal(clusterName, resolutionResult.Attributes.Get(XdsAttributesConstants.CdsClusterName) as string);
@@ -140,21 +153,21 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             var authority = $"{serviceHostName}:80"; // authority is hostname:port
 
             var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
-            xdsClientMock.Setup(x => x.GetLdsRdsAsync(authority)).Returns(Task.FromResult(GetWrongConfigUpdate()));
+            xdsClientMock.Setup(x => x.Subscribe(authority, It.IsAny<IConfigUpdateObserver>())).Callback<string, IConfigUpdateObserver>((_, observer) => observer.OnNext(GetWrongConfigUpdate()));
             var xdsClientFactory = new XdsClientFactory(NullLoggerFactory.Instance);
             xdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
 
             var resolverPlugin = new XdsResolverPlugin(GrpcAttributes.Empty);
             resolverPlugin.OverrideXdsClientFactory = xdsClientFactory;
+            var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
             // Act
             // Assert
-            var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            {
-                await resolverPlugin.StartNameResolutionAsync(new Uri($"xds://{serviceHostName}:80"));
-            });
-            Assert.StartsWith("Cluster name can not be specified.", exception.Message);
-        }        
+            resolverPlugin.Subscribe(new Uri($"xds://{serviceHostName}:80"), nameResolutionObserver);
+            var error = await nameResolutionObserver.GetFirstErrorOrDefaultAsync();
+            Assert.NotNull(error);
+            Assert.StartsWith("Cluster name can not be specified.", error.Value.Detail);
+        }
 
         private static ConfigUpdate GetSampleConfigUpdate()
         {

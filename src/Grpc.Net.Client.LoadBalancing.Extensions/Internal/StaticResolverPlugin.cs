@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
@@ -14,6 +15,9 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
     {
         private readonly Func<Uri, GrpcNameResolutionResult> _staticNameResolution;
         private ILogger _logger = NullLogger.Instance;
+        private Uri? _target = null;
+        private IGrpcNameResolutionObserver? _observer = null;
+        private CancellationTokenSource? _cancellationTokenSource = null;
 
         /// <summary>
         /// LoggerFactory is configured (injected) when class is being instantiated.
@@ -33,33 +37,61 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             _staticNameResolution = options?.StaticNameResolution ?? throw new ArgumentNullException(nameof(options.StaticNameResolution));
         }
 
-        /// <summary>
-        /// Creates a <seealso cref="StaticResolverPlugin"/> using specified <seealso cref="XdsResolverPluginOptions"/>.
-        /// </summary>
-        /// <param name="options">Options with defined behaviour.</param>
-        public StaticResolverPlugin(StaticResolverPluginOptions options)
+        public void Subscribe(Uri target, IGrpcNameResolutionObserver observer)
         {
-            if (options?.StaticNameResolution == null)
+            if (_observer != null)
             {
-                throw new ArgumentNullException(nameof(options.StaticNameResolution));
+                throw new InvalidOperationException("Observer already registered.");
             }
-            _staticNameResolution = options.StaticNameResolution;
+            _observer = observer ?? throw new ArgumentNullException(nameof(observer));
+            _target = target ?? throw new ArgumentNullException(nameof(target));
+            _cancellationTokenSource = new CancellationTokenSource();
+            Resolve();
         }
 
-        /// <summary>
-        /// Name resolution for secified target.
-        /// </summary>
-        /// <param name="target">Server address with scheme.</param>
-        /// <returns>List of resolved servers and/or lookaside load balancers.</returns>
-        public Task<GrpcNameResolutionResult> StartNameResolutionAsync(Uri target)
+        public void Unsubscribe()
         {
+            _observer = null;
+            _target = null;
+            _cancellationTokenSource?.Cancel();
+            _cancellationTokenSource?.Dispose();
+            _cancellationTokenSource = null;
+        }
+
+        public void RefreshResolution()
+        {
+            if (_observer == null)
+            {
+                throw new InvalidOperationException("Observer not registered.");
+            }
+            Resolve();
+        }
+
+        private void Resolve()
+        {
+            Task.Factory.StartNew(async () => await ResolveCoreAsync(_target, _observer).ConfigureAwait(false), _cancellationTokenSource!.Token);
+        }
+
+        private Task ResolveCoreAsync(Uri? target, IGrpcNameResolutionObserver? observer)
+        {
+            if (observer == null)
+            {
+                return Task.CompletedTask;
+            }
+            if (target == null)
+            {
+                observer.OnError(new Core.Status(Core.StatusCode.Unavailable, "Target is empty."));
+                return Task.CompletedTask;
+            }
             _logger.LogDebug($"Using static name resolution");
             _logger.LogDebug($"Using static service config");
-            return Task.FromResult(_staticNameResolution(target));
+            observer.OnNext(_staticNameResolution(target));
+            return Task.CompletedTask;
         }
 
         public void Dispose()
         {
+            Unsubscribe();
         }
     }
 }

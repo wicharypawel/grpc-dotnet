@@ -2,6 +2,7 @@
 using DnsClient.Protocol;
 using Grpc.Net.Client.LoadBalancing.Extensions;
 using Grpc.Net.Client.LoadBalancing.Extensions.Internal;
+using Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins.Fakes;
 using Moq;
 using System;
 using System.Collections.Generic;
@@ -14,26 +15,22 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
 {
     public sealed class DnsClientResolverPluginTests
     {
-        [Fact]
-        public async Task ForTargetWithNonDnsScheme_UseDnsClientResolverPlugin_ThrowArgumentException()
+        [Theory]
+        [InlineData("http")]
+        [InlineData("https")]
+        [InlineData("unknown")]
+        public async Task ForTargetWithNonDnsScheme_UseDnsClientResolverPlugin_ThrowArgumentException(string scheme)
         {
             // Arrange
             var resolverPlugin = new DnsClientResolverPlugin();
+            var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
             // Act
             // Assert
-            await Assert.ThrowsAsync<ArgumentException>(async () =>
-            {
-                await resolverPlugin.StartNameResolutionAsync(new Uri("http://sample.host.com"));
-            });
-            await Assert.ThrowsAsync<ArgumentException>(async () =>
-            {
-                await resolverPlugin.StartNameResolutionAsync(new Uri("https://sample.host.com"));
-            });
-            await Assert.ThrowsAsync<ArgumentException>(async () =>
-            {
-                await resolverPlugin.StartNameResolutionAsync(new Uri("unknown://sample.host.com"));
-            });
+            resolverPlugin.Subscribe(new Uri($"{scheme}://sample.host.com"), nameResolutionObserver);
+            var error = await nameResolutionObserver.GetFirstErrorOrDefaultAsync();
+            Assert.NotNull(error);
+            Assert.Contains("require dns:// scheme to set as target address", error.Value.Detail);
         }
 
         [Fact]
@@ -59,10 +56,13 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
 
             var resolverPlugin = new DnsClientResolverPlugin();
             resolverPlugin.OverrideDnsClient = dnsClientMock.Object;
+            var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
             // Act
-            var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"dns://{serviceHostName}:80"));
-            var serviceConfig = resolutionResult.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
+            resolverPlugin.Subscribe(new Uri($"dns://{serviceHostName}:80"), nameResolutionObserver);
+            var resolutionResult = await nameResolutionObserver.GetFirstValueOrDefaultAsync();
+            Assert.NotNull(resolutionResult);
+            var serviceConfig = resolutionResult!.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
 
             // Assert
             Assert.Empty(resolutionResult.HostsAddresses);
@@ -91,12 +91,17 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             dnsClientMock.Setup(x => x.QueryAsync(serviceHostName, QueryType.A, QueryClass.IN, default))
                 .Returns(Task.FromResult(aServersDnsQueryResponse.Object));
 
-            var resolverPlugin = new DnsClientResolverPlugin(new DnsClientResolverPluginOptions() { EnableSrvGrpclb = true });
+            var resolverPluginOptions = new DnsClientResolverPluginOptions() { EnableSrvGrpclb = true };
+            var attributes = new GrpcAttributes(new Dictionary<string, object>() { { GrpcAttributesLbConstants.DnsResolverOptions, resolverPluginOptions } });
+            var resolverPlugin = new DnsClientResolverPlugin(attributes);
             resolverPlugin.OverrideDnsClient = dnsClientMock.Object;
+            var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
             // Act
-            var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"dns://{serviceHostName}:443"));
-            var serviceConfig = resolutionResult.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
+            resolverPlugin.Subscribe(new Uri($"dns://{serviceHostName}:443"), nameResolutionObserver);
+            var resolutionResult = await nameResolutionObserver.GetFirstValueOrDefaultAsync();
+            Assert.NotNull(resolutionResult);
+            var serviceConfig = resolutionResult!.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
 
             // Assert
             Assert.Equal(5, resolutionResult.HostsAddresses.Count);
@@ -131,12 +136,16 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
                 .Returns(Task.FromResult(aServersDnsQueryResponse.Object));
 
             var resolverPluginOptions = new DnsClientResolverPluginOptions() { EnableSrvGrpclb = false, EnableTxtServiceConfig = false };
-            var resolverPlugin = new DnsClientResolverPlugin(resolverPluginOptions);
+            var attributes = new GrpcAttributes(new Dictionary<string, object>() { { GrpcAttributesLbConstants.DnsResolverOptions, resolverPluginOptions } });
+            var resolverPlugin = new DnsClientResolverPlugin(attributes);
             resolverPlugin.OverrideDnsClient = dnsClientMock.Object;
+            var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
             // Act
-            var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"dns://{serviceHostName}:443"));
-            var serviceConfig = resolutionResult.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
+            resolverPlugin.Subscribe(new Uri($"dns://{serviceHostName}:443"), nameResolutionObserver);
+            var resolutionResult = await nameResolutionObserver.GetFirstValueOrDefaultAsync();
+            Assert.NotNull(resolutionResult);
+            var serviceConfig = resolutionResult!.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
 
             // Assert
             Assert.Equal(3, resolutionResult.HostsAddresses.Count);
@@ -170,12 +179,16 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
                 .Returns(Task.FromResult(aServersDnsQueryResponse.Object));
 
             var resolverPluginOptions = new DnsClientResolverPluginOptions() { EnableSrvGrpclb = true, EnableTxtServiceConfig = true };
-            var resolverPlugin = new DnsClientResolverPlugin(resolverPluginOptions);
+            var attributes = new GrpcAttributes(new Dictionary<string, object>() { { GrpcAttributesLbConstants.DnsResolverOptions, resolverPluginOptions } });
+            var resolverPlugin = new DnsClientResolverPlugin(attributes);
             resolverPlugin.OverrideDnsClient = dnsClientMock.Object;
+            var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
             // Act
-            var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"dns://{serviceHostName}:443"));
-            var serviceConfig = resolutionResult.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
+            resolverPlugin.Subscribe(new Uri($"dns://{serviceHostName}:443"), nameResolutionObserver);
+            var resolutionResult = await nameResolutionObserver.GetFirstValueOrDefaultAsync();
+            Assert.NotNull(resolutionResult);
+            var serviceConfig = resolutionResult!.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
 
             // Assert
             Assert.Equal(5, resolutionResult.HostsAddresses.Count);
@@ -210,12 +223,16 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
                 .Returns(Task.FromResult(aServersDnsQueryResponse.Object));
 
             var resolverPluginOptions = new DnsClientResolverPluginOptions() { EnableSrvGrpclb = true, EnableTxtServiceConfig = true };
-            var resolverPlugin = new DnsClientResolverPlugin(resolverPluginOptions);
+            var attributes = new GrpcAttributes(new Dictionary<string, object>() { { GrpcAttributesLbConstants.DnsResolverOptions, resolverPluginOptions } });
+            var resolverPlugin = new DnsClientResolverPlugin(attributes);
             resolverPlugin.OverrideDnsClient = dnsClientMock.Object;
+            var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
             // Act
-            var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"dns://{serviceHostName}:443"));
-            var serviceConfig = resolutionResult.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
+            resolverPlugin.Subscribe(new Uri($"dns://{serviceHostName}:443"), nameResolutionObserver);
+            var resolutionResult = await nameResolutionObserver.GetFirstValueOrDefaultAsync();
+            Assert.NotNull(resolutionResult);
+            var serviceConfig = resolutionResult!.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
 
             // Assert
             Assert.Equal(5, resolutionResult.HostsAddresses.Count);
@@ -256,10 +273,13 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             });
             var resolverPlugin = new DnsClientResolverPlugin(attributes);
             resolverPlugin.OverrideDnsClient = dnsClientMock.Object;
+            var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
             // Act
-            var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri($"dns://{serviceHostName}:443"));
-            var serviceConfig = resolutionResult.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
+            resolverPlugin.Subscribe(new Uri($"dns://{serviceHostName}:443"), nameResolutionObserver);
+            var resolutionResult = await nameResolutionObserver.GetFirstValueOrDefaultAsync();
+            Assert.NotNull(resolutionResult);
+            var serviceConfig = resolutionResult!.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
 
             // Assert
             Assert.Single(serviceConfig.RequestedLoadBalancingPolicies);

@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
@@ -19,6 +20,9 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         private DnsClientResolverPluginOptions _options;
         private ILogger _logger = NullLogger.Instance;
         private readonly string _defaultLoadBalancingPolicy;
+        private Uri? _target = null;
+        private IGrpcNameResolutionObserver? _observer = null;
+        private CancellationTokenSource? _cancellationTokenSource = null;
 
         /// <summary>
         /// LoggerFactory is configured (injected) when class is being instantiated.
@@ -36,7 +40,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         /// <summary>
         /// Creates a <seealso cref="DnsClientResolverPlugin"/> using default <seealso cref="DnsClientResolverPluginOptions"/>.
         /// </summary>
-        public DnsClientResolverPlugin() : this(new DnsClientResolverPluginOptions())
+        public DnsClientResolverPlugin() : this(GrpcAttributes.Empty)
         {
         }
 
@@ -52,30 +56,66 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 ?? "pick_first";
         }
 
-        /// <summary>
-        /// Creates a <seealso cref="DnsClientResolverPlugin"/> using specified <seealso cref="DnsClientResolverPluginOptions"/>.
-        /// </summary>
-        /// <param name="options">Options allows override default behaviour.</param>
-        public DnsClientResolverPlugin(DnsClientResolverPluginOptions options)
+        public void Subscribe(Uri target, IGrpcNameResolutionObserver observer)
         {
-            _options = options;
-            _defaultLoadBalancingPolicy = "pick_first";
+            if (_observer != null)
+            {
+                throw new InvalidOperationException("Observer already registered.");
+            }
+            _observer = observer ?? throw new ArgumentNullException(nameof(observer));
+            _target = target ?? throw new ArgumentNullException(nameof(target));
+            _cancellationTokenSource = new CancellationTokenSource();
+            Resolve();
         }
 
-        /// <summary>
-        /// Name resolution for secified target.
-        /// </summary>
-        /// <param name="target">Server address with scheme.</param>
-        /// <returns>List of resolved servers and/or lookaside load balancers.</returns>
-        public async Task<GrpcNameResolutionResult> StartNameResolutionAsync(Uri target)
+        public void Unsubscribe()
         {
+            _observer = null;
+            _target = null;
+            _cancellationTokenSource?.Cancel();
+            _cancellationTokenSource?.Dispose();
+            _cancellationTokenSource = null;
+        }
+
+        public void RefreshResolution()
+        {
+            if (_observer == null)
+            {
+                throw new InvalidOperationException("Observer not registered.");
+            }
+            Resolve();
+        }
+
+        private void Resolve()
+        {
+            Task.Factory.StartNew(async () =>
+            {
+                try
+                {
+                    await ResolveCoreAsync(_target, _observer).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    _observer?.OnError(new Core.Status(Core.StatusCode.Unavailable, ex.Message));
+                }
+            }, _cancellationTokenSource!.Token);
+        }
+
+        private async Task ResolveCoreAsync(Uri? target, IGrpcNameResolutionObserver? observer)
+        {
+            if (observer == null)
+            {
+                return;
+            }
             if (target == null)
             {
-                throw new ArgumentNullException(nameof(target));
+                observer.OnError(new Core.Status(Core.StatusCode.Unavailable, "Target is empty."));
+                return;
             }
             if (!target.Scheme.Equals("dns", StringComparison.OrdinalIgnoreCase))
             {
-                throw new ArgumentException($"{nameof(DnsClientResolverPlugin)} require dns:// scheme to set as target address.");
+                observer.OnError(new Core.Status(Core.StatusCode.Unavailable, $"{nameof(DnsClientResolverPlugin)} require dns:// scheme to set as target address."));
+                return;
             }
             var host = target.Host;
             var dnsClient = GetDnsClient();
@@ -130,11 +170,12 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             _logger.LogDebug($"NameResolution found {results.Count} DNS records");
             var config = GrpcServiceConfigOrError.FromConfig(serviceConfig);
             _logger.LogDebug($"Service config created with policies: {string.Join(',', serviceConfig.RequestedLoadBalancingPolicies)}");
-            return new GrpcNameResolutionResult(results, config, GrpcAttributes.Empty);
+            observer.OnNext(new GrpcNameResolutionResult(results, config, GrpcAttributes.Empty));
         }
 
         public void Dispose()
         {
+            Unsubscribe();
         }
 
         private IDnsQuery GetDnsClient()

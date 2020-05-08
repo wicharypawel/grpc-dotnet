@@ -1,5 +1,6 @@
 ﻿using Grpc.Net.Client.LoadBalancing.Extensions;
 using Grpc.Net.Client.LoadBalancing.Extensions.Internal;
+using Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins.Fakes;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -24,13 +25,17 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
                 return new GrpcNameResolutionResult(hosts, config, GrpcAttributes.Empty);
             };
             var options = new StaticResolverPluginOptions(resolveFunction);
-            var resolverPlugin = new StaticResolverPlugin(options);
+            var attributes = new GrpcAttributes(new Dictionary<string, object>() { { GrpcAttributesLbConstants.StaticResolverOptions, options } });
+            var resolverPlugin = new StaticResolverPlugin(attributes);
+            var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
             // Act
-            var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri("https://sample.host.com"));
+            resolverPlugin.Subscribe(new Uri("https://sample.host.com"), nameResolutionObserver);
+            var resolutionResult = await nameResolutionObserver.GetFirstValueOrDefaultAsync();
 
             // Assert
-            Assert.Equal(2, resolutionResult.HostsAddresses.Count);
+            Assert.NotNull(resolutionResult);
+            Assert.Equal(2, resolutionResult!.HostsAddresses.Count);
             Assert.Equal("10.1.5.212", resolutionResult.HostsAddresses[0].Host);
             Assert.Equal("10.1.5.213", resolutionResult.HostsAddresses[1].Host);
             Assert.Equal(8080, resolutionResult.HostsAddresses[0].Port);

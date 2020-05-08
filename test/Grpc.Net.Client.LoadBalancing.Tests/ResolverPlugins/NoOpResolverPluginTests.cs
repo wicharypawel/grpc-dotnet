@@ -1,4 +1,5 @@
 ﻿using Grpc.Net.Client.LoadBalancing.Internal;
+using Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins.Fakes;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -13,10 +14,13 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
         {
             // Arrange
             var resolverPlugin = new NoOpResolverPlugin();
+            var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
             // Act
-            var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri("https://sample.host.com"));
-            var serviceConfig = resolutionResult.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
+            resolverPlugin.Subscribe(new Uri("https://sample.host.com"), nameResolutionObserver);
+            var resolutionResult = await nameResolutionObserver.GetFirstValueOrDefaultAsync();
+            Assert.NotNull(resolutionResult);
+            var serviceConfig = resolutionResult!.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
 
             // Assert
             Assert.Single(resolutionResult.HostsAddresses);
@@ -33,39 +37,35 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             // Arrange
             var attributes = new GrpcAttributes(new Dictionary<string, object>() { { GrpcAttributesConstants.DefaultLoadBalancingPolicy, "round_robin" } });
             var resolverPlugin = new NoOpResolverPlugin(attributes);
+            var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
             // Act
-            var resolutionResult = await resolverPlugin.StartNameResolutionAsync(new Uri("https://sample.host.com"));
-            var serviceConfig = resolutionResult.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
+            resolverPlugin.Subscribe(new Uri("https://sample.host.com"), nameResolutionObserver);
+            var resolutionResult = await nameResolutionObserver.GetFirstValueOrDefaultAsync();
+            Assert.NotNull(resolutionResult);
+            var serviceConfig = resolutionResult!.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
 
             // Assert
             Assert.Single(serviceConfig.RequestedLoadBalancingPolicies);
             Assert.Equal("round_robin", serviceConfig.RequestedLoadBalancingPolicies[0]);
         }
 
-        [Fact]
-        public async Task ForTargetWithWellKnownScheme_UseNoOpResolverPlugin_ThrowArgumentException()
+        [Theory]
+        [InlineData("dns")]
+        [InlineData("xds")]
+        [InlineData("xds-experimental")]
+        public async Task ForTargetWithWellKnownScheme_UseNoOpResolverPlugin_ThrowArgumentException(string scheme)
         {
             // Arrange
             var resolverPlugin = new NoOpResolverPlugin();
+            var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
             // Act
             // Assert
-            var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
-            {
-                await resolverPlugin.StartNameResolutionAsync(new Uri("dns://sample.host.com"));
-            });
-            Assert.Contains("require non-default name resolver", exception.Message);
-            exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
-            {
-                await resolverPlugin.StartNameResolutionAsync(new Uri("xds://sample.host.com"));
-            });
-            Assert.Contains("require non-default name resolver", exception.Message);
-            exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
-            {
-                await resolverPlugin.StartNameResolutionAsync(new Uri("xds-experimental://sample.host.com"));
-            });
-            Assert.Contains("require non-default name resolver", exception.Message);
+            resolverPlugin.Subscribe(new Uri($"{scheme}://sample.host.com"), nameResolutionObserver);
+            var error = await nameResolutionObserver.GetFirstErrorOrDefaultAsync();
+            Assert.NotNull(error);
+            Assert.Contains("require non-default name resolver", error.Value.Detail);
         }
     }
 }

@@ -1,9 +1,10 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Grpc.Core;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
+using System.Threading;
 
 namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 {
@@ -25,6 +26,9 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         private XdsClientObjectPool? _xdsClientPool;
         private IXdsClient? _xdsClient;
         private readonly string _defaultLoadBalancingPolicy;
+        private Uri? _target = null;
+        private IGrpcNameResolutionObserver? _observer = null;
+        private CancellationTokenSource? _cancellationTokenSource = null;
 
         /// <summary>
         /// LoggerFactory is configured (injected) when class is being instantiated.
@@ -41,7 +45,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         /// <summary>
         /// Creates a <seealso cref="XdsResolverPlugin"/> using default <seealso cref="XdsResolverPluginOptions"/>.
         /// </summary>
-        public XdsResolverPlugin() : this(new XdsResolverPluginOptions())
+        public XdsResolverPlugin() : this(GrpcAttributes.Empty)
         {
         }
 
@@ -58,34 +62,19 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         }
 
         /// <summary>
-        /// Creates a <seealso cref="XdsResolverPlugin"/> using specified <seealso cref="XdsResolverPluginOptions"/>.
-        /// </summary>
-        /// <param name="options">Options allows override default behaviour.</param>
-        public XdsResolverPlugin(XdsResolverPluginOptions options)
-        {
-            _options = options;
-            _defaultLoadBalancingPolicy = "pick_first";
-        }
-
-        /// <summary>
         /// Property created for testing purposes, allows setter injection
         /// </summary>
         internal XdsClientFactory? OverrideXdsClientFactory { private get; set; }
 
-        /// <summary>
-        /// Name resolution for secified target.
-        /// 
-        /// Note that the xds resolver will return an empty list of addresses, because in the xDS API flow, 
-        /// the addresses are not returned until the ClusterLoadAssignment resource is obtained later.
-        /// </summary>
-        /// <param name="target">Server address with scheme.</param>
-        /// <returns>List of resolved servers.</returns>
-        public async Task<GrpcNameResolutionResult> StartNameResolutionAsync(Uri target)
+        public void Subscribe(Uri target, IGrpcNameResolutionObserver observer)
         {
-            if (target == null)
+            if (_observer != null)
             {
-                throw new ArgumentNullException(nameof(target));
+                throw new InvalidOperationException("Observer already registered.");
             }
+            _observer = observer ?? throw new ArgumentNullException(nameof(observer));
+            _target = target ?? throw new ArgumentNullException(nameof(target));
+            _cancellationTokenSource = new CancellationTokenSource();
             if (!target.Scheme.Equals("xds", StringComparison.OrdinalIgnoreCase))
             {
                 throw new ArgumentException($"{nameof(XdsResolverPlugin)} require xds:// scheme to set as target address.");
@@ -97,27 +86,21 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             }
             _logger.LogDebug($"Start XdsResolverPlugin");
             var listenerName = $"{target.Host}:{target.Port}";
-            var configUpdate = await _xdsClient.GetLdsRdsAsync(listenerName).ConfigureAwait(false);
-            if (configUpdate == null)
-            {
-                throw new InvalidOperationException("Empty ConfigUpdate resolved after LDS/RDS");
-            }
-            var defaultRoute = configUpdate.Routes?.LastOrDefault();
-            if (defaultRoute?.RouteMatch == null || defaultRoute.RouteMatch.Prefix != string.Empty || defaultRoute.RouteAction?.Cluster == null)
-            {
-                var routesCount = configUpdate.Routes?.Count ?? 0;
-                throw new InvalidOperationException($"Cluster name can not be specified. Config update contains ${routesCount} routes.");
-            }
-            var clusterName = defaultRoute.RouteAction.Cluster;
-            var serviceConfig = GrpcServiceConfig.Create("cds_experimental", _defaultLoadBalancingPolicy);
-            var config = GrpcServiceConfigOrError.FromConfig(serviceConfig);
-            _logger.LogDebug($"Service config created with policies: {string.Join(',', serviceConfig.RequestedLoadBalancingPolicies)}");
-            var attributes = new GrpcAttributes(new Dictionary<string, object>() 
-            { 
-                { XdsAttributesConstants.XdsClientPoolInstance, _xdsClientPool ?? throw new ArgumentNullException(nameof(_xdsClientPool)) },
-                { XdsAttributesConstants.CdsClusterName, clusterName }
-            });
-            return new GrpcNameResolutionResult(new List<GrpcHostAddress>(), config, attributes);
+            _xdsClient.Subscribe(listenerName, new ConfigUpdateObserver(this, observer));
+        }
+
+        public void Unsubscribe()
+        {
+            _observer = null;
+            _target = null;
+            _cancellationTokenSource?.Cancel();
+            _cancellationTokenSource?.Dispose();
+            _cancellationTokenSource = null;
+        }
+
+        public void RefreshResolution()
+        {
+            // Because xDS data is transported via bidirectional ADS, it is not required to refresh
         }
 
         public void Dispose()
@@ -126,6 +109,51 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             {
                 _xdsClientPool?.ReturnObject(_xdsClient); // _xdsClientPool is responsible for calling Dispose on _xdsClient
                 _xdsClient = null; // object returned to the pool should not be used
+            }
+            Unsubscribe();
+        }
+
+        private sealed class ConfigUpdateObserver : IConfigUpdateObserver
+        {
+            private readonly XdsResolverPlugin _resolverPlugin;
+            private readonly IGrpcNameResolutionObserver _observer;
+
+            public ConfigUpdateObserver(XdsResolverPlugin resolverPlugin,IGrpcNameResolutionObserver observer)
+            {
+                _resolverPlugin = resolverPlugin;
+                _observer = observer;
+            }
+
+            public void OnError(Status error)
+            {
+                _observer.OnError(error);
+            }
+
+            public void OnNext(ConfigUpdate configUpdate)
+            {
+                if (configUpdate == null)
+                {
+                    _observer.OnError(new Status(StatusCode.Unavailable, "Empty ConfigUpdate resolved after LDS/RDS"));
+                    return;
+                }
+                var defaultRoute = configUpdate.Routes?.LastOrDefault();
+                if (defaultRoute?.RouteMatch == null || defaultRoute.RouteMatch.Prefix != string.Empty || defaultRoute.RouteAction?.Cluster == null)
+                {
+                    var routesCount = configUpdate.Routes?.Count ?? 0;
+                    _observer.OnError(new Status(StatusCode.Unavailable, $"Cluster name can not be specified. Config update contains ${routesCount} routes."));
+                    return;
+                }
+                var clusterName = defaultRoute.RouteAction.Cluster;
+                var serviceConfig = GrpcServiceConfig.Create("cds_experimental", _resolverPlugin._defaultLoadBalancingPolicy);
+                var config = GrpcServiceConfigOrError.FromConfig(serviceConfig);
+                _resolverPlugin._logger.LogDebug($"Service config created with policies: {string.Join(',', serviceConfig.RequestedLoadBalancingPolicies)}");
+                var attributes = new GrpcAttributes(new Dictionary<string, object>()
+                {
+                    { XdsAttributesConstants.XdsClientPoolInstance, _resolverPlugin._xdsClientPool ?? throw new ArgumentNullException(nameof(_xdsClientPool)) },
+                    { XdsAttributesConstants.CdsClusterName, clusterName }
+                });
+                var result = new GrpcNameResolutionResult(new List<GrpcHostAddress>(), config, attributes);
+                _observer.OnNext(result);
             }
         }
     }
