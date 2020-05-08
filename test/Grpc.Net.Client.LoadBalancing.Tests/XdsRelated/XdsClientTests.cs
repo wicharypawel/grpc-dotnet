@@ -31,14 +31,16 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.XdsRelated
             var adsStream = AsyncDuplexStreamingCallBuilder.InitializeBuilderWithFakeData().OverrideResponseStream(responseStreamMock.Object).Build();
             var channelFactory = new XdsChannelFactory();
             channelFactory.OverrideChannel = new AdsChannelFake(authority, adsStream);
-
+            var configUpdateObserver = new ConfigUpdateObserverFake();
+            
             // Act
             using var client = new XdsClient(bootstrapperFake, NullLoggerFactory.Instance, channelFactory);
-            var configUpdate = await client.GetLdsRdsAsync($"{serviceHostName}:80");
+            client.Subscribe($"{serviceHostName}:80", configUpdateObserver);
+            var configUpdate = await configUpdateObserver.GetFirstValueOrDefaultAsync();
 
             // Assert
             Assert.NotNull(configUpdate);
-            Assert.NotNull(configUpdate.Routes);
+            Assert.NotNull(configUpdate!.Routes);
             Assert.Equal(2, configUpdate.Routes.Count);
             Assert.Equal(string.Empty, configUpdate.Routes[0].RouteMatch.Prefix);
             Assert.Equal(string.Empty, configUpdate.Routes[1].RouteMatch.Prefix);
@@ -65,14 +67,16 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.XdsRelated
             var adsStream = AsyncDuplexStreamingCallBuilder.InitializeBuilderWithFakeData().OverrideResponseStream(responseStreamMock.Object).Build();
             var channelFactory = new XdsChannelFactory();
             channelFactory.OverrideChannel = new AdsChannelFake(authority, adsStream);
-            
+            var configUpdateObserver = new ConfigUpdateObserverFake();
+
             // Act
             using var client = new XdsClient(bootstrapperFake, NullLoggerFactory.Instance, channelFactory);
-            var configUpdate = await client.GetLdsRdsAsync($"{serviceHostName}:80");
+            client.Subscribe($"{serviceHostName}:80", configUpdateObserver);
+            var configUpdate = await configUpdateObserver.GetFirstValueOrDefaultAsync();
 
             // Assert
             Assert.NotNull(configUpdate);
-            Assert.NotNull(configUpdate.Routes);
+            Assert.NotNull(configUpdate!.Routes);
             Assert.Equal(2, configUpdate.Routes.Count);
             Assert.Equal(string.Empty, configUpdate.Routes[0].RouteMatch.Prefix);
             Assert.Equal(string.Empty, configUpdate.Routes[1].RouteMatch.Prefix);
