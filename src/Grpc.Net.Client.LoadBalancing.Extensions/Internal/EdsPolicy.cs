@@ -24,9 +24,6 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         private IXdsClient? _xdsClient;
         internal ISubchannelPicker _subchannelPicker = new EmptyPicker();
 
-        /// <summary>
-        /// LoggerFactory is configured (injected) when class is being instantiated.
-        /// </summary>
         public ILoggerFactory LoggerFactory
         {
             set
@@ -37,14 +34,6 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         }
         internal bool Disposed { get; private set; }
 
-        /// <summary>
-        /// Creates a subchannel to each server address. Depending on policy this may require additional 
-        /// steps eg. using xds protocol and reaching control plane to get list of servers.
-        /// </summary>
-        /// <param name="resolutionResult">Resolved list of servers and/or lookaside load balancers. xDS policy expect an empty list.</param>
-        /// <param name="serviceName">The name of the load balanced service (e.g., service.googleapis.com).</param>
-        /// <param name="isSecureConnection">Flag if connection between client and destination server should be secured.</param>
-        /// <returns>List of subchannels.</returns>
         public async Task CreateSubChannelsAsync(GrpcNameResolutionResult resolutionResult, string serviceName, bool isSecureConnection)
         {
             if (resolutionResult == null)
@@ -81,18 +70,11 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             _logger.LogDebug($"SubChannels list created");
         }
 
-        /// <summary>
-        /// For each RPC sent, the load balancing policy decides which subchannel (i.e., which server) the RPC should be sent to.
-        /// </summary>
-        /// <returns>Selected subchannel.</returns>
         public GrpcPickResult GetNextSubChannel()
         {
             return _subchannelPicker!.PickSubchannel();
         }
 
-        /// <summary>
-        /// Releases the resources used by the <see cref="EdsPolicy"/> class.
-        /// </summary>
         public void Dispose()
         {
             if (Disposed)

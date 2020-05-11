@@ -21,9 +21,6 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         private IXdsClient? _xdsClient;
         private IGrpcLoadBalancingPolicy? _edsPolicy;
 
-        /// <summary>
-        /// LoggerFactory is configured (injected) when class is being instantiated.
-        /// </summary>
         public ILoggerFactory LoggerFactory
         {
             set
@@ -33,21 +30,10 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             }
         }
 
-        /// <summary>
-        /// Property created for testing purposes, allows setter injection
-        /// </summary>
         internal IGrpcLoadBalancingPolicy? OverrideEdsPolicy { private get; set; }
 
         internal bool Disposed { get; private set; }
 
-        /// <summary>
-        /// Creates a subchannel to each server address. Depending on policy this may require additional 
-        /// steps eg. using xds protocol and reaching control plane to get list of servers.
-        /// </summary>
-        /// <param name="resolutionResult">Resolved list of servers and/or lookaside load balancers. xDS policy expect an empty list.</param>
-        /// <param name="serviceName">The name of the load balanced service (e.g., service.googleapis.com).</param>
-        /// <param name="isSecureConnection">Flag if connection between client and destination server should be secured.</param>
-        /// <returns>List of subchannels.</returns>
         public async Task CreateSubChannelsAsync(GrpcNameResolutionResult resolutionResult, string serviceName, bool isSecureConnection)
         {
             if (resolutionResult == null)
@@ -82,18 +68,11 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             await _edsPolicy.CreateSubChannelsAsync(resolutionResultNewAttributes, serviceName, isSecureConnection).ConfigureAwait(false);
         }
 
-        /// <summary>
-        /// For each RPC sent, the load balancing policy decides which subchannel (i.e., which server) the RPC should be sent to.
-        /// </summary>
-        /// <returns>Selected subchannel.</returns>
         public GrpcPickResult GetNextSubChannel()
         {
             return _edsPolicy!.GetNextSubChannel();
         }
 
-        /// <summary>
-        /// Releases the resources used by the <see cref="CdsPolicy"/> class.
-        /// </summary>
         public void Dispose()
         {
             if (Disposed)

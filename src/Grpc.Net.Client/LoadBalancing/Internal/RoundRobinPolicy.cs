@@ -20,9 +20,6 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         private int _subChannelsSelectionCounter = -1;
         private ILogger _logger = NullLogger.Instance;
 
-        /// <summary>
-        /// LoggerFactory is configured (injected) when class is being instantiated.
-        /// </summary>
         public ILoggerFactory LoggerFactory
         {
             set => _logger = value.CreateLogger<RoundRobinPolicy>();
@@ -31,14 +28,6 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         internal IReadOnlyList<GrpcSubChannel> SubChannels { get; set; } = Array.Empty<GrpcSubChannel>();
         internal IReadOnlyList<GrpcPickResult> PickResults { get; set; } = Array.Empty<GrpcPickResult>();
 
-        /// <summary>
-        /// Creates a subchannel to each server address. Depending on policy this may require additional 
-        /// steps eg. reaching out to lookaside loadbalancer.
-        /// </summary>
-        /// <param name="resolutionResult">Resolved list of servers and/or lookaside load balancers.</param>
-        /// <param name="serviceName">The name of the load balanced service (e.g., service.googleapis.com).</param>
-        /// <param name="isSecureConnection">Flag if connection between client and destination server should be secured.</param>
-        /// <returns>List of subchannels.</returns>
         public Task CreateSubChannelsAsync(GrpcNameResolutionResult resolutionResult, string serviceName, bool isSecureConnection)
         {
             if (resolutionResult == null)
@@ -72,18 +61,11 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             return Task.CompletedTask;
         }
 
-        /// <summary>
-        /// For each RPC sent, the load balancing policy decides which subchannel (i.e., which server) the RPC should be sent to.
-        /// </summary>
-        /// <returns>Selected subchannel.</returns>
         public GrpcPickResult GetNextSubChannel()
         {
             return PickResults[Interlocked.Increment(ref _subChannelsSelectionCounter) % PickResults.Count];
         }
 
-        /// <summary>
-        /// Releases the resources used by the <see cref="RoundRobinPolicy"/> class.
-        /// </summary>
         public void Dispose()
         {
         }
