@@ -9,5 +9,10 @@
         /// Key used to set default load balancing policy.
         /// </summary>
         public static readonly string DefaultLoadBalancingPolicy = "default-loadbalancing-policy";
+
+        /// <summary>
+        /// Used to attach load balance token to subchannel.
+        /// </summary>
+        public static readonly string SubChannelLoadBalanceToken = "subchannel-loadbalance-token";
     }
 }

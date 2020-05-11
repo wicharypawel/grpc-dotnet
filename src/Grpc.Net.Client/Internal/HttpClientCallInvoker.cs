@@ -137,7 +137,7 @@ namespace Grpc.Net.Client.Internal
             }
             var scope = Channel.GetCachedGrpcCallScope(method);
             var methodInfo = new GrpcMethodInfo(scope, new Uri(pickResult!.SubChannel!.Address, scope.Uri));
-            var call = new GrpcCall<TRequest, TResponse>(method, methodInfo, options, Channel, pickResult.SubChannel.LoadBalanceToken);
+            var call = new GrpcCall<TRequest, TResponse>(method, methodInfo, options, Channel, pickResult!.SubChannel);
 
             return call;
         }

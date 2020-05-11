@@ -25,6 +25,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Grpc.Core;
+using Grpc.Net.Client.LoadBalancing;
 using Grpc.Shared;
 using Microsoft.Extensions.Logging;
 
@@ -63,7 +64,7 @@ namespace Grpc.Net.Client.Internal
         public HttpContentClientStreamReader<TRequest, TResponse>? ClientStreamReader { get; private set; }
 
         public GrpcCall(Method<TRequest, TResponse> method, GrpcMethodInfo grpcMethodInfo, CallOptions options, 
-            GrpcChannel channel, string? loadBalanceToken = null)
+            GrpcChannel channel, GrpcSubChannel subChannel)
         {
             // Validate deadline before creating any objects that require cleanup
             ValidateDeadline(options.Deadline);
@@ -77,7 +78,7 @@ namespace Grpc.Net.Client.Internal
             Channel = channel;
             Logger = channel.LoggerFactory.CreateLogger(LoggerName);
             _deadline = options.Deadline ?? DateTime.MaxValue;
-            _loadBalanceToken = loadBalanceToken ?? string.Empty;
+            _loadBalanceToken = subChannel.Attributes.Get(GrpcAttributesConstants.SubChannelLoadBalanceToken) as string ?? string.Empty;
         }
 
         private void ValidateDeadline(DateTime? deadline)

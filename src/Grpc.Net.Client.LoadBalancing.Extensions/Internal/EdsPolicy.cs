@@ -100,7 +100,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 uriBuilder.Port = server.Port ?? (_isSecureConnection ? 443 : 80);
                 uriBuilder.Scheme = _isSecureConnection ? "https" : "http";
                 var uri = uriBuilder.Uri;
-                result.Add(new GrpcSubChannel(uri, string.Empty));
+                result.Add(new GrpcSubChannel(uri));
                 _logger.LogDebug($"Found a server {uri}");
             }
             return result;

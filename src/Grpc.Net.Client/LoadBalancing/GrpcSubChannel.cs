@@ -13,29 +13,27 @@ namespace Grpc.Net.Client.LoadBalancing
         public Uri Address { get; }
 
         /// <summary>
-        /// Gets LoadBalanceToken value. Token should be included into the initial metadata when client 
-        /// starts a call to that server. The token is used by the server to report load to the gRPC LB system.
-        /// If token is not present, string.Empty value is returned.
+        /// LoadBalancer can use it to attach additional information.
         /// </summary>
-        public string LoadBalanceToken { get; }
+        public GrpcAttributes Attributes { get; }
 
         /// <summary>
         /// Creates a <see cref="GrpcSubChannel"/> object with subchannel address.
         /// </summary>
-        /// <param name="address">SubChannel address</param>
-        public GrpcSubChannel(Uri address) : this(address, string.Empty)
+        /// <param name="address">SubChannel address.</param>
+        public GrpcSubChannel(Uri address) : this(address, GrpcAttributes.Empty)
         {
         }
 
         /// <summary>
         /// Creates a <see cref="GrpcSubChannel"/> object with subchannel address.
         /// </summary>
-        /// <param name="address">SubChannel address</param>
-        /// <param name="loadBalanceToken">LoadBalanceToken for subchannel</param>
-        public GrpcSubChannel(Uri address, string loadBalanceToken)
+        /// <param name="address">SubChannel address.</param>
+        /// <param name="attributes">Additional information for subchannel.</param>
+        public GrpcSubChannel(Uri address, GrpcAttributes attributes)
         {
-            Address = address;
-            LoadBalanceToken = loadBalanceToken ?? string.Empty;
+            Address = address ?? throw new ArgumentNullException(nameof(address));
+            Attributes = attributes ?? GrpcAttributes.Empty;
         }
     }
 }
