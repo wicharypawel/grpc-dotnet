@@ -5,9 +5,9 @@ using Grpc.Net.Client.LoadBalancing.Extensions.Internal;
 namespace Grpc.Net.Client.LoadBalancing.Extensions
 {
     /// <summary>
-    /// An options class for configuring a <see cref="DnsClientResolverPlugin"/>.
+    /// An options class for configuring a <see cref="DnsAdvancedResolverPlugin"/>.
     /// </summary>
-    public sealed class DnsClientResolverPluginOptions
+    public sealed class DnsAdvancedResolverPluginOptions
     {
         /// <summary>
         /// Allows override dns nameservers used during lookup. Default value is an empty list.
@@ -26,9 +26,9 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions
         public bool EnableSrvGrpclb { get; set; }
 
         /// <summary>
-        /// Creates a <seealso cref="DnsClientResolverPluginOptions"/> options class with default values.
+        /// Creates a <seealso cref="DnsAdvancedResolverPluginOptions"/> options class with default values.
         /// </summary>
-        public DnsClientResolverPluginOptions()
+        public DnsAdvancedResolverPluginOptions()
         {
             NameServers = Array.Empty<IPEndPoint>();
             EnableTxtServiceConfig = false;

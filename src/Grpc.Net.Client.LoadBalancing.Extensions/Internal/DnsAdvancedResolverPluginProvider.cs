@@ -2,7 +2,7 @@
 
 namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 {
-    internal sealed class DnsClientResolverPluginProvider : IGrpcResolverPluginProvider
+    internal sealed class DnsAdvancedResolverPluginProvider : IGrpcResolverPluginProvider
     {
         public string Scheme => "dns";
 
@@ -16,7 +16,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             {
                 throw new ArgumentException(nameof(target));
             }
-            return new DnsClientResolverPlugin(attributes);
+            return new DnsAdvancedResolverPlugin(attributes);
         }
     }
 }

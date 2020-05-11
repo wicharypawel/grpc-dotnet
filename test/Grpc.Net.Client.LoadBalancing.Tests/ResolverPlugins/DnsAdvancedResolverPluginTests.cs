@@ -13,7 +13,7 @@ using Xunit;
 
 namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
 {
-    public sealed class DnsClientResolverPluginTests
+    public sealed class DnsAdvancedResolverPluginTests
     {
         [Theory]
         [InlineData("http")]
@@ -22,7 +22,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
         public async Task ForTargetWithNonDnsScheme_UseDnsClientResolverPlugin_ThrowArgumentException(string scheme)
         {
             // Arrange
-            var resolverPlugin = new DnsClientResolverPlugin();
+            var resolverPlugin = new DnsAdvancedResolverPlugin();
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
             // Act
@@ -54,7 +54,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             dnsClientMock.Setup(x => x.QueryAsync(serviceHostName, QueryType.A, QueryClass.IN, default))
                 .Returns(Task.FromResult(aServersDnsQueryResponse.Object));
 
-            var resolverPlugin = new DnsClientResolverPlugin();
+            var resolverPlugin = new DnsAdvancedResolverPlugin();
             resolverPlugin.OverrideDnsClient = dnsClientMock.Object;
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
@@ -91,9 +91,9 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             dnsClientMock.Setup(x => x.QueryAsync(serviceHostName, QueryType.A, QueryClass.IN, default))
                 .Returns(Task.FromResult(aServersDnsQueryResponse.Object));
 
-            var resolverPluginOptions = new DnsClientResolverPluginOptions() { EnableSrvGrpclb = true };
+            var resolverPluginOptions = new DnsAdvancedResolverPluginOptions() { EnableSrvGrpclb = true };
             var attributes = new GrpcAttributes(new Dictionary<string, object>() { { GrpcAttributesLbConstants.DnsResolverOptions, resolverPluginOptions } });
-            var resolverPlugin = new DnsClientResolverPlugin(attributes);
+            var resolverPlugin = new DnsAdvancedResolverPlugin(attributes);
             resolverPlugin.OverrideDnsClient = dnsClientMock.Object;
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
@@ -135,9 +135,9 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             dnsClientMock.Setup(x => x.QueryAsync(serviceHostName, QueryType.A, QueryClass.IN, default))
                 .Returns(Task.FromResult(aServersDnsQueryResponse.Object));
 
-            var resolverPluginOptions = new DnsClientResolverPluginOptions() { EnableSrvGrpclb = false, EnableTxtServiceConfig = false };
+            var resolverPluginOptions = new DnsAdvancedResolverPluginOptions() { EnableSrvGrpclb = false, EnableTxtServiceConfig = false };
             var attributes = new GrpcAttributes(new Dictionary<string, object>() { { GrpcAttributesLbConstants.DnsResolverOptions, resolverPluginOptions } });
-            var resolverPlugin = new DnsClientResolverPlugin(attributes);
+            var resolverPlugin = new DnsAdvancedResolverPlugin(attributes);
             resolverPlugin.OverrideDnsClient = dnsClientMock.Object;
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
@@ -178,9 +178,9 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             dnsClientMock.Setup(x => x.QueryAsync(serviceHostName, QueryType.A, QueryClass.IN, default))
                 .Returns(Task.FromResult(aServersDnsQueryResponse.Object));
 
-            var resolverPluginOptions = new DnsClientResolverPluginOptions() { EnableSrvGrpclb = true, EnableTxtServiceConfig = true };
+            var resolverPluginOptions = new DnsAdvancedResolverPluginOptions() { EnableSrvGrpclb = true, EnableTxtServiceConfig = true };
             var attributes = new GrpcAttributes(new Dictionary<string, object>() { { GrpcAttributesLbConstants.DnsResolverOptions, resolverPluginOptions } });
-            var resolverPlugin = new DnsClientResolverPlugin(attributes);
+            var resolverPlugin = new DnsAdvancedResolverPlugin(attributes);
             resolverPlugin.OverrideDnsClient = dnsClientMock.Object;
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
@@ -222,9 +222,9 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             dnsClientMock.Setup(x => x.QueryAsync(serviceHostName, QueryType.A, QueryClass.IN, default))
                 .Returns(Task.FromResult(aServersDnsQueryResponse.Object));
 
-            var resolverPluginOptions = new DnsClientResolverPluginOptions() { EnableSrvGrpclb = true, EnableTxtServiceConfig = true };
+            var resolverPluginOptions = new DnsAdvancedResolverPluginOptions() { EnableSrvGrpclb = true, EnableTxtServiceConfig = true };
             var attributes = new GrpcAttributes(new Dictionary<string, object>() { { GrpcAttributesLbConstants.DnsResolverOptions, resolverPluginOptions } });
-            var resolverPlugin = new DnsClientResolverPlugin(attributes);
+            var resolverPlugin = new DnsAdvancedResolverPlugin(attributes);
             resolverPlugin.OverrideDnsClient = dnsClientMock.Object;
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
@@ -266,12 +266,12 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             dnsClientMock.Setup(x => x.QueryAsync(serviceHostName, QueryType.A, QueryClass.IN, default))
                 .Returns(Task.FromResult(aServersDnsQueryResponse.Object));
 
-            var resolverPluginOptions = new DnsClientResolverPluginOptions() { EnableSrvGrpclb = false, EnableTxtServiceConfig = false };
+            var resolverPluginOptions = new DnsAdvancedResolverPluginOptions() { EnableSrvGrpclb = false, EnableTxtServiceConfig = false };
             var attributes = new GrpcAttributes(new Dictionary<string, object>() { 
                 { GrpcAttributesConstants.DefaultLoadBalancingPolicy, "round_robin" },
                 { GrpcAttributesLbConstants.DnsResolverOptions, resolverPluginOptions }
             });
-            var resolverPlugin = new DnsClientResolverPlugin(attributes);
+            var resolverPlugin = new DnsAdvancedResolverPlugin(attributes);
             resolverPlugin.OverrideDnsClient = dnsClientMock.Object;
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 

@@ -15,9 +15,9 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
     /// a list of resolved addresses (both IP address and port).
     /// More: https://github.com/grpc/grpc/blob/master/doc/naming.md
     /// </summary>
-    internal sealed class DnsClientResolverPlugin : IGrpcResolverPlugin
+    internal sealed class DnsAdvancedResolverPlugin : IGrpcResolverPlugin
     {
-        private DnsClientResolverPluginOptions _options;
+        private DnsAdvancedResolverPluginOptions _options;
         private ILogger _logger = NullLogger.Instance;
         private readonly string _defaultLoadBalancingPolicy;
         private Uri? _target = null;
@@ -29,7 +29,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         /// </summary>
         public ILoggerFactory LoggerFactory
         {
-            set => _logger = value.CreateLogger<DnsClientResolverPlugin>();
+            set => _logger = value.CreateLogger<DnsAdvancedResolverPlugin>();
         }
 
         /// <summary>
@@ -38,20 +38,20 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         internal IDnsQuery? OverrideDnsClient { private get; set; }
 
         /// <summary>
-        /// Creates a <seealso cref="DnsClientResolverPlugin"/> using default <seealso cref="DnsClientResolverPluginOptions"/>.
+        /// Creates a <seealso cref="DnsAdvancedResolverPlugin"/> using default <seealso cref="DnsAdvancedResolverPluginOptions"/>.
         /// </summary>
-        public DnsClientResolverPlugin() : this(GrpcAttributes.Empty)
+        public DnsAdvancedResolverPlugin() : this(GrpcAttributes.Empty)
         {
         }
 
         /// <summary>
-        /// Creates a <seealso cref="DnsClientResolverPlugin"/> using specified <seealso cref="GrpcAttributes"/>.
+        /// Creates a <seealso cref="DnsAdvancedResolverPlugin"/> using specified <seealso cref="GrpcAttributes"/>.
         /// </summary>
         /// <param name="attributes">Attributes with options.</param>
-        public DnsClientResolverPlugin(GrpcAttributes attributes)
+        public DnsAdvancedResolverPlugin(GrpcAttributes attributes)
         {
-            var options = attributes.Get(GrpcAttributesLbConstants.DnsResolverOptions) as DnsClientResolverPluginOptions;
-            _options = options ?? new DnsClientResolverPluginOptions();
+            var options = attributes.Get(GrpcAttributesLbConstants.DnsResolverOptions) as DnsAdvancedResolverPluginOptions;
+            _options = options ?? new DnsAdvancedResolverPluginOptions();
             _defaultLoadBalancingPolicy = attributes.Get(GrpcAttributesConstants.DefaultLoadBalancingPolicy) as string
                 ?? "pick_first";
         }
@@ -114,7 +114,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             }
             if (!target.Scheme.Equals("dns", StringComparison.OrdinalIgnoreCase))
             {
-                observer.OnError(new Core.Status(Core.StatusCode.Unavailable, $"{nameof(DnsClientResolverPlugin)} require dns:// scheme to set as target address."));
+                observer.OnError(new Core.Status(Core.StatusCode.Unavailable, $"{nameof(DnsAdvancedResolverPlugin)} require dns:// scheme to set as target address."));
                 return;
             }
             var host = target.Host;
