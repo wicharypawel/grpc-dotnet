@@ -85,7 +85,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         /// For each RPC sent, the load balancing policy decides which subchannel (i.e., which server) the RPC should be sent to.
         /// </summary>
         /// <returns>Selected subchannel.</returns>
-        public GrpcSubChannel GetNextSubChannel()
+        public GrpcPickResult GetNextSubChannel()
         {
             return _subchannelPicker!.PickSubchannel();
         }

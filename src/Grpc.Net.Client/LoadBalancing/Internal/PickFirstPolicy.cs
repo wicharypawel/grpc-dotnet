@@ -16,6 +16,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         }
 
         internal IReadOnlyList<GrpcSubChannel> SubChannels { get; set; } = Array.Empty<GrpcSubChannel>();
+        internal IReadOnlyList<GrpcPickResult> PickResults { get; set; } = Array.Empty<GrpcPickResult>();
 
         public Task CreateSubChannelsAsync(GrpcNameResolutionResult resolutionResult, string serviceName, bool isSecureConnection)
         {
@@ -45,12 +46,13 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             _logger.LogDebug($"Found a server {uri}");
             _logger.LogDebug($"SubChannels list created");
             SubChannels = result;
+            PickResults = result.Select(x => GrpcPickResult.WithSubChannel(x)).ToArray();
             return Task.CompletedTask;
         }
 
-        public GrpcSubChannel GetNextSubChannel()
+        public GrpcPickResult GetNextSubChannel()
         {
-            return SubChannels[0];
+            return PickResults[0];
         }
 
         public void Dispose()

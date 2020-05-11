@@ -1,13 +1,11 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using System;
 using System.Threading.Tasks;
 
 namespace Grpc.Net.Client.LoadBalancing.Internal
 {
     internal sealed class EmptyPolicy : IGrpcLoadBalancingPolicy
     {
-        internal static readonly GrpcSubChannel NoResultSubChannel = new GrpcSubChannel(new Uri("not-found://magic-value"));
         private ILogger _logger = NullLogger.Instance;
         
         public ILoggerFactory LoggerFactory
@@ -22,10 +20,9 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             return Task.CompletedTask;
         }
 
-        public GrpcSubChannel GetNextSubChannel()
+        public GrpcPickResult GetNextSubChannel()
         {
-            // TODO change IGrpcLoadBalancingPolicy interface to return channels wrapped in object with special value for no-result
-            return NoResultSubChannel; 
+            return GrpcPickResult.WithNoResult(); 
         }
 
         public void Dispose()

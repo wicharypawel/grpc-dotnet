@@ -29,6 +29,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         }
 
         internal IReadOnlyList<GrpcSubChannel> SubChannels { get; set; } = Array.Empty<GrpcSubChannel>();
+        internal IReadOnlyList<GrpcPickResult> PickResults { get; set; } = Array.Empty<GrpcPickResult>();
 
         /// <summary>
         /// Creates a subchannel to each server address. Depending on policy this may require additional 
@@ -67,6 +68,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             }).ToList();
             _logger.LogDebug($"SubChannels list created");
             SubChannels = result;
+            PickResults = result.Select(x => GrpcPickResult.WithSubChannel(x)).ToArray();
             return Task.CompletedTask;
         }
 
@@ -74,9 +76,9 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         /// For each RPC sent, the load balancing policy decides which subchannel (i.e., which server) the RPC should be sent to.
         /// </summary>
         /// <returns>Selected subchannel.</returns>
-        public GrpcSubChannel GetNextSubChannel()
+        public GrpcPickResult GetNextSubChannel()
         {
-            return SubChannels[Interlocked.Increment(ref _subChannelsSelectionCounter) % SubChannels.Count];
+            return PickResults[Interlocked.Increment(ref _subChannelsSelectionCounter) % PickResults.Count];
         }
 
         /// <summary>

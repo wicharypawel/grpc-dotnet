@@ -46,8 +46,10 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         }
         internal bool Disposed { get; private set; }
         internal IReadOnlyList<GrpcSubChannel> FallbackSubChannels { get; set; } = Array.Empty<GrpcSubChannel>();
+        internal IReadOnlyList<GrpcPickResult> FallbackPickResults { get; set; } = Array.Empty<GrpcPickResult>();
         internal int SubChannelsCacheHash { get; private set; } = 0;
         internal IReadOnlyList<GrpcSubChannel> SubChannels { get; set; } = Array.Empty<GrpcSubChannel>();
+        internal IReadOnlyList<GrpcPickResult> PickResults { get; set; } = Array.Empty<GrpcPickResult>();
 
         /// <summary>
         /// Property created for testing purposes, allows setter injection
@@ -108,14 +110,14 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         /// For each RPC sent, the load balancing policy decides which subchannel (i.e., which server) the RPC should be sent to.
         /// </summary>
         /// <returns>Selected subchannel.</returns>
-        public GrpcSubChannel GetNextSubChannel()
+        public GrpcPickResult GetNextSubChannel()
         {
-            if (_isFallback && FallbackSubChannels.Count > 0)
+            if (_isFallback && FallbackPickResults.Count > 0)
             {
-                return FallbackSubChannels[Interlocked.Increment(ref _subChannelsSelectionCounter) % FallbackSubChannels.Count];
+                return FallbackPickResults[Interlocked.Increment(ref _subChannelsSelectionCounter) % FallbackPickResults.Count];
             }
             Interlocked.Increment(ref _requestsCounter);
-            return SubChannels[Interlocked.Increment(ref _subChannelsSelectionCounter) % SubChannels.Count];
+            return PickResults[Interlocked.Increment(ref _subChannelsSelectionCounter) % PickResults.Count];
         }
 
         /// <summary>
@@ -216,6 +218,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 _logger.LogDebug($"Found a server {uri}");
             }
             SubChannels = result;
+            PickResults = result.Select(x => GrpcPickResult.WithSubChannel(x)).ToArray();
             return Task.CompletedTask;
         }
 
@@ -232,6 +235,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 _logger.LogDebug($"Using fallback server {uri}");
                 return new GrpcSubChannel(uri);
             }).ToList();
+            FallbackPickResults = FallbackSubChannels.Select(x => GrpcPickResult.WithSubChannel(x)).ToArray();
             return Task.CompletedTask;
         }
 

@@ -1,7 +1,9 @@
+using Grpc.Core;
 using Grpc.Net.Client.LoadBalancing.Internal;
 using Grpc.Net.Client.LoadBalancing.Tests.Policies.Factories;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -137,15 +139,19 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             using var policy = new RoundRobinPolicy();
             var subChannels = GrpcSubChannelFactory.GetSubChannelsWithoutLoadBalanceTokens();
             policy.SubChannels = subChannels;
+            policy.PickResults = subChannels.Select(x => GrpcPickResult.WithSubChannel(x)).ToArray();
 
             // Act
             // Assert
             for (int i = 0; i < 30; i++)
             {
-                var subChannel = policy.GetNextSubChannel();
-                Assert.Equal(subChannels[i % subChannels.Count].Address.Host, subChannel.Address.Host);
-                Assert.Equal(subChannels[i % subChannels.Count].Address.Port, subChannel.Address.Port);
-                Assert.Equal(subChannels[i % subChannels.Count].Address.Scheme, subChannel.Address.Scheme);
+                var pickResult = policy.GetNextSubChannel();
+                Assert.NotNull(pickResult);
+                Assert.NotNull(pickResult!.SubChannel);
+                Assert.Equal(subChannels[i % subChannels.Count].Address.Host, pickResult!.SubChannel!.Address.Host);
+                Assert.Equal(subChannels[i % subChannels.Count].Address.Port, pickResult.SubChannel.Address.Port);
+                Assert.Equal(subChannels[i % subChannels.Count].Address.Scheme, pickResult.SubChannel.Address.Scheme);
+                Assert.Equal(Status.DefaultSuccess, pickResult.Status);
             }
         }
     }

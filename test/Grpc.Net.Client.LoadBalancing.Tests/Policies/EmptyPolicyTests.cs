@@ -1,3 +1,4 @@
+using Grpc.Core;
 using Grpc.Net.Client.LoadBalancing.Internal;
 using Xunit;
 
@@ -11,10 +12,12 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             // Arrange
             // Act
             using var policy = new EmptyPolicy();
-            var subChannel = policy.GetNextSubChannel();
+            var pickResult = policy.GetNextSubChannel();
 
             // Assert
-            Assert.Equal(EmptyPolicy.NoResultSubChannel, subChannel);
+            Assert.NotNull(pickResult);
+            Assert.Null(pickResult.SubChannel);
+            Assert.Equal(Status.DefaultSuccess, pickResult.Status);
         }
     }
 }
