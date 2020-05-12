@@ -6,7 +6,6 @@ namespace Grpc.Net.Client.LoadBalancing
 {
     /// <summary>
     /// The load balancing policy creates a subchannel to each server address.
-    /// For each RPC sent, the load balancing policy decides which subchannel (i.e., which server) the RPC should be sent to.
     /// </summary>
     public interface IGrpcLoadBalancingPolicy : IDisposable
     {
@@ -24,11 +23,5 @@ namespace Grpc.Net.Client.LoadBalancing
         /// <param name="isSecureConnection">Flag if connection between client and destination server should be secured.</param>
         /// <returns>List of subchannels.</returns>
         Task CreateSubChannelsAsync(GrpcNameResolutionResult resolutionResult, string serviceName, bool isSecureConnection);
-
-        /// <summary>
-        /// For each RPC sent, the load balancing policy decides which subchannel (i.e., which server) the RPC should be sent to.
-        /// </summary>
-        /// <returns>A balancing decision for a new RPC.</returns>
-        GrpcPickResult GetNextSubChannel();
     }
 }

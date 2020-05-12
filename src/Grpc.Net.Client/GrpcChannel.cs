@@ -147,6 +147,11 @@ namespace Grpc.Net.Client
             throw new InvalidOperationException("LoadBalancingPolicyProvider for requested policy not found");
         }
 
+        internal void UpdateSubchannelPicker(IGrpcSubChannelPicker newPicker)
+        {
+            //TODO assign picker to channel
+        }
+
         private static HttpClient CreateInternalHttpClient()
         {
             var httpClient = new HttpClient();
