@@ -1,4 +1,4 @@
-#region Copyright notice and license
+﻿#region Copyright notice and license
 
 // Copyright 2019 The gRPC Authors
 //
@@ -56,6 +56,7 @@ namespace Grpc.Net.Client
         internal IGrpcHelper Helper { get; }
         internal IGrpcResolverPlugin ResolverPlugin { get; }
         internal IGrpcLoadBalancingPolicy LoadBalancingPolicy { get; set; }
+        internal IGrpcSubChannelPicker SubChannelPicker { get; set; }
         internal GrpcConnectivityStateManager ChannelStateManager { get; } = new GrpcConnectivityStateManager();
         internal bool Disposed { get; private set; }
         // Timing related options that are set in unit tests
@@ -101,6 +102,7 @@ namespace Grpc.Net.Client
             }
             Helper = new GrpcHelper(this);
             LoadBalancingPolicy = new EmptyPolicy(Helper);
+            SubChannelPicker = new EmptyPolicy.Picker();
             channelOptions.Attributes = channelOptions.Attributes.Add(GrpcAttributesConstants.DefaultLoadBalancingPolicy, channelOptions.DefaultLoadBalancingPolicy);
             ResolverPlugin = CreateResolverPlugin(Address, LoggerFactory, channelOptions.Attributes);
             ResolverPlugin.LoggerFactory = LoggerFactory;
@@ -151,7 +153,7 @@ namespace Grpc.Net.Client
 
         internal void UpdateSubchannelPicker(IGrpcSubChannelPicker newPicker)
         {
-            //TODO assign picker to channel
+            SubChannelPicker = newPicker;
         }
 
         private static HttpClient CreateInternalHttpClient()

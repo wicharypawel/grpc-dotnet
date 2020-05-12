@@ -66,17 +66,12 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             var clustersUpdate = await _xdsClient.GetCdsAsync(clusterName, serviceName).ConfigureAwait(false);
             var registry = GrpcLoadBalancingPolicyRegistry.GetDefaultRegistry(_loggerFactory);
             var edsPolicyProvider = registry.GetProvider(clustersUpdate.LbPolicy);
-            _edsPolicy = OverrideEdsPolicy ?? edsPolicyProvider!.CreateLoadBalancingPolicy();
+            _edsPolicy = OverrideEdsPolicy ?? edsPolicyProvider!.CreateLoadBalancingPolicy(_helper);
             _edsPolicy.LoggerFactory = _loggerFactory;
             var resolutionResultNewAttributes = new GrpcNameResolutionResult(resolutionResult.HostsAddresses, resolutionResult.ServiceConfig,
                 resolutionResult.Attributes.Add(XdsAttributesConstants.EdsClusterName, clustersUpdate.EdsServiceName ?? clusterName)); 
             _logger.LogDebug($"CDS create EDS");
             await _edsPolicy.CreateSubChannelsAsync(resolutionResultNewAttributes, serviceName, isSecureConnection).ConfigureAwait(false);
-        }
-
-        public GrpcPickResult GetNextSubChannel()
-        {
-            return _edsPolicy!.GetNextSubChannel();
         }
 
         public void Dispose()

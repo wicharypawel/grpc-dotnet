@@ -1,6 +1,7 @@
 using Grpc.Core;
 using Grpc.Net.Client.LoadBalancing.Extensions.Internal;
 using Grpc.Net.Client.LoadBalancing.Tests.Policies.Factories;
+using Grpc.Net.Client.LoadBalancing.Tests.Policies.Fakes;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System;
@@ -17,7 +18,8 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         public async Task ForEmptyServiceName_UseEdsPolicy_ThrowArgumentException()
         {
             // Arrange
-            using var policy = new EdsPolicy();
+            var helper = new HelperFake();
+            using var policy = new EdsPolicy(helper);
             var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(0, 0);
             var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
             var resolutionResults = new GrpcNameResolutionResult(hostsAddresses, config, GrpcAttributes.Empty);
@@ -42,7 +44,8 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         public async Task ForNonEmptyResolutionPassed_UseEdsPolicy_ThrowArgumentException(int balancersCount, int serversCount)
         {
             // Arrange
-            using var policy = new EdsPolicy();
+            var helper = new HelperFake();
+            using var policy = new EdsPolicy(helper);
             var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(balancersCount, serversCount);
             var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
             var resolutionResults = new GrpcNameResolutionResult(hostsAddresses, config, GrpcAttributes.Empty);
@@ -69,7 +72,8 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             xdsClientFactory.OverrideXdsClient = xdsClientMock.Object;
             var xdsClientPool = new XdsClientObjectPool(xdsClientFactory, NullLoggerFactory.Instance);
 
-            using var policy = new EdsPolicy();
+            var helper = new HelperFake();
+            using var policy = new EdsPolicy(helper);
             var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(0, 0);
             var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
             var attributes = new GrpcAttributes(new Dictionary<string, object> 
@@ -81,7 +85,8 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
 
             // Act
             await policy.CreateSubChannelsAsync(resolutionResults, serviceName, false);
-            var subChannels = ((WeightedRandomPicker)policy._subchannelPicker)._weightedPickers
+            IGrpcSubChannelPicker picker = helper?.SubChannelPicker ?? throw new ArgumentNullException();
+            var subChannels = ((WeightedRandomPicker)picker)._weightedPickers
                 .Select(x => (RoundRobinPicker)x.ChildPicker)
                 .SelectMany(x => x.SubChannels).ToList();
 
@@ -112,9 +117,8 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         public void ForGrpcSubChannels_UseEdsPolicySelectChannels_SelectChannelsInRoundRobin()
         {
             // Arrange
-            using var policy = new EdsPolicy();
             var subChannels = GrpcSubChannelFactory.GetSubChannelsWithoutLoadBalanceTokens();
-            policy._subchannelPicker = new WeightedRandomPicker(new List<WeightedRandomPicker.WeightedChildPicker>()
+            var picker = new WeightedRandomPicker(new List<WeightedRandomPicker.WeightedChildPicker>()
             {
                 new WeightedRandomPicker.WeightedChildPicker(1, new RoundRobinPicker(subChannels))
             });
@@ -123,7 +127,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             // Assert
             for (int i = 0; i < 30; i++)
             {
-                var pickResult = policy.GetNextSubChannel();
+                var pickResult = picker.GetNextSubChannel();
                 Assert.NotNull(pickResult);
                 Assert.NotNull(pickResult!.SubChannel);
                 Assert.Equal(subChannels[i % subChannels.Count].Address.Host, pickResult!.SubChannel!.Address.Host);

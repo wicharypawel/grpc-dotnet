@@ -24,14 +24,12 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         private TimeSpan _clientStatsReportInterval = TimeSpan.Zero;
         private bool _isSecureConnection = false;
         private int _requestsCounter = 0;
-        private int _subChannelsSelectionCounter = -1;
         private ILogger _logger = NullLogger.Instance;
         private ILoggerFactory _loggerFactory = NullLoggerFactory.Instance;
         private ILoadBalancerClient? _loadBalancerClient;
         private IAsyncDuplexStreamingCall<LoadBalanceRequest, LoadBalanceResponse>? _balancingStreaming;
         private ITimer? _timer;
         private IReadOnlyList<GrpcHostAddress> _fallbackAddresses = Array.Empty<GrpcHostAddress>();
-        private bool _isFallback = false;
         private readonly IGrpcHelper _helper;
 
         public GrpclbPolicy(IGrpcHelper helper)
@@ -49,10 +47,8 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         }
         internal bool Disposed { get; private set; }
         internal IReadOnlyList<GrpcSubChannel> FallbackSubChannels { get; set; } = Array.Empty<GrpcSubChannel>();
-        internal IReadOnlyList<GrpcPickResult> FallbackPickResults { get; set; } = Array.Empty<GrpcPickResult>();
         internal int SubChannelsCacheHash { get; private set; } = 0;
         internal IReadOnlyList<GrpcSubChannel> SubChannels { get; set; } = Array.Empty<GrpcSubChannel>();
-        internal IReadOnlyList<GrpcPickResult> PickResults { get; set; } = Array.Empty<GrpcPickResult>();
 
         internal ITimer? OverrideTimer { private get; set; }
 
@@ -95,16 +91,6 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             }
         }
 
-        public GrpcPickResult GetNextSubChannel()
-        {
-            if (_isFallback && FallbackPickResults.Count > 0)
-            {
-                return FallbackPickResults[Interlocked.Increment(ref _subChannelsSelectionCounter) % FallbackPickResults.Count];
-            }
-            Interlocked.Increment(ref _requestsCounter);
-            return PickResults[Interlocked.Increment(ref _subChannelsSelectionCounter) % PickResults.Count];
-        }
-
         public void Dispose()
         {
             if (Disposed)
@@ -144,11 +130,9 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 case LoadBalanceResponse.LoadBalanceResponseTypeOneofCase.InitialResponse:
                     throw new InvalidOperationException("Unexpected InitialResponse.");
                 case LoadBalanceResponse.LoadBalanceResponseTypeOneofCase.ServerList:
-                    _isFallback = false;
                     await UseServerListSubChannelsAsync(responseStream.Current.ServerList).ConfigureAwait(false);
                     break;
                 case LoadBalanceResponse.LoadBalanceResponseTypeOneofCase.FallbackResponse:
-                    _isFallback = true;
                     await UseFallbackSubChannelsAsync().ConfigureAwait(false);
                     break;
                 default:
@@ -200,7 +184,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 _logger.LogDebug($"Found a server {uri}");
             }
             SubChannels = result;
-            PickResults = result.Select(x => GrpcPickResult.WithSubChannel(x)).ToArray();
+            _helper.UpdateBalancingState(GrpcConnectivityState.READY, new Picker(SubChannels));
             return Task.CompletedTask;
         }
 
@@ -217,7 +201,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 _logger.LogDebug($"Using fallback server {uri}");
                 return new GrpcSubChannel(uri);
             }).ToList();
-            FallbackPickResults = FallbackSubChannels.Select(x => GrpcPickResult.WithSubChannel(x)).ToArray();
+            _helper.UpdateBalancingState(GrpcConnectivityState.READY, new Picker(FallbackSubChannels));
             return Task.CompletedTask;
         }
 
@@ -248,6 +232,27 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             {
                 return sequence.Aggregate(seed, (current, item) =>
                     current * modifier + item!.GetHashCode());
+            }
+        }
+
+        internal sealed class Picker : IGrpcSubChannelPicker
+        {
+            private readonly IReadOnlyList<GrpcSubChannel> _subChannels;
+            private int _subChannelsSelectionCounter = -1;
+
+            public Picker(IReadOnlyList<GrpcSubChannel> subChannels)
+            {
+                _subChannels = subChannels ?? throw new ArgumentNullException(nameof(subChannels));
+            }
+
+            public GrpcPickResult GetNextSubChannel()
+            {
+                var nextSubChannel = _subChannels[Interlocked.Increment(ref _subChannelsSelectionCounter) % _subChannels.Count];
+                return GrpcPickResult.WithSubChannel(nextSubChannel);
+            }
+
+            public void Dispose()
+            {
             }
         }
     }

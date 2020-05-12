@@ -5,7 +5,7 @@ using System.Threading;
 
 namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 {
-    internal sealed class WeightedRandomPicker : ISubchannelPicker
+    internal sealed class WeightedRandomPicker : IGrpcSubChannelPicker
     {
         internal readonly IReadOnlyList<WeightedChildPicker> _weightedPickers;
         private readonly Random _random;
@@ -35,11 +35,11 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             _totalWeight = weightedChildPickers.Sum(x => x.Weight);
         }
 
-        public GrpcPickResult PickSubchannel()
+        public GrpcPickResult GetNextSubChannel()
         {
             if (_totalWeight == 0)
             {
-                return _weightedPickers[_random.Next(_weightedPickers.Count)].ChildPicker.PickSubchannel();
+                return _weightedPickers[_random.Next(_weightedPickers.Count)].ChildPicker.GetNextSubChannel();
             }
             var randomWeight = _random.Next(_totalWeight);
             var accumulatedWeight = 0;
@@ -48,18 +48,22 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 accumulatedWeight += _weightedPickers[i].Weight;
                 if (randomWeight < accumulatedWeight)
                 {
-                    return _weightedPickers[i].ChildPicker.PickSubchannel();
+                    return _weightedPickers[i].ChildPicker.GetNextSubChannel();
                 }
             }
             throw new InvalidOperationException("ChildPicker not found.");
         }
 
+        public void Dispose()
+        {
+        }
+
         internal sealed class WeightedChildPicker
         {
             public int Weight { get; }
-            public ISubchannelPicker ChildPicker { get; }
+            public IGrpcSubChannelPicker ChildPicker { get; }
 
-            public WeightedChildPicker(int weight, ISubchannelPicker childPicker)
+            public WeightedChildPicker(int weight, IGrpcSubChannelPicker childPicker)
             {
                 if (!(weight >= 0))
                 {
@@ -75,7 +79,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         }
     }
 
-    internal sealed class RoundRobinPicker : ISubchannelPicker
+    internal sealed class RoundRobinPicker : IGrpcSubChannelPicker
     {
         private int _subChannelsSelectionCounter = -1;
         internal IReadOnlyList<GrpcSubChannel> SubChannels { get; set; } = Array.Empty<GrpcSubChannel>();
@@ -87,25 +91,25 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             PickResults = subChannels.Select(x => GrpcPickResult.WithSubChannel(x)).ToArray();
         }
 
-        public GrpcPickResult PickSubchannel()
+        public GrpcPickResult GetNextSubChannel()
         {
             return PickResults[Interlocked.Increment(ref _subChannelsSelectionCounter) % PickResults.Count];
         }
-    }
 
-    internal sealed class EmptyPicker : ISubchannelPicker
-    {
-        public GrpcPickResult PickSubchannel()
+        public void Dispose()
         {
-            return GrpcPickResult.WithNoResult();
         }
     }
 
-    // TODO make this interface used by all policies
-    // TODO this interface should be public
-    // based on: https://github.com/grpc/grpc-java/blob/master/api/src/main/java/io/grpc/LoadBalancer.java
-    internal interface ISubchannelPicker
+    internal sealed class EmptyPicker : IGrpcSubChannelPicker
     {
-        public abstract GrpcPickResult PickSubchannel();
+        public GrpcPickResult GetNextSubChannel()
+        {
+            return GrpcPickResult.WithNoResult();
+        }
+
+        public void Dispose()
+        {
+        }
     }
 }

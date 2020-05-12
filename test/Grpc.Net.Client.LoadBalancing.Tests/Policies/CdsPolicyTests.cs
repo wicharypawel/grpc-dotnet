@@ -1,5 +1,6 @@
 using Grpc.Net.Client.LoadBalancing.Extensions.Internal;
 using Grpc.Net.Client.LoadBalancing.Tests.Policies.Factories;
+using Grpc.Net.Client.LoadBalancing.Tests.Policies.Fakes;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System;
@@ -15,7 +16,8 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         public async Task ForEmptyServiceName_UseCdsPolicy_ThrowArgumentException()
         {
             // Arrange
-            using var policy = new CdsPolicy();
+            var helper = new HelperFake();
+            using var policy = new CdsPolicy(helper);
             var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(0, 0);
             var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
             var resolutionResults = new GrpcNameResolutionResult(hostsAddresses, config, GrpcAttributes.Empty);
@@ -40,7 +42,8 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         public async Task ForNonEmptyResolutionPassed_UseCdsPolicy_ThrowArgumentException(int balancersCount, int serversCount)
         {
             // Arrange
-            using var policy = new CdsPolicy();
+            var helper = new HelperFake();
+            using var policy = new CdsPolicy(helper);
             var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(balancersCount, serversCount);
             var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
             var resolutionResults = new GrpcNameResolutionResult(hostsAddresses, config, GrpcAttributes.Empty);
@@ -58,7 +61,8 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         public async Task ForEmptyXdsClientPool_UseCdsPolicy_Throw()
         {
             // Arrange
-            using var policy = new CdsPolicy();
+            var helper = new HelperFake();
+            using var policy = new CdsPolicy(helper);
             var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(0, 0);
             var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
             var resolutionResults = new GrpcNameResolutionResult(hostsAddresses, config, GrpcAttributes.Empty);
@@ -76,7 +80,8 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         public async Task ForEmptyCdsClusterName_UseCdsPolicy_Throw()
         {
             // Arrange
-            using var policy = new CdsPolicy();
+            var helper = new HelperFake();
+            using var policy = new CdsPolicy(helper);
             var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(0, 0);
             var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
             var xdsClientMock = new Mock<IXdsClient>(MockBehavior.Strict);
@@ -125,7 +130,8 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
                 .Returns(Task.CompletedTask);
 
             // Act
-            using var policy = new CdsPolicy();
+            var helper = new HelperFake();
+            using var policy = new CdsPolicy(helper);
             policy.OverrideEdsPolicy = edsPolicyMock.Object;
             await policy.CreateSubChannelsAsync(resolutionResults, serviceName, false);
 

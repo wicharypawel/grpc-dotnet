@@ -22,7 +22,6 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         private ILoggerFactory _loggerFactory = NullLoggerFactory.Instance;
         private XdsClientObjectPool? _xdsClientPool;
         private IXdsClient? _xdsClient;
-        internal ISubchannelPicker _subchannelPicker = new EmptyPicker();
         private readonly IGrpcHelper _helper;
 
         public EdsPolicy(IGrpcHelper helper)
@@ -72,13 +71,8 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 var childPicker = new RoundRobinPicker(GrpcHostAddressListToGrcpSubChannel(serverAddressList));
                 return new WeightedRandomPicker.WeightedChildPicker(locality.LocalityWeight, childPicker);
             }).ToList();
-            _subchannelPicker = new WeightedRandomPicker(childPolicies);
+            _helper.UpdateBalancingState(GrpcConnectivityState.READY, new WeightedRandomPicker(childPolicies));
             _logger.LogDebug($"SubChannels list created");
-        }
-
-        public GrpcPickResult GetNextSubChannel()
-        {
-            return _subchannelPicker!.PickSubchannel();
         }
 
         public void Dispose()

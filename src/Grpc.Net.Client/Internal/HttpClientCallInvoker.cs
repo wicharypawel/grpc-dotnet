@@ -129,11 +129,11 @@ namespace Grpc.Net.Client.Internal
                 throw new ObjectDisposedException(nameof(GrpcChannel));
             }
 
-            var pickResult = Channel.LoadBalancingPolicy.GetNextSubChannel();
+            var pickResult = Channel.SubChannelPicker.GetNextSubChannel();
             while (pickResult.SubChannel == null && pickResult.Status.StatusCode == StatusCode.OK)
             {
                 Task.Delay(TimeSpan.FromSeconds(5)).Wait();
-                pickResult = Channel.LoadBalancingPolicy.GetNextSubChannel();
+                pickResult = Channel.SubChannelPicker.GetNextSubChannel();
             }
             var scope = Channel.GetCachedGrpcCallScope(method);
             var methodInfo = new GrpcMethodInfo(scope, new Uri(pickResult!.SubChannel!.Address, scope.Uri));

@@ -1,6 +1,7 @@
 using Grpc.Core;
 using Grpc.Net.Client.LoadBalancing.Internal;
 using Grpc.Net.Client.LoadBalancing.Tests.Policies.Factories;
+using Grpc.Net.Client.LoadBalancing.Tests.Policies.Fakes;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,7 +16,8 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         public async Task ForEmptyServiceName_UsePickFirstPolicy_ThrowArgumentException()
         {
             // Arrange
-            using var policy = new PickFirstPolicy();
+            var helper = new HelperFake();
+            using var policy = new PickFirstPolicy(helper);
             var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(0, 2);
             var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
             var resolutionResults = new GrpcNameResolutionResult(hostsAddresses, config, GrpcAttributes.Empty);
@@ -38,7 +40,8 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         public async Task ForEmptyResolutionPassed_UsePickFirstPolicy_ThrowArgumentException()
         {
             // Arrange
-            using var policy = new PickFirstPolicy();
+            var helper = new HelperFake();
+            using var policy = new PickFirstPolicy(helper);
             var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(0, 0);
             var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
             var resolutionResults = new GrpcNameResolutionResult(hostsAddresses, config, GrpcAttributes.Empty);
@@ -56,7 +59,8 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         public async Task ForBalancersResolutionOnly_UsePickFirstPolicy_ThrowArgumentException()
         {
             // Arrange
-            using var policy = new PickFirstPolicy();
+            var helper = new HelperFake();
+            using var policy = new PickFirstPolicy(helper);
             var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(2, 0);
             var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
             var resolutionResults = new GrpcNameResolutionResult(hostsAddresses, config, GrpcAttributes.Empty);
@@ -74,7 +78,8 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         public async Task ForResolutionResults_UsePickFirstPolicy_CreateAmmountSubChannels()
         {
             // Arrange
-            using var policy = new PickFirstPolicy();
+            var helper = new HelperFake();
+            using var policy = new PickFirstPolicy(helper);
             var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(0, 4);
             var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
             var resolutionResults = new GrpcNameResolutionResult(hostsAddresses, config, GrpcAttributes.Empty);
@@ -94,7 +99,8 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         public async Task ForResolutionResultWithBalancers_UsePickFirstPolicy_IgnoreBalancersCreateSubchannels()
         {
             // Arrange
-            using var policy = new PickFirstPolicy();
+            var helper = new HelperFake();
+            using var policy = new PickFirstPolicy(helper);
             var hostsAddresses = new List<GrpcHostAddress>() // do not use GrpcHostAddressFactory
             {
                 new GrpcHostAddress("10.1.6.120", 80)
@@ -132,16 +138,14 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         public void ForGrpcSubChannels_UsePickFirstPolicySelectChannels_SelectFirstChannel()
         {
             // Arrange
-            using var policy = new PickFirstPolicy();
             var subChannels = GrpcSubChannelFactory.GetSubChannelsWithoutLoadBalanceTokens();
-            policy.SubChannels = subChannels;
-            policy.PickResults = subChannels.Select(x => GrpcPickResult.WithSubChannel(x)).ToArray();
+            using var picker = new PickFirstPolicy.Picker(subChannels[0]);
 
             // Act
             // Assert
             for (int i = 0; i < 30; i++)
             {
-                var pickResult = policy.GetNextSubChannel();
+                var pickResult = picker.GetNextSubChannel();
                 Assert.NotNull(pickResult);
                 Assert.NotNull(pickResult!.SubChannel);
                 Assert.Equal(subChannels[0].Address.Host, pickResult!.SubChannel!.Address.Host);

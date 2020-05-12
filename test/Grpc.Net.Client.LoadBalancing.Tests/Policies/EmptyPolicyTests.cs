@@ -10,9 +10,10 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         public void ForGrpcSubChannels_UseEmptyPolicySelectChannels_SelectNoResult()
         {
             // Arrange
+            using var picker = new EmptyPolicy.Picker();
+
             // Act
-            using var policy = new EmptyPolicy();
-            var pickResult = policy.GetNextSubChannel();
+            var pickResult = picker.GetNextSubChannel();
 
             // Assert
             Assert.NotNull(pickResult);

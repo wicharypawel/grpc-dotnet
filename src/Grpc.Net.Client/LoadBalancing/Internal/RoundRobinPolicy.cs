@@ -17,7 +17,6 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
     /// </summary>
     internal sealed class RoundRobinPolicy : IGrpcLoadBalancingPolicy
     {
-        private int _subChannelsSelectionCounter = -1;
         private ILogger _logger = NullLogger.Instance;
         private readonly IGrpcHelper _helper;
 
@@ -31,7 +30,6 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             set => _logger = value.CreateLogger<RoundRobinPolicy>();
         }
         internal IReadOnlyList<GrpcSubChannel> SubChannels { get; set; } = Array.Empty<GrpcSubChannel>();
-        internal IReadOnlyList<GrpcPickResult> PickResults { get; set; } = Array.Empty<GrpcPickResult>();
 
         public Task CreateSubChannelsAsync(GrpcNameResolutionResult resolutionResult, string serviceName, bool isSecureConnection)
         {
@@ -62,17 +60,33 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             }).ToList();
             _logger.LogDebug($"SubChannels list created");
             SubChannels = result;
-            PickResults = result.Select(x => GrpcPickResult.WithSubChannel(x)).ToArray();
+            _helper.UpdateBalancingState(GrpcConnectivityState.READY, new Picker(SubChannels));
             return Task.CompletedTask;
-        }
-
-        public GrpcPickResult GetNextSubChannel()
-        {
-            return PickResults[Interlocked.Increment(ref _subChannelsSelectionCounter) % PickResults.Count];
         }
 
         public void Dispose()
         {
+        }
+
+        internal sealed class Picker : IGrpcSubChannelPicker
+        {
+            private readonly IReadOnlyList<GrpcSubChannel> _subChannels;
+            private int _subChannelsSelectionCounter = -1;
+
+            public Picker(IReadOnlyList<GrpcSubChannel> subChannels)
+            {
+                _subChannels = subChannels ?? throw new ArgumentNullException(nameof(subChannels));
+            }
+
+            public GrpcPickResult GetNextSubChannel()
+            {
+                var nextSubChannel = _subChannels[Interlocked.Increment(ref _subChannelsSelectionCounter) % _subChannels.Count];
+                return GrpcPickResult.WithSubChannel(nextSubChannel);
+            }
+
+            public void Dispose()
+            {
+            }
         }
     }
 }

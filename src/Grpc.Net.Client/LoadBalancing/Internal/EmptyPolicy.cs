@@ -24,16 +24,24 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         {
             _logger.LogDebug($"Start empty policy");
             _logger.LogDebug($"Empty policy will return no result when asked for next subchannel.");
+            _helper.UpdateBalancingState(GrpcConnectivityState.READY, new Picker());
             return Task.CompletedTask;
-        }
-
-        public GrpcPickResult GetNextSubChannel()
-        {
-            return GrpcPickResult.WithNoResult(); 
         }
 
         public void Dispose()
         {
+        }
+
+        internal sealed class Picker : IGrpcSubChannelPicker
+        {
+            public GrpcPickResult GetNextSubChannel()
+            {
+                return GrpcPickResult.WithNoResult();
+            }
+
+            public void Dispose()
+            {
+            }
         }
     }
 }

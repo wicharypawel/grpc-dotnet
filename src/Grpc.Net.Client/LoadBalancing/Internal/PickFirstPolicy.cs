@@ -22,7 +22,6 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             set => _logger = value.CreateLogger<PickFirstPolicy>();
         }
         internal IReadOnlyList<GrpcSubChannel> SubChannels { get; set; } = Array.Empty<GrpcSubChannel>();
-        internal IReadOnlyList<GrpcPickResult> PickResults { get; set; } = Array.Empty<GrpcPickResult>();
 
         public Task CreateSubChannelsAsync(GrpcNameResolutionResult resolutionResult, string serviceName, bool isSecureConnection)
         {
@@ -52,17 +51,31 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             _logger.LogDebug($"Found a server {uri}");
             _logger.LogDebug($"SubChannels list created");
             SubChannels = result;
-            PickResults = result.Select(x => GrpcPickResult.WithSubChannel(x)).ToArray();
+            _helper.UpdateBalancingState(GrpcConnectivityState.READY, new Picker(SubChannels[0]));
             return Task.CompletedTask;
-        }
-
-        public GrpcPickResult GetNextSubChannel()
-        {
-            return PickResults[0];
         }
 
         public void Dispose()
         {
+        }
+
+        internal sealed class Picker : IGrpcSubChannelPicker
+        {
+            private readonly GrpcPickResult _pickResult;
+
+            public Picker(GrpcSubChannel subChannel)
+            {
+                _pickResult = GrpcPickResult.WithSubChannel(subChannel) ?? throw new ArgumentNullException(nameof(subChannel));
+            }
+
+            public GrpcPickResult GetNextSubChannel()
+            {
+                return _pickResult;
+            }
+
+            public void Dispose()
+            {
+            }
         }
     }
 }
