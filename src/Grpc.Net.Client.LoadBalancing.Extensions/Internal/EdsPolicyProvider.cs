@@ -11,9 +11,9 @@
     //
     //    public bool IsAvailable => true;
     //
-    //    public IGrpcLoadBalancingPolicy CreateLoadBalancingPolicy()
+    //    public IGrpcLoadBalancingPolicy CreateLoadBalancingPolicy(IGrpcHelper helper)
     //    {
-    //        return new EdsPolicy();
+    //        return new EdsPolicy(helper);
     //    }
     //}
 
@@ -25,9 +25,9 @@
 
         public bool IsAvailable => true;
 
-        public IGrpcLoadBalancingPolicy CreateLoadBalancingPolicy()
+        public IGrpcLoadBalancingPolicy CreateLoadBalancingPolicy(IGrpcHelper helper)
         {
-            return new EdsPolicy();
+            return new EdsPolicy(helper);
         }
     }
 }

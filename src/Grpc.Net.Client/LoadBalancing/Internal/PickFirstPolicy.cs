@@ -10,11 +10,17 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
     internal sealed class PickFirstPolicy : IGrpcLoadBalancingPolicy
     {
         private ILogger _logger = NullLogger.Instance;
+        private readonly IGrpcHelper _helper;
+
+        public PickFirstPolicy(IGrpcHelper helper)
+        {
+            _helper = helper ?? throw new ArgumentNullException(nameof(helper));
+        }
+        
         public ILoggerFactory LoggerFactory
         {
             set => _logger = value.CreateLogger<PickFirstPolicy>();
         }
-
         internal IReadOnlyList<GrpcSubChannel> SubChannels { get; set; } = Array.Empty<GrpcSubChannel>();
         internal IReadOnlyList<GrpcPickResult> PickResults { get; set; } = Array.Empty<GrpcPickResult>();
 

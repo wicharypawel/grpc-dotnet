@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using System;
 using System.Threading.Tasks;
 
 namespace Grpc.Net.Client.LoadBalancing.Internal
@@ -7,7 +8,13 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
     internal sealed class EmptyPolicy : IGrpcLoadBalancingPolicy
     {
         private ILogger _logger = NullLogger.Instance;
-        
+        private readonly IGrpcHelper _helper;
+
+        public EmptyPolicy(IGrpcHelper helper)
+        {
+            _helper = helper ?? throw new ArgumentNullException(nameof(helper));
+        }
+
         public ILoggerFactory LoggerFactory
         {
             set => _logger = value.CreateLogger<EmptyPolicy>();

@@ -20,6 +20,12 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         private XdsClientObjectPool? _xdsClientPool;
         private IXdsClient? _xdsClient;
         private IGrpcLoadBalancingPolicy? _edsPolicy;
+        private readonly IGrpcHelper _helper;
+
+        public CdsPolicy(IGrpcHelper helper)
+        {
+            _helper = helper ?? throw new ArgumentNullException(nameof(helper));
+        }
 
         public ILoggerFactory LoggerFactory
         {

@@ -30,7 +30,8 @@
         /// <summary>
         /// Factory method.
         /// </summary>
+        /// <param name="helper">Channel helper instance.</param>
         /// <returns>New instance of <seealso cref="IGrpcLoadBalancingPolicy"/>.</returns>
-        public IGrpcLoadBalancingPolicy CreateLoadBalancingPolicy();
+        public IGrpcLoadBalancingPolicy CreateLoadBalancingPolicy(IGrpcHelper helper);
     }
 }

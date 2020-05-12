@@ -19,12 +19,17 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
     {
         private int _subChannelsSelectionCounter = -1;
         private ILogger _logger = NullLogger.Instance;
+        private readonly IGrpcHelper _helper;
+
+        public RoundRobinPolicy(IGrpcHelper helper)
+        {
+            _helper = helper ?? throw new ArgumentNullException(nameof(helper));
+        }
 
         public ILoggerFactory LoggerFactory
         {
             set => _logger = value.CreateLogger<RoundRobinPolicy>();
         }
-
         internal IReadOnlyList<GrpcSubChannel> SubChannels { get; set; } = Array.Empty<GrpcSubChannel>();
         internal IReadOnlyList<GrpcPickResult> PickResults { get; set; } = Array.Empty<GrpcPickResult>();
 

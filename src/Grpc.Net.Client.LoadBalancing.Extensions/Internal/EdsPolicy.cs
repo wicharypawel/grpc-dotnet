@@ -23,6 +23,12 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         private XdsClientObjectPool? _xdsClientPool;
         private IXdsClient? _xdsClient;
         internal ISubchannelPicker _subchannelPicker = new EmptyPicker();
+        private readonly IGrpcHelper _helper;
+
+        public EdsPolicy(IGrpcHelper helper)
+        {
+            _helper = helper ?? throw new ArgumentNullException(nameof(helper));
+        }
 
         public ILoggerFactory LoggerFactory
         {

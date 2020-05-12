@@ -32,6 +32,12 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         private ITimer? _timer;
         private IReadOnlyList<GrpcHostAddress> _fallbackAddresses = Array.Empty<GrpcHostAddress>();
         private bool _isFallback = false;
+        private readonly IGrpcHelper _helper;
+
+        public GrpclbPolicy(IGrpcHelper helper)
+        {
+            _helper = helper ?? throw new ArgumentNullException(nameof(helper));
+        }
 
         public ILoggerFactory LoggerFactory
         {

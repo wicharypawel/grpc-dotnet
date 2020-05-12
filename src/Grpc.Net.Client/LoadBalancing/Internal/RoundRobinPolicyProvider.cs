@@ -8,9 +8,9 @@
 
         public bool IsAvailable => true;
 
-        public IGrpcLoadBalancingPolicy CreateLoadBalancingPolicy()
+        public IGrpcLoadBalancingPolicy CreateLoadBalancingPolicy(IGrpcHelper helper)
         {
-            return new RoundRobinPolicy();
+            return new RoundRobinPolicy(helper);
         }
     }
 }
