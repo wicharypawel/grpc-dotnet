@@ -55,6 +55,7 @@ namespace Grpc.Net.Client
         internal string MessageAcceptEncoding { get; }
         internal IGrpcResolverPlugin ResolverPlugin { get; }
         internal IGrpcLoadBalancingPolicy LoadBalancingPolicy { get; set; }
+        internal GrpcConnectivityStateManager ChannelStateManager { get; } = new GrpcConnectivityStateManager();
         internal bool Disposed { get; private set; }
         // Timing related options that are set in unit tests
         internal ISystemClock Clock = SystemClock.Instance;
@@ -225,6 +226,31 @@ namespace Grpc.Net.Client
             return invoker;
         }
 
+        /// <summary>
+        /// Gets the current connectivity state. Note the result may soon become outdated.
+        /// </summary>
+        /// <returns>The current connectivity state.</returns>
+        public GrpcConnectivityState GetState()
+        {
+            var savedChannelState = ChannelStateManager.GetState();
+            return savedChannelState;
+        }
+
+        /// <summary>
+        /// Registers a one-off callback that will be run if the connectivity state of the channel diverges
+        /// from the given sourceState, which is typically what has just been returned by <see cref="GetState"/>.
+        /// If the states are already different, the callback will be called immediately.
+        /// 
+        /// Note that connectivity state can change rapidly. Transitions to the same state are possible, because intermediate
+        /// states may not have been observed. The API is only reliable in tracking the current state.
+        /// </summary>
+        /// <param name="sourceState">The assumed current state, typically just returned by <see cref="GetState"/> method.</param>
+        /// <param name="callback">The one-off callback.</param>
+        public void NotifyWhenStateChanged(GrpcConnectivityState sourceState, Action callback)
+        {
+            ChannelStateManager.NotifyWhenStateChanged(callback, sourceState);
+        }
+
         private class DefaultChannelCredentialsConfigurator : ChannelCredentialsConfiguratorBase
         {
             public bool? IsSecure { get; private set; }
@@ -328,7 +354,8 @@ namespace Grpc.Net.Client
             {
                 return;
             }
-
+            
+            ChannelStateManager.SetState(GrpcConnectivityState.SHUTDOWN);
             ResolverPlugin.Dispose();
             LoadBalancingPolicy.Dispose();
 
