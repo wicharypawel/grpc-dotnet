@@ -120,12 +120,11 @@ namespace Grpc.Net.Client.LoadBalancing
         /// <returns>An object for checking the status and/or cancel the scheduled task.</returns>
         public ScheduledHandle Schedule(Action action, TimeSpan delay)
         {
-            var tokenSource = new CancellationTokenSource();
             var synchronizationContext = this;
-            var scheduledHandle = new ScheduledHandle(tokenSource);
-            Task.Delay(delay).ContinueWith((_) =>
+            var scheduledHandle = ScheduledHandle.Create(out var token);
+            Task.Delay(delay, token).ContinueWith((_) =>
             {
-                if (!tokenSource.Token.IsCancellationRequested)
+                if (!token.IsCancellationRequested)
                 {
                     scheduledHandle.ConfirmStarted();
                     synchronizationContext.Execute(action);
@@ -145,14 +144,22 @@ namespace Grpc.Net.Client.LoadBalancing
             private readonly CancellationTokenSource _tokenSource;
             private bool hasStarted = false;
 
-            internal ScheduledHandle(CancellationTokenSource tokenSource)
+            internal static ScheduledHandle Create(out CancellationToken token)
             {
-                _tokenSource = tokenSource ?? throw new ArgumentNullException(nameof(tokenSource));
+                var result = new ScheduledHandle();
+                token = result._tokenSource.Token;
+                return result;
+            }
+
+            private ScheduledHandle()
+            {
+                _tokenSource = new CancellationTokenSource();
             }
 
             internal void ConfirmStarted()
             {
                 hasStarted = true;
+                _tokenSource.Dispose();
             }
 
             /// <summary>
@@ -160,7 +167,12 @@ namespace Grpc.Net.Client.LoadBalancing
             /// </summary>
             public void Cancel()
             {
+                if (!IsPending())
+                {
+                    return;
+                }
                 _tokenSource.Cancel();
+                _tokenSource.Dispose();
             }
 
             /// <summary>
@@ -171,6 +183,14 @@ namespace Grpc.Net.Client.LoadBalancing
             public bool IsPending()
             {
                 return !(hasStarted || _tokenSource.IsCancellationRequested);
+            }
+
+            /// <summary>
+            /// Ensures that all unmanaged resources are released.
+            /// </summary>
+            ~ScheduledHandle()
+            {
+                _tokenSource.Dispose();
             }
         }
     }
