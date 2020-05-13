@@ -7,6 +7,9 @@
     {
         /// <summary>
         /// Policy name written in snake_case eg. pick_first, round_robin, xds etc.
+        /// 
+        /// The policy name should consist of only lower case letters letters, underscore and digits,
+        /// and can only start with letters. Policy name value shouldn't change.
         /// </summary>
         public string PolicyName { get; }
 
