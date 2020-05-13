@@ -15,6 +15,8 @@ IGrpcLoadBalancingPolicyProvider | Factory _(LoadBalancer.java)_
 IGrpcLoadBalancingPolicy | LoadBalancer _(LoadBalancer.java)_
 IGrpcSubchannelPicker | SubchannelPicker _(LoadBalancer.java)_
 IGrpcHelper | Helper _(LoadBalancer.java)_
+IGrpcSubchannelStateObserver | SubchannelStateListener _(LoadBalancer.java)_
+IGrpcSubChannel | Subchannel _(LoadBalancer.java)_
 
 ### Load balancing core concrete classes
 gRPC dotnet type| gRPC java type
