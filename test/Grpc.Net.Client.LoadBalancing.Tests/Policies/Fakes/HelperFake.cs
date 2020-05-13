@@ -13,5 +13,15 @@
         {
             SubChannelPicker = newPicker;
         }
+
+        public void RefreshNameResolution()
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public GrpcSynchronizationContext GetSynchronizationContext()
+        {
+            throw new System.NotImplementedException();
+        }
     }
 }

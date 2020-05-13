@@ -38,5 +38,15 @@ namespace Grpc.Net.Client.LoadBalancing
                 }
             });
         }
+
+        public GrpcSynchronizationContext GetSynchronizationContext()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void RefreshNameResolution()
+        {
+            throw new NotImplementedException();
+        }
     }
 }
