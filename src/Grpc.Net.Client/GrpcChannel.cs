@@ -58,6 +58,7 @@ namespace Grpc.Net.Client
         internal IGrpcLoadBalancingPolicy LoadBalancingPolicy { get; set; }
         internal IGrpcSubChannelPicker SubChannelPicker { get; set; }
         internal GrpcConnectivityStateManager ChannelStateManager { get; } = new GrpcConnectivityStateManager();
+        internal GrpcSynchronizationContext SyncContext { get; } = new GrpcSynchronizationContext((ex) => { /*TODO implement panic mode */});
         internal bool Disposed { get; private set; }
         // Timing related options that are set in unit tests
         internal ISystemClock Clock = SystemClock.Instance;
@@ -106,7 +107,7 @@ namespace Grpc.Net.Client
             channelOptions.Attributes = channelOptions.Attributes.Add(GrpcAttributesConstants.DefaultLoadBalancingPolicy, channelOptions.DefaultLoadBalancingPolicy);
             ResolverPlugin = CreateResolverPlugin(Address, LoggerFactory, channelOptions.Attributes);
             ResolverPlugin.LoggerFactory = LoggerFactory;
-            var nameResolutionObserver = new GrpcNameResolutionObserver(this);
+            var nameResolutionObserver = new GrpcNameResolutionObserver(this, Helper, ResolverPlugin);
             ResolverPlugin.Subscribe(Address, nameResolutionObserver);
         }
 
@@ -154,6 +155,12 @@ namespace Grpc.Net.Client
         internal void UpdateSubchannelPicker(IGrpcSubChannelPicker newPicker)
         {
             SubChannelPicker = newPicker;
+        }
+
+        internal void RefreshNameResolution()
+        {
+            SyncContext.ThrowIfNotInThisSynchronizationContext();
+            ResolverPlugin.RefreshResolution();
         }
 
         private static HttpClient CreateInternalHttpClient()

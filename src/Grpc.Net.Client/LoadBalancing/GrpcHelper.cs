@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
-using System.Threading.Tasks;
 
 namespace Grpc.Net.Client.LoadBalancing
 {
@@ -17,16 +16,18 @@ namespace Grpc.Net.Client.LoadBalancing
 
         public GrpcSubChannel CreateSubChannel(CreateSubchannelArgs args)
         {
+            _channel.SyncContext.ThrowIfNotInThisSynchronizationContext();
             return new GrpcSubChannel(args.Address, args.Attributes);
         }
 
         public void UpdateBalancingState(GrpcConnectivityState newState, IGrpcSubChannelPicker newPicker)
         {
+            _channel.SyncContext.ThrowIfNotInThisSynchronizationContext();
             if (newPicker == null)
             {
                 throw new ArgumentNullException(nameof(newPicker));
             }
-            Task.Factory.StartNew(() => 
+            _channel.SyncContext.Execute(() => 
             { 
                 _channel.UpdateSubchannelPicker(newPicker);
                 // It's not appropriate to report SHUTDOWN state from lb.
@@ -41,12 +42,13 @@ namespace Grpc.Net.Client.LoadBalancing
 
         public GrpcSynchronizationContext GetSynchronizationContext()
         {
-            throw new NotImplementedException();
+            return _channel.SyncContext;
         }
 
         public void RefreshNameResolution()
         {
-            throw new NotImplementedException();
+            _channel.SyncContext.ThrowIfNotInThisSynchronizationContext();
+            _channel.SyncContext.Execute(() => { _channel.RefreshNameResolution(); });
         }
     }
 }
