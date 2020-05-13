@@ -82,10 +82,10 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
     internal sealed class RoundRobinPicker : IGrpcSubChannelPicker
     {
         private int _subChannelsSelectionCounter = -1;
-        internal IReadOnlyList<GrpcSubChannel> SubChannels { get; set; } = Array.Empty<GrpcSubChannel>();
+        internal IReadOnlyList<IGrpcSubChannel> SubChannels { get; set; } = Array.Empty<IGrpcSubChannel>();
         internal IReadOnlyList<GrpcPickResult> PickResults { get; set; } = Array.Empty<GrpcPickResult>();
 
-        public RoundRobinPicker(List<GrpcSubChannel> subChannels)
+        public RoundRobinPicker(List<IGrpcSubChannel> subChannels)
         {
             SubChannels = subChannels;
             PickResults = subChannels.Select(x => GrpcPickResult.WithSubChannel(x)).ToArray();

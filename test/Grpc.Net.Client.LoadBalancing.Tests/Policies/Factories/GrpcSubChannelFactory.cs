@@ -5,9 +5,9 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies.Factories
 {
     internal static class GrpcSubChannelFactory
     {
-        public static List<GrpcSubChannel> GetSubChannelsWithoutLoadBalanceTokens()
+        public static List<IGrpcSubChannel> GetSubChannelsWithoutLoadBalanceTokens()
         {
-            return new List<GrpcSubChannel>()
+            return new List<IGrpcSubChannel>()
             {
                 new GrpcSubChannel(new UriBuilder("http://10.1.5.210:80").Uri),
                 new GrpcSubChannel(new UriBuilder("http://10.1.5.212:80").Uri),

@@ -64,7 +64,7 @@ namespace Grpc.Net.Client.Internal
         public HttpContentClientStreamReader<TRequest, TResponse>? ClientStreamReader { get; private set; }
 
         public GrpcCall(Method<TRequest, TResponse> method, GrpcMethodInfo grpcMethodInfo, CallOptions options, 
-            GrpcChannel channel, GrpcSubChannel subChannel)
+            GrpcChannel channel, IGrpcSubChannel subChannel)
         {
             // Validate deadline before creating any objects that require cleanup
             ValidateDeadline(options.Deadline);

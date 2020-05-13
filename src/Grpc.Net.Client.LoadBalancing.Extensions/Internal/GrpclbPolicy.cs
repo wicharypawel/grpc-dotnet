@@ -47,9 +47,9 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             }
         }
         internal bool Disposed { get; private set; }
-        internal IReadOnlyList<GrpcSubChannel> FallbackSubChannels { get; set; } = Array.Empty<GrpcSubChannel>();
+        internal IReadOnlyList<IGrpcSubChannel> FallbackSubChannels { get; set; } = Array.Empty<IGrpcSubChannel>();
         internal int SubChannelsCacheHash { get; private set; } = 0;
-        internal IReadOnlyList<GrpcSubChannel> SubChannels { get; set; } = Array.Empty<GrpcSubChannel>();
+        internal IReadOnlyList<IGrpcSubChannel> SubChannels { get; set; } = Array.Empty<IGrpcSubChannel>();
 
         internal ITimer? OverrideTimer { private get; set; }
 
@@ -189,7 +189,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 return Task.CompletedTask;
             }
             SubChannelsCacheHash = serverListHash;
-            var result = new List<GrpcSubChannel>();
+            var result = new List<IGrpcSubChannel>();
             foreach (var server in serverList.Servers)
             {
                 var ipAddress = new IPAddress(server.IpAddress.ToByteArray()).ToString();
@@ -198,7 +198,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 uriBuilder.Port = server.Port;
                 uriBuilder.Scheme = _isSecureConnection ? "https" : "http";
                 var uri = uriBuilder.Uri;
-                result.Add(new GrpcSubChannel(uri, new GrpcAttributes(new Dictionary<string, object> { { GrpcAttributesConstants.SubChannelLoadBalanceToken, server.LoadBalanceToken } })));
+                result.Add(_helper.CreateSubChannel(new CreateSubchannelArgs(uri, new GrpcAttributes(new Dictionary<string, object> { { GrpcAttributesConstants.SubChannelLoadBalanceToken, server.LoadBalanceToken } }))));
                 _logger.LogDebug($"Found a server {uri}");
             }
             SubChannels = result;
@@ -217,7 +217,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 uriBuilder.Scheme = _isSecureConnection ? "https" : "http";
                 var uri = uriBuilder.Uri;
                 _logger.LogDebug($"Using fallback server {uri}");
-                return new GrpcSubChannel(uri);
+                return _helper.CreateSubChannel(new CreateSubchannelArgs(uri, GrpcAttributes.Empty));
             }).ToList();
             _helper.UpdateBalancingState(GrpcConnectivityState.READY, new Picker(FallbackSubChannels));
             return Task.CompletedTask;
@@ -255,10 +255,10 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 
         internal sealed class Picker : IGrpcSubChannelPicker
         {
-            private readonly IReadOnlyList<GrpcSubChannel> _subChannels;
+            private readonly IReadOnlyList<IGrpcSubChannel> _subChannels;
             private int _subChannelsSelectionCounter = -1;
 
-            public Picker(IReadOnlyList<GrpcSubChannel> subChannels)
+            public Picker(IReadOnlyList<IGrpcSubChannel> subChannels)
             {
                 _subChannels = subChannels ?? throw new ArgumentNullException(nameof(subChannels));
             }

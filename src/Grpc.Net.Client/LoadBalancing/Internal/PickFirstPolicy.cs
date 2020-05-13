@@ -22,7 +22,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         {
             set => _logger = value.CreateLogger<PickFirstPolicy>();
         }
-        internal IReadOnlyList<GrpcSubChannel> SubChannels { get; set; } = Array.Empty<GrpcSubChannel>();
+        internal IReadOnlyList<IGrpcSubChannel> SubChannels { get; set; } = Array.Empty<IGrpcSubChannel>();
 
         public Task CreateSubChannelsAsync(GrpcNameResolutionResult resolutionResult, string serviceName, bool isSecureConnection)
         {
@@ -46,7 +46,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             uriBuilder.Port = hostsAddresses[0].Port ?? (isSecureConnection ? 443 : 80);
             uriBuilder.Scheme = isSecureConnection ? "https" : "http";
             var uri = uriBuilder.Uri;
-            var result = new List<GrpcSubChannel> {
+            var result = new List<IGrpcSubChannel> {
                 new GrpcSubChannel(uri)
             };
             _logger.LogDebug($"Found a server {uri}");
@@ -87,7 +87,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
                 _pickResult = pickResult ?? throw new ArgumentNullException(nameof(pickResult));
             }
 
-            public Picker(GrpcSubChannel subChannel)
+            public Picker(IGrpcSubChannel subChannel)
             {
                 _pickResult = GrpcPickResult.WithSubChannel(subChannel) ?? throw new ArgumentNullException(nameof(subChannel));
             }

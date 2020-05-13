@@ -4,7 +4,7 @@
     {
         public IGrpcSubChannelPicker? SubChannelPicker { get; private set; }
 
-        public GrpcSubChannel CreateSubChannel(CreateSubchannelArgs args)
+        public IGrpcSubChannel CreateSubChannel(CreateSubchannelArgs args)
         {
             return new GrpcSubChannel(args.Address, args.Attributes);
         }

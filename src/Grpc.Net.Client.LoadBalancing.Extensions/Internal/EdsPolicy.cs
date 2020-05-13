@@ -106,10 +106,10 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             Disposed = true;
         }
 
-        private List<GrpcSubChannel> GrpcHostAddressListToGrcpSubChannel(IEnumerable<GrpcHostAddress> serverList)
+        private List<IGrpcSubChannel> GrpcHostAddressListToGrcpSubChannel(IEnumerable<GrpcHostAddress> serverList)
         {
             _logger.LogDebug($"xds received server list for locality");
-            var result = new List<GrpcSubChannel>();
+            var result = new List<IGrpcSubChannel>();
             foreach (var server in serverList)
             {
                 var uriBuilder = new UriBuilder();
@@ -117,7 +117,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 uriBuilder.Port = server.Port ?? (_isSecureConnection ? 443 : 80);
                 uriBuilder.Scheme = _isSecureConnection ? "https" : "http";
                 var uri = uriBuilder.Uri;
-                result.Add(new GrpcSubChannel(uri));
+                result.Add(_helper.CreateSubChannel(new CreateSubchannelArgs(uri, GrpcAttributes.Empty)));
                 _logger.LogDebug($"Found a server {uri}");
             }
             return result;

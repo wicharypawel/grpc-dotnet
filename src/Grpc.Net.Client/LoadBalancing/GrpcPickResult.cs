@@ -13,7 +13,7 @@ namespace Grpc.Net.Client.LoadBalancing
         /// <summary>
         /// The Subchannel if this result was created by <see cref="WithSubChannel"/>, or null otherwise.
         /// </summary>
-        public GrpcSubChannel? SubChannel { get; }
+        public IGrpcSubChannel? SubChannel { get; }
 
         /// <summary>
         /// The status associated with this result. Non-OK if created using <see cref="WithError"/> method or <see cref="Status.DefaultSuccess"/> otherwise.
@@ -25,7 +25,7 @@ namespace Grpc.Net.Client.LoadBalancing
         /// </summary>
         public bool Drop { get; }
 
-        private GrpcPickResult(GrpcSubChannel? subChannel, Status status, bool drop)
+        private GrpcPickResult(IGrpcSubChannel? subChannel, Status status, bool drop)
         {
             SubChannel = subChannel;
             Status = status;
@@ -37,7 +37,7 @@ namespace Grpc.Net.Client.LoadBalancing
         /// </summary>
         /// <param name="subChannel">Subchannel the picked Subchannel.</param>
         /// <returns>A balancing decision.</returns>
-        public static GrpcPickResult WithSubChannel(GrpcSubChannel subChannel)
+        public static GrpcPickResult WithSubChannel(IGrpcSubChannel subChannel)
         {
             if (subChannel == null)
             {

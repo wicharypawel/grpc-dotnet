@@ -30,7 +30,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         {
             set => _logger = value.CreateLogger<RoundRobinPolicy>();
         }
-        internal IReadOnlyList<GrpcSubChannel> SubChannels { get; set; } = Array.Empty<GrpcSubChannel>();
+        internal IReadOnlyList<IGrpcSubChannel> SubChannels { get; set; } = Array.Empty<IGrpcSubChannel>();
 
         public Task CreateSubChannelsAsync(GrpcNameResolutionResult resolutionResult, string serviceName, bool isSecureConnection)
         {
@@ -88,10 +88,10 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
 
         internal sealed class ReadyPicker : IGrpcSubChannelPicker
         {
-            private readonly IReadOnlyList<GrpcSubChannel> _subChannels;
+            private readonly IReadOnlyList<IGrpcSubChannel> _subChannels;
             private int _subChannelsSelectionCounter = -1;
 
-            public ReadyPicker(IReadOnlyList<GrpcSubChannel> subChannels)
+            public ReadyPicker(IReadOnlyList<IGrpcSubChannel> subChannels)
             {
                 _subChannels = subChannels ?? throw new ArgumentNullException(nameof(subChannels));
             }
