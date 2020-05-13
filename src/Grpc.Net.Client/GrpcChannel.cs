@@ -101,8 +101,8 @@ namespace Grpc.Net.Client
                 throw new ArgumentException($"Can not find host in {nameof(address)}, verify host and scheme were specified");
             }
             Helper = new GrpcHelper(this);
-            LoadBalancingPolicy = new EmptyPolicy(Helper);
-            SubChannelPicker = new EmptyPolicy.Picker();
+            LoadBalancingPolicy = CreateRequestedPolicy(new string[] { channelOptions.DefaultLoadBalancingPolicy }, LoggerFactory, Helper);
+            SubChannelPicker = new EmptyPicker();
             channelOptions.Attributes = channelOptions.Attributes.Add(GrpcAttributesConstants.DefaultLoadBalancingPolicy, channelOptions.DefaultLoadBalancingPolicy);
             ResolverPlugin = CreateResolverPlugin(Address, LoggerFactory, channelOptions.Attributes);
             ResolverPlugin.LoggerFactory = LoggerFactory;
@@ -120,9 +120,9 @@ namespace Grpc.Net.Client
             LoadBalancingPolicy.CreateSubChannelsAsync(resolutionResult, Address.Host, isSecureConnection).Wait();
         }
 
-        internal void HandleResolvedAddressesError()
+        internal void HandleResolvedAddressesError(Status status)
         {
-            LoadBalancingPolicy = new EmptyPolicy(Helper);
+            LoadBalancingPolicy.HandleNameResolutionErrorAsync(status).Wait();
         }
 
         private static IGrpcResolverPlugin CreateResolverPlugin(Uri address, ILoggerFactory loggerFactory, GrpcAttributes attributes)

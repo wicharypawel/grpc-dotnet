@@ -18,7 +18,7 @@ namespace Grpc.Net.Client.LoadBalancing
 
         public void OnError(Status error)
         {
-            _grpcChannel.HandleResolvedAddressesError();
+            _grpcChannel.HandleResolvedAddressesError(error);
         }
     }
 }

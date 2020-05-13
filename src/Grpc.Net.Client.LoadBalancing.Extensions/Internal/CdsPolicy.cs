@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Grpc.Core;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Threading.Tasks;
@@ -37,6 +38,22 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         }
 
         internal IGrpcLoadBalancingPolicy? OverrideEdsPolicy { private get; set; }
+
+        public Task HandleNameResolutionErrorAsync(Status error)
+        {
+            // TODO
+            return Task.CompletedTask;
+        }
+
+        public bool CanHandleEmptyAddressListFromNameResolution()
+        {
+            return true;
+        }
+
+        public Task RequestConnectionAsync()
+        {
+            return Task.CompletedTask;
+        }
 
         internal bool Disposed { get; private set; }
 

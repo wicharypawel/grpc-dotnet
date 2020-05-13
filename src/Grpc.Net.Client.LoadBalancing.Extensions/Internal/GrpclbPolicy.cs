@@ -1,4 +1,5 @@
 ﻿using Google.Protobuf.WellKnownTypes;
+using Grpc.Core;
 using Grpc.Lb.V1;
 using Grpc.Net.Client.LoadBalancing.Extensions.Internal.Abstraction;
 using Microsoft.Extensions.Logging;
@@ -89,6 +90,23 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 _timer.Start(ReportClientStatsTimerAsync, null, _clientStatsReportInterval, _clientStatsReportInterval);
                 _logger.LogDebug($"Periodic ClientStats reporting enabled, interval was set to {_clientStatsReportInterval}");
             }
+        }
+
+        public Task HandleNameResolutionErrorAsync(Status error)
+        {
+            // TODO
+            return Task.CompletedTask;
+        }
+
+        public bool CanHandleEmptyAddressListFromNameResolution()
+        {
+            return true;
+        }
+
+        public Task RequestConnectionAsync()
+        {
+            //TODO
+            return Task.CompletedTask;
         }
 
         public void Dispose()

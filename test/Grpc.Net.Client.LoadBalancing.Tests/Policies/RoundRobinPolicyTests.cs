@@ -143,7 +143,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         {
             // Arrange
             var subChannels = GrpcSubChannelFactory.GetSubChannelsWithoutLoadBalanceTokens();
-            using var picker = new RoundRobinPolicy.Picker(subChannels);
+            using var picker = new RoundRobinPolicy.ReadyPicker(subChannels);
 
             // Act
             // Assert

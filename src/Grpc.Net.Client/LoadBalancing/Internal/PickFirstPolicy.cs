@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Grpc.Core;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
@@ -55,6 +56,24 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             return Task.CompletedTask;
         }
 
+        public Task HandleNameResolutionErrorAsync(Status error)
+        {
+            // TODO
+            _helper.UpdateBalancingState(GrpcConnectivityState.TRANSIENT_FAILURE, new Picker(GrpcPickResult.WithError(error)));
+            return Task.CompletedTask;
+        }
+
+        public bool CanHandleEmptyAddressListFromNameResolution()
+        {
+            return false;
+        }
+
+        public Task RequestConnectionAsync()
+        {
+            //TODO
+            return Task.CompletedTask;
+        }
+
         public void Dispose()
         {
         }
@@ -62,6 +81,11 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         internal sealed class Picker : IGrpcSubChannelPicker
         {
             private readonly GrpcPickResult _pickResult;
+
+            public Picker(GrpcPickResult pickResult)
+            {
+                _pickResult = pickResult ?? throw new ArgumentNullException(nameof(pickResult));
+            }
 
             public Picker(GrpcSubChannel subChannel)
             {

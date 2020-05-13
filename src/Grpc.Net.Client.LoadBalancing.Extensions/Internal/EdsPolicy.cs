@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Grpc.Core;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
@@ -73,6 +74,22 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             }).ToList();
             _helper.UpdateBalancingState(GrpcConnectivityState.READY, new WeightedRandomPicker(childPolicies));
             _logger.LogDebug($"SubChannels list created");
+        }
+
+        public Task HandleNameResolutionErrorAsync(Status error)
+        {
+            // TODO
+            return Task.CompletedTask;
+        }
+
+        public bool CanHandleEmptyAddressListFromNameResolution()
+        {
+            return true;
+        }
+
+        public Task RequestConnectionAsync()
+        {
+            return Task.CompletedTask;
         }
 
         public void Dispose()

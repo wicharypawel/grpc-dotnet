@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Grpc.Core;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
@@ -60,7 +61,24 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             }).ToList();
             _logger.LogDebug($"SubChannels list created");
             SubChannels = result;
-            _helper.UpdateBalancingState(GrpcConnectivityState.READY, new Picker(SubChannels));
+            _helper.UpdateBalancingState(GrpcConnectivityState.READY, new ReadyPicker(SubChannels));
+            return Task.CompletedTask;
+        }
+
+        public Task HandleNameResolutionErrorAsync(Status error)
+        {
+            // TODO
+            _helper.UpdateBalancingState(GrpcConnectivityState.TRANSIENT_FAILURE, new EmptyPicker(error));
+            return Task.CompletedTask;
+        }
+
+        public bool CanHandleEmptyAddressListFromNameResolution()
+        {
+            return false;
+        }
+
+        public Task RequestConnectionAsync()
+        {
             return Task.CompletedTask;
         }
 
@@ -68,12 +86,12 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         {
         }
 
-        internal sealed class Picker : IGrpcSubChannelPicker
+        internal sealed class ReadyPicker : IGrpcSubChannelPicker
         {
             private readonly IReadOnlyList<GrpcSubChannel> _subChannels;
             private int _subChannelsSelectionCounter = -1;
 
-            public Picker(IReadOnlyList<GrpcSubChannel> subChannels)
+            public ReadyPicker(IReadOnlyList<GrpcSubChannel> subChannels)
             {
                 _subChannels = subChannels ?? throw new ArgumentNullException(nameof(subChannels));
             }
@@ -82,6 +100,25 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             {
                 var nextSubChannel = _subChannels[Interlocked.Increment(ref _subChannelsSelectionCounter) % _subChannels.Count];
                 return GrpcPickResult.WithSubChannel(nextSubChannel);
+            }
+
+            public void Dispose()
+            {
+            }
+        }
+
+        internal sealed class EmptyPicker : IGrpcSubChannelPicker
+        {
+            private readonly Status _status;
+
+            public EmptyPicker(Status status)
+            {
+                _status = status;
+            }
+
+            public GrpcPickResult GetNextSubChannel()
+            {
+                return _status.StatusCode == StatusCode.OK ? GrpcPickResult.WithNoResult() : GrpcPickResult.WithError(_status);
             }
 
             public void Dispose()
