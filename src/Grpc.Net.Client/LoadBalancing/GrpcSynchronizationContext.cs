@@ -2,16 +2,17 @@
 using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 
-namespace Grpc.Net.Client.Internal
+namespace Grpc.Net.Client.LoadBalancing
 {
-    internal sealed class DefaultSynchronizationContext
+    public sealed class GrpcSynchronizationContext
     {
         private readonly Action<Exception> _uncaughtExceptionHandler;
         private readonly ConcurrentQueue<Action> _queue = new ConcurrentQueue<Action>();
         private string? _drainingThreadDescriptor;
 
-        public DefaultSynchronizationContext(Action<Exception> uncaughtExceptionHandler)
+        public GrpcSynchronizationContext(Action<Exception> uncaughtExceptionHandler)
         {
             _uncaughtExceptionHandler = uncaughtExceptionHandler ?? throw new ArgumentNullException(nameof(uncaughtExceptionHandler));
         }
@@ -83,7 +84,7 @@ namespace Grpc.Net.Client.Internal
             return scheduledHandle;
         }
 
-        internal sealed class ScheduledHandle
+        public sealed class ScheduledHandle
         {
             private readonly CancellationTokenSource _tokenSource;
             private bool hasStarted = false;

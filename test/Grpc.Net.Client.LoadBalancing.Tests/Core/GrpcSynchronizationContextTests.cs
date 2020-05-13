@@ -1,5 +1,4 @@
-﻿using Grpc.Net.Client.Internal;
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
@@ -8,13 +7,13 @@ using Xunit;
 
 namespace Grpc.Net.Client.LoadBalancing.Tests.Core
 {
-    public sealed class DefaultSynchronizationContextTests
+    public sealed class GrpcSynchronizationContextTests
     {
         [Fact]
-        public void ForNullAction_UseDefaultSynchronizationContext_ThrowException()
+        public void ForNullAction_UseGrpcSynchronizationContext_ThrowException()
         {
             // Arrange
-            var context = new DefaultSynchronizationContext((exception) => { });
+            var context = new GrpcSynchronizationContext((exception) => { });
 
             // Act
             // Assert
@@ -25,11 +24,11 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
         }
 
         [Fact]
-        public void ForSingleActionExecuteOnSingleThread_UseDefaultSynchronizationContext_VerifyExecute()
+        public void ForSingleActionExecuteOnSingleThread_UseGrpcSynchronizationContext_VerifyExecute()
         {
             // Arrange
             var wasExecuted = false;
-            var context = new DefaultSynchronizationContext((exception) => { });
+            var context = new GrpcSynchronizationContext((exception) => { });
             var action = new Action(() => wasExecuted = true);
 
             // Act
@@ -40,11 +39,11 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
         }
 
         [Fact]
-        public void ForSingleActionExecuteLaterOnSingleThread_UseDefaultSynchronizationContext_VerifyExecute()
+        public void ForSingleActionExecuteLaterOnSingleThread_UseGrpcSynchronizationContext_VerifyExecute()
         {
             // Arrange
             var wasExecuted = false;
-            var context = new DefaultSynchronizationContext((exception) => { });
+            var context = new GrpcSynchronizationContext((exception) => { });
             var action = new Action(() => wasExecuted = true);
 
             // Act
@@ -56,13 +55,13 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
         }
 
         [Fact]
-        public async Task ForActionsExecutedOnSingleThread_UseDefaultSynchronizationContext_VerifyExecuteInOrder()
+        public async Task ForActionsExecutedOnSingleThread_UseGrpcSynchronizationContext_VerifyExecuteInOrder()
         {
             // Arrange
             var errors = new List<Exception>();
             var results = new ConcurrentQueue<int>();
             var lockObject = new object();
-            var context = new DefaultSynchronizationContext((exception) => { errors.Add(exception); });
+            var context = new GrpcSynchronizationContext((exception) => { errors.Add(exception); });
             var action1 = new Action(() => TaskMethodThatVerifyIfConcurrencyOccurs(lockObject, 1, results));
             var action2 = new Action(() => TaskMethodThatVerifyIfConcurrencyOccurs(lockObject, 2, results));
             var action3 = new Action(() => TaskMethodThatVerifyIfConcurrencyOccurs(lockObject, 3, results));
@@ -96,13 +95,13 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
         }
 
         [Fact]
-        public async Task ForActionsExecutedOnMultipleThreads_UseDefaultSynchronizationContext_VerifyExecuteSequentiallyUsingExternalMonitor()
+        public async Task ForActionsExecutedOnMultipleThreads_UseGrpcSynchronizationContext_VerifyExecuteSequentiallyUsingExternalMonitor()
         {
             // Arrange
             var errors = new List<Exception>();
             var results = new ConcurrentQueue<int>();
             var lockObject = new object();
-            var context = new DefaultSynchronizationContext((exception) => { errors.Add(exception); });
+            var context = new GrpcSynchronizationContext((exception) => { errors.Add(exception); });
             var action1 = new Action(() => TaskMethodThatVerifyIfConcurrencyOccurs(lockObject, 1, results));
             var action2 = new Action(() => TaskMethodThatVerifyIfConcurrencyOccurs(lockObject, 2, results));
             var action3 = new Action(() => TaskMethodThatVerifyIfConcurrencyOccurs(lockObject, 3, results));
@@ -126,13 +125,13 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
         }
 
         [Fact]
-        public async Task ForActionsExecutedOnMultipleThreads_UseDefaultSynchronizationContext_VerifyExecuteSequentiallyUsingContextMethod()
+        public async Task ForActionsExecutedOnMultipleThreads_UseGrpcSynchronizationContext_VerifyExecuteSequentiallyUsingContextMethod()
         {
             // Arrange
             var errors = new List<Exception>();
             var results = new ConcurrentQueue<int>();
             var lockObject = new object();
-            var context = new DefaultSynchronizationContext((exception) => { errors.Add(exception); });
+            var context = new GrpcSynchronizationContext((exception) => { errors.Add(exception); });
             var action1 = new Action(() => TaskMethodThatVerifyIfConcurrencyOccurs(context, 1, results));
             var action2 = new Action(() => TaskMethodThatVerifyIfConcurrencyOccurs(context, 2, results));
             var action3 = new Action(() => TaskMethodThatVerifyIfConcurrencyOccurs(context, 3, results));
@@ -156,12 +155,12 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
         }
 
         [Fact]
-        public void ForActionThatThrowException_UseDefaultSynchronizationContext_VerifyExceptionIsHandedByContext()
+        public void ForActionThatThrowException_UseGrpcSynchronizationContext_VerifyExceptionIsHandedByContext()
         {
             // Arrange
             var errorMessage = $"message-error-{Guid.NewGuid().ToString().Substring(0, 4)}";
             var errors = new List<Exception>();
-            var context = new DefaultSynchronizationContext((exception) => { errors.Add(exception); });
+            var context = new GrpcSynchronizationContext((exception) => { errors.Add(exception); });
             var action = new Action(() => throw new Exception(errorMessage));
 
             // Act
@@ -176,11 +175,11 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
         }
 
         [Fact]
-        public async Task ForSingleActionScheduledOnSingleThread_UseDefaultSynchronizationContext_VerifyExecute()
+        public async Task ForSingleActionScheduledOnSingleThread_UseGrpcSynchronizationContext_VerifyExecute()
         {
             // Arrange
             var wasExecuted = false;
-            var context = new DefaultSynchronizationContext((exception) => { });
+            var context = new GrpcSynchronizationContext((exception) => { });
             var action = new Action(() => wasExecuted = true);
 
             // Act
@@ -198,11 +197,11 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
         }
 
         [Fact]
-        public void ForSingleActionScheduledAndCancelledOnSingleThread_UseDefaultSynchronizationContext_VerifyNotExecuted()
+        public void ForSingleActionScheduledAndCancelledOnSingleThread_UseGrpcSynchronizationContext_VerifyNotExecuted()
         {
             // Arrange
             var wasExecuted = false;
-            var context = new DefaultSynchronizationContext((exception) => { });
+            var context = new GrpcSynchronizationContext((exception) => { });
             var action = new Action(() => wasExecuted = true);
 
             // Act
@@ -236,7 +235,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
             return true;
         }
 
-        private static void ScheduleWork(DefaultSynchronizationContext context, int ammountOfWork, 
+        private static void ScheduleWork(GrpcSynchronizationContext context, int ammountOfWork, 
             IReadOnlyList<Action> tasks, double workScheduleProbability, double drainScheduleProbability)
         {
             var random = new Random(Guid.NewGuid().GetHashCode());
@@ -272,7 +271,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
             }
         }
 
-        private static void TaskMethodThatVerifyIfConcurrencyOccurs(DefaultSynchronizationContext context, int value, ConcurrentQueue<int> results)
+        private static void TaskMethodThatVerifyIfConcurrencyOccurs(GrpcSynchronizationContext context, int value, ConcurrentQueue<int> results)
         {
             context.ThrowIfNotInThisSynchronizationContext();
             results.Enqueue(value); // Do some job.

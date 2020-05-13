@@ -33,3 +33,4 @@ GrpcConnectivityStateInfo | ConnectivityStateInfo _(ConnectivityStateInfo.java)_
 GrpcConnectivityState | ConnectivityState _(ConnectivityState.java)_
 GrpcAttributes | Attributes _(Attributes.java)_
 GrpcHelper | LbHelperImpl _(ManagedChannelImpl.java)_
+GrpcSynchronizationContext | SynchronizationContext _(SynchronizationContext.java)_
