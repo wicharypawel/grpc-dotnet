@@ -65,6 +65,7 @@ namespace Grpc.Net.Client
         internal bool DisableClientDeadline;
         internal long MaxTimerDueTime = uint.MaxValue - 1; // Max System.Threading.Timer due time
 
+        internal readonly InterlockedBool _shutdown = new InterlockedBool(false);
         private bool _shouldDisposeHttpClient;
 
         internal GrpcChannel(Uri address, GrpcChannelOptions channelOptions) : base(address.Authority)
@@ -370,8 +371,7 @@ namespace Grpc.Net.Client
             {
                 return;
             }
-            
-            ChannelStateManager.SetState(GrpcConnectivityState.SHUTDOWN);
+            ShutdownNow();
             ResolverPlugin.Dispose();
             LoadBalancingPolicy.Dispose();
 
@@ -380,6 +380,24 @@ namespace Grpc.Net.Client
                 HttpClient.Dispose();
             }
             Disposed = true;
+        }
+
+        private void ShutdownNow()
+        {
+            Shutdown();
+            // Add more stuff in the future here...
+        }
+
+        private void Shutdown()
+        {
+            if (!_shutdown.CompareAndSet(false, true))
+            {
+                return;
+            }
+            // Put gotoState(SHUTDOWN) as early into the syncContext's queue as possible.
+            SyncContext.ExecuteLater(() => { ChannelStateManager.SetState(GrpcConnectivityState.SHUTDOWN); });
+            // Add more stuff in the future here...
+            SyncContext.Drain();
         }
     }
 }
