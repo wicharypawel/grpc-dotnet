@@ -49,6 +49,7 @@ namespace Grpc.Net.Client.Internal
         private Timer? _deadlineTimer;
         private Metadata? _trailers;
         private CancellationTokenRegistration? _ctsRegistration;
+        private readonly IGrpcSubChannel _subChannel;
 
         public bool Disposed { get; private set; }
         public bool ResponseFinished { get; private set; }
@@ -78,6 +79,7 @@ namespace Grpc.Net.Client.Internal
             Channel = channel;
             Logger = channel.LoggerFactory.CreateLogger(LoggerName);
             _deadline = options.Deadline ?? DateTime.MaxValue;
+            _subChannel = subChannel;
             _loadBalanceToken = subChannel.Attributes.Get(GrpcAttributesConstants.SubChannelLoadBalanceToken) as string ?? string.Empty;
         }
 
@@ -460,6 +462,7 @@ namespace Grpc.Net.Client.Internal
                     {
                         _httpResponseTask = Channel.HttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, _callCts.Token);
                         HttpResponse = await _httpResponseTask.ConfigureAwait(false);
+                        (_subChannel as GrpcSubChannel)?.TriggerSubChannelSuccess();
                     }
                     catch (Exception ex)
                     {
@@ -582,6 +585,10 @@ namespace Grpc.Net.Client.Internal
             {
                 status = rpcException.Status;
                 resolvedException = CreateRpcException(status.Value);
+                if (status.Value.StatusCode == StatusCode.Unavailable || status.Value.StatusCode == StatusCode.Internal)
+                {
+                    (_subChannel as GrpcSubChannel)?.TriggerSubChannelFailure(new Status(StatusCode.Internal, "Subchannel TransientFailure"));
+                }
             }
             else
             {
@@ -589,6 +596,7 @@ namespace Grpc.Net.Client.Internal
 
                 status = new Status(StatusCode.Internal, "Error starting gRPC call. " +  exceptionMessage);
                 resolvedException = CreateRpcException(status.Value);
+                (_subChannel as GrpcSubChannel)?.TriggerSubChannelFailure(new Status(StatusCode.Internal, "Subchannel TransientFailure"));
             }
         }
 
