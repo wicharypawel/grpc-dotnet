@@ -6,7 +6,7 @@
 
         public IGrpcSubChannel CreateSubChannel(CreateSubchannelArgs args)
         {
-            return new GrpcSubChannel(args.Address, args.Attributes);
+            return new GrpcSubChannelFake(args.Address, args.Attributes);
         }
 
         public void UpdateBalancingState(GrpcConnectivityState newState, IGrpcSubChannelPicker newPicker)

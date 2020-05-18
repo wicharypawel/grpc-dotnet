@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Grpc.Net.Client.LoadBalancing.Tests.Policies.Fakes;
+using System;
 using System.Collections.Generic;
 
 namespace Grpc.Net.Client.LoadBalancing.Tests.Policies.Factories
@@ -9,10 +10,10 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies.Factories
         {
             return new List<IGrpcSubChannel>()
             {
-                new GrpcSubChannel(new UriBuilder("http://10.1.5.210:80").Uri),
-                new GrpcSubChannel(new UriBuilder("http://10.1.5.212:80").Uri),
-                new GrpcSubChannel(new UriBuilder("http://10.1.5.211:80").Uri),
-                new GrpcSubChannel(new UriBuilder("http://10.1.5.213:80").Uri)
+                new GrpcSubChannelFake(new UriBuilder("http://10.1.5.210:80").Uri, GrpcAttributes.Empty),
+                new GrpcSubChannelFake(new UriBuilder("http://10.1.5.212:80").Uri, GrpcAttributes.Empty),
+                new GrpcSubChannelFake(new UriBuilder("http://10.1.5.211:80").Uri, GrpcAttributes.Empty),
+                new GrpcSubChannelFake(new UriBuilder("http://10.1.5.213:80").Uri, GrpcAttributes.Empty)
             };
         }
     }

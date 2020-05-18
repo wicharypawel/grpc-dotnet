@@ -1,4 +1,5 @@
 ﻿using Grpc.Core;
+using Grpc.Net.Client.LoadBalancing.Tests.Policies.Fakes;
 using System;
 using Xunit;
 
@@ -10,7 +11,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
         public void ForSampleChannel_UsingPickResultWithSubChannel_ReturnsWrappedChannel()
         {
             // Arrange
-            var subChannel = new GrpcSubChannel(new Uri("http://10.1.5.210:80"));
+            var subChannel = new GrpcSubChannelFake(new Uri("http://10.1.5.210:80"), GrpcAttributes.Empty);
 
             // Act
             var pickResult = GrpcPickResult.WithSubChannel(subChannel);

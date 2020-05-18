@@ -1,4 +1,4 @@
-#region Copyright notice and license
+﻿#region Copyright notice and license
 
 // Copyright 2019 The gRPC Authors
 //
@@ -58,6 +58,7 @@ namespace Grpc.Net.Client
         internal IGrpcLoadBalancingPolicy LoadBalancingPolicy { get; set; }
         internal IGrpcSubChannelPicker SubChannelPicker { get; set; }
         internal GrpcConnectivityStateManager ChannelStateManager { get; } = new GrpcConnectivityStateManager();
+        internal IGrpcBackoffPolicyProvider BackoffPolicyProvider { get; } = new GrpcExponentialBackoffPolicyProvider();
         internal GrpcSynchronizationContext SyncContext { get; } = new GrpcSynchronizationContext((ex) => { /*TODO implement panic mode */});
         internal bool Disposed { get; private set; }
         // Timing related options that are set in unit tests
