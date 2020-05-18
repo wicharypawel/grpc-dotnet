@@ -1,4 +1,4 @@
-﻿#region Copyright notice and license
+#region Copyright notice and license
 
 // Copyright 2019 The gRPC Authors
 //
@@ -124,7 +124,7 @@ namespace Grpc.Net.Client
             LoadBalancingPolicy.HandleResolvedAddressesAsync(resolvedAddresses, Address.Host, isSecureConnection).Wait();
         }
 
-        internal void HandleResolvedAddressesError(Status status)
+        internal void HandleNameResolutionError(Status status)
         {
             LoadBalancingPolicy.HandleNameResolutionErrorAsync(status).Wait();
         }

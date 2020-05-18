@@ -38,7 +38,7 @@ namespace Grpc.Net.Client.LoadBalancing
 
         private void HandleErrorInSyncContext(Status error)
         {
-            _grpcChannel.HandleResolvedAddressesError(error);
+            _grpcChannel.HandleNameResolutionError(error);
             _helper.GetSynchronizationContext().Schedule(() =>
             {
                 _grpcChannel.RefreshNameResolution();
