@@ -35,11 +35,11 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             _totalWeight = weightedChildPickers.Sum(x => x.Weight);
         }
 
-        public GrpcPickResult GetNextSubChannel()
+        public GrpcPickResult GetNextSubChannel(IGrpcPickSubchannelArgs arguments)
         {
             if (_totalWeight == 0)
             {
-                return _weightedPickers[_random.Next(_weightedPickers.Count)].ChildPicker.GetNextSubChannel();
+                return _weightedPickers[_random.Next(_weightedPickers.Count)].ChildPicker.GetNextSubChannel(arguments);
             }
             var randomWeight = _random.Next(_totalWeight);
             var accumulatedWeight = 0;
@@ -48,7 +48,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 accumulatedWeight += _weightedPickers[i].Weight;
                 if (randomWeight < accumulatedWeight)
                 {
-                    return _weightedPickers[i].ChildPicker.GetNextSubChannel();
+                    return _weightedPickers[i].ChildPicker.GetNextSubChannel(arguments);
                 }
             }
             throw new InvalidOperationException("ChildPicker not found.");
@@ -91,7 +91,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             PickResults = subChannels.Select(x => GrpcPickResult.WithSubChannel(x)).ToArray();
         }
 
-        public GrpcPickResult GetNextSubChannel()
+        public GrpcPickResult GetNextSubChannel(IGrpcPickSubchannelArgs arguments)
         {
             return PickResults[Interlocked.Increment(ref _subChannelsSelectionCounter) % PickResults.Count];
         }
@@ -103,7 +103,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 
     internal sealed class EmptyPicker : IGrpcSubChannelPicker
     {
-        public GrpcPickResult GetNextSubChannel()
+        public GrpcPickResult GetNextSubChannel(IGrpcPickSubchannelArgs arguments)
         {
             return GrpcPickResult.WithNoResult();
         }

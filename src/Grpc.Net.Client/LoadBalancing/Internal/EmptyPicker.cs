@@ -5,7 +5,7 @@
     /// </summary>
     internal sealed class EmptyPicker : IGrpcSubChannelPicker
     {
-        public GrpcPickResult GetNextSubChannel()
+        public GrpcPickResult GetNextSubChannel(IGrpcPickSubchannelArgs arguments)
         {
             return GrpcPickResult.WithNoResult();
         }

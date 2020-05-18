@@ -145,7 +145,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             // Assert
             for (int i = 0; i < 30; i++)
             {
-                var pickResult = picker.GetNextSubChannel();
+                var pickResult = picker.GetNextSubChannel(GrpcPickSubchannelArgs.Empty);
                 Assert.NotNull(pickResult);
                 Assert.NotNull(pickResult!.SubChannel);
                 Assert.Equal(subChannels[0].Address.Host, pickResult!.SubChannel!.Address.Host);

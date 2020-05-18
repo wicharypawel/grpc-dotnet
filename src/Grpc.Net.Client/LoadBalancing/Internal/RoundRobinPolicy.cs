@@ -96,7 +96,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
                 _subChannels = subChannels ?? throw new ArgumentNullException(nameof(subChannels));
             }
 
-            public GrpcPickResult GetNextSubChannel()
+            public GrpcPickResult GetNextSubChannel(IGrpcPickSubchannelArgs arguments)
             {
                 var nextSubChannel = _subChannels[Interlocked.Increment(ref _subChannelsSelectionCounter) % _subChannels.Count];
                 return GrpcPickResult.WithSubChannel(nextSubChannel);
@@ -116,7 +116,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
                 _status = status;
             }
 
-            public GrpcPickResult GetNextSubChannel()
+            public GrpcPickResult GetNextSubChannel(IGrpcPickSubchannelArgs arguments)
             {
                 return _status.StatusCode == StatusCode.OK ? GrpcPickResult.WithNoResult() : GrpcPickResult.WithError(_status);
             }

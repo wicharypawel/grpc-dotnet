@@ -92,7 +92,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
                 _pickResult = GrpcPickResult.WithSubChannel(subChannel) ?? throw new ArgumentNullException(nameof(subChannel));
             }
 
-            public GrpcPickResult GetNextSubChannel()
+            public GrpcPickResult GetNextSubChannel(IGrpcPickSubchannelArgs arguments)
             {
                 return _pickResult;
             }

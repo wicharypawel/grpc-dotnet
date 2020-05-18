@@ -8,10 +8,10 @@ Some time ago, the API has been fully changed to be based on the JAVA API. The a
 gRPC dotnet type| gRPC java type
 ---|---
 GrpcChannel | ManagedChannelImpl _(ManagedChannelImpl.java)_
-IGrpcResolverPluginProvider | Factory _(NameResolver.java)_
+IGrpcResolverPluginProvider | Factory _(NameResolver.java)_ and NameResolverProvider _(NameResolverProvider.java)_
 IGrpcResolverPlugin | NameResolver _(NameResolver.java)_
 IGrpcNameResolutionObserver | Listener2 _(NameResolver.java)_
-IGrpcLoadBalancingPolicyProvider | Factory _(LoadBalancer.java)_
+IGrpcLoadBalancingPolicyProvider | Factory _(LoadBalancer.java)_ and LoadBalancerProvider _(LoadBalancerProvider.java)_
 IGrpcLoadBalancingPolicy | LoadBalancer _(LoadBalancer.java)_
 IGrpcSubchannelPicker | SubchannelPicker _(LoadBalancer.java)_
 IGrpcHelper | Helper _(LoadBalancer.java)_
@@ -44,3 +44,5 @@ IGrpcBackoffPolicy | BackoffPolicy _(BackoffPolicy.java)_
 IGrpcBackoffPolicyProvider | Provider _(BackoffPolicy.java)_
 GrpcExponentialBackoffPolicy | ExponentialBackoffPolicy _(ExponentialBackoffPolicy.java)_
 GrpcExponentialBackoffPolicyProvider | Provider _(ExponentialBackoffPolicy.java)_
+IGrpcPickSubchannelArgs | PickSubchannelArgs _(LoadBalancer.java)_
+GrpcPickSubchannelArgs | PickSubchannelArgsImpl _(PickSubchannelArgsImpl.java)_
