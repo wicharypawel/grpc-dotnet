@@ -39,10 +39,27 @@ namespace Grpc.Net.Client.LoadBalancing
         private void HandleErrorInSyncContext(Status error)
         {
             _grpcChannel.HandleNameResolutionError(error);
-            _helper.GetSynchronizationContext().Schedule(() =>
+            ScheduleExponentialBackOffInSyncContext();
+        }
+
+        private void ScheduleExponentialBackOffInSyncContext()
+        {
+            if (_grpcChannel.NameResolverRefreshSchedule?.IsPending() ?? false)
             {
+                // The name resolver may invoke onError multiple times, but we only want to
+                // schedule one backoff attempt
+                return;
+            }
+            if (_grpcChannel.NameResolverRefreshBackoffPolicy == null)
+            {
+                _grpcChannel.NameResolverRefreshBackoffPolicy = _grpcChannel.BackoffPolicyProvider.CreateBackoffPolicy();
+            }
+            var delay = _grpcChannel.NameResolverRefreshBackoffPolicy.NextBackoff();
+            _grpcChannel.NameResolverRefreshSchedule = _helper.GetSynchronizationContext().Schedule(() =>
+            {
+                _grpcChannel.NameResolverRefreshSchedule = null;
                 _grpcChannel.RefreshNameResolution();
-            }, TimeSpan.FromMilliseconds(100));
+            }, delay);
         }
     }
 }

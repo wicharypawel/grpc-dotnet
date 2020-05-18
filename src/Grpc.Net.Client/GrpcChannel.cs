@@ -54,9 +54,11 @@ namespace Grpc.Net.Client
         internal Dictionary<string, ICompressionProvider> CompressionProviders { get; }
         internal string MessageAcceptEncoding { get; }
         internal IGrpcHelper Helper { get; }
+        internal GrpcSynchronizationContext.ScheduledHandle? NameResolverRefreshSchedule { get; set; } // update only in SyncContext
+        internal IGrpcBackoffPolicy? NameResolverRefreshBackoffPolicy { get; set; } // update only in SyncContext
         internal IGrpcResolverPlugin ResolverPlugin { get; }
         internal IGrpcLoadBalancingPolicy LoadBalancingPolicy { get; set; }
-        internal IGrpcSubChannelPicker SubChannelPicker { get; set; }
+        internal IGrpcSubChannelPicker SubChannelPicker { get; set; } // update only in SyncContext
         internal GrpcConnectivityStateManager ChannelStateManager { get; } = new GrpcConnectivityStateManager();
         internal IGrpcBackoffPolicyProvider BackoffPolicyProvider { get; } = new GrpcExponentialBackoffPolicyProvider();
         internal GrpcSynchronizationContext SyncContext { get; } = new GrpcSynchronizationContext((ex) => { /*TODO implement panic mode */});
@@ -157,6 +159,7 @@ namespace Grpc.Net.Client
 
         internal void UpdateSubchannelPicker(IGrpcSubChannelPicker newPicker)
         {
+            SyncContext.ThrowIfNotInThisSynchronizationContext();
             SubChannelPicker = newPicker;
         }
 
@@ -164,6 +167,17 @@ namespace Grpc.Net.Client
         {
             SyncContext.ThrowIfNotInThisSynchronizationContext();
             ResolverPlugin.RefreshResolution();
+        }
+
+        internal void CancelNameResolverBackoff()
+        {
+            SyncContext.ThrowIfNotInThisSynchronizationContext();
+            if (NameResolverRefreshSchedule != null)
+            {
+                NameResolverRefreshSchedule.Cancel();
+                NameResolverRefreshSchedule = null;
+                NameResolverRefreshBackoffPolicy = null;
+            }
         }
 
         private static HttpClient CreateInternalHttpClient()
@@ -399,6 +413,7 @@ namespace Grpc.Net.Client
             }
             // Put gotoState(SHUTDOWN) as early into the syncContext's queue as possible.
             SyncContext.ExecuteLater(() => { ChannelStateManager.SetState(GrpcConnectivityState.SHUTDOWN); });
+            SyncContext.ExecuteLater(() => { CancelNameResolverBackoff(); });
             // Add more stuff in the future here...
             SyncContext.Drain();
         }
