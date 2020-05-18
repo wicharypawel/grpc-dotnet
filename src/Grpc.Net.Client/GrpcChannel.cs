@@ -110,7 +110,7 @@ namespace Grpc.Net.Client
             var resolverAttributes = channelOptions.Attributes.Add(GrpcAttributesConstants.DefaultLoadBalancingPolicy, channelOptions.DefaultLoadBalancingPolicy);
             ResolverPlugin = CreateResolverPlugin(Address, LoggerFactory, resolverAttributes);
             ResolverPlugin.LoggerFactory = LoggerFactory;
-            var nameResolutionObserver = new GrpcNameResolutionObserver(this, Helper, ResolverPlugin);
+            var nameResolutionObserver = new GrpcNameResolutionObserver(this, Helper);
             ResolverPlugin.Subscribe(Address, nameResolutionObserver);
         }
 

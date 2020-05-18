@@ -6,14 +6,12 @@ namespace Grpc.Net.Client.LoadBalancing
     internal sealed class GrpcNameResolutionObserver : IGrpcNameResolutionObserver
     {
         private readonly GrpcChannel _grpcChannel;
-        private readonly IGrpcResolverPlugin _resolverPlugin;
         private readonly IGrpcHelper _helper;
 
-        public GrpcNameResolutionObserver(GrpcChannel grpcChannel, IGrpcHelper helper, IGrpcResolverPlugin resolverPlugin)
+        public GrpcNameResolutionObserver(GrpcChannel grpcChannel, IGrpcHelper helper)
         {
             _grpcChannel = grpcChannel ?? throw new ArgumentNullException(nameof(grpcChannel));
             _helper = helper ?? throw new ArgumentNullException(nameof(helper));
-            _resolverPlugin = resolverPlugin ?? throw new ArgumentNullException(nameof(resolverPlugin));
         }
 
         public void OnNext(GrpcNameResolutionResult value)
