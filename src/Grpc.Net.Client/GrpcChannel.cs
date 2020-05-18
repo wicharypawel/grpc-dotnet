@@ -107,8 +107,8 @@ namespace Grpc.Net.Client
             Helper = new GrpcHelper(this);
             LoadBalancingPolicy = CreateRequestedPolicy(new string[] { channelOptions.DefaultLoadBalancingPolicy }, LoggerFactory, Helper);
             SubChannelPicker = new EmptyPicker();
-            channelOptions.Attributes = channelOptions.Attributes.Add(GrpcAttributesConstants.DefaultLoadBalancingPolicy, channelOptions.DefaultLoadBalancingPolicy);
-            ResolverPlugin = CreateResolverPlugin(Address, LoggerFactory, channelOptions.Attributes);
+            var resolverAttributes = channelOptions.Attributes.Add(GrpcAttributesConstants.DefaultLoadBalancingPolicy, channelOptions.DefaultLoadBalancingPolicy);
+            ResolverPlugin = CreateResolverPlugin(Address, LoggerFactory, resolverAttributes);
             ResolverPlugin.LoggerFactory = LoggerFactory;
             var nameResolutionObserver = new GrpcNameResolutionObserver(this, Helper, ResolverPlugin);
             ResolverPlugin.Subscribe(Address, nameResolutionObserver);
