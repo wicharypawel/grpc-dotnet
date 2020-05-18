@@ -1,4 +1,4 @@
-﻿#region Copyright notice and license
+#region Copyright notice and license
 
 // Copyright 2019 The gRPC Authors
 //
@@ -66,6 +66,7 @@ namespace Grpc.Net.Client
         internal long MaxTimerDueTime = uint.MaxValue - 1; // Max System.Threading.Timer due time
 
         internal readonly InterlockedBool _shutdown = new InterlockedBool(false);
+        internal bool _terminating = false;
         private bool _shouldDisposeHttpClient;
 
         internal GrpcChannel(Uri address, GrpcChannelOptions channelOptions) : base(address.Authority)
@@ -372,8 +373,9 @@ namespace Grpc.Net.Client
                 return;
             }
             ShutdownNow();
-            ResolverPlugin.Dispose();
+            _terminating = true;
             LoadBalancingPolicy.Dispose();
+            ResolverPlugin.Dispose();
 
             if (_shouldDisposeHttpClient)
             {
