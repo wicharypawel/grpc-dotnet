@@ -32,21 +32,21 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         }
         internal IReadOnlyList<IGrpcSubChannel> SubChannels { get; set; } = Array.Empty<IGrpcSubChannel>();
 
-        public Task CreateSubChannelsAsync(GrpcNameResolutionResult resolutionResult, string serviceName, bool isSecureConnection)
+        public Task CreateSubChannelsAsync(GrpcResolvedAddresses resolvedAddresses, string serviceName, bool isSecureConnection)
         {
-            if (resolutionResult == null)
+            if (resolvedAddresses == null)
             {
-                throw new ArgumentNullException(nameof(resolutionResult));
+                throw new ArgumentNullException(nameof(resolvedAddresses));
             }
             if (string.IsNullOrWhiteSpace(serviceName))
             {
                 throw new ArgumentException($"{nameof(serviceName)} not defined.");
             }
-            var hostsAddresses = resolutionResult.HostsAddresses;
+            var hostsAddresses = resolvedAddresses.HostsAddresses;
             hostsAddresses = hostsAddresses.Where(x => !x.IsLoadBalancer).ToList();
             if (hostsAddresses.Count == 0)
             {
-                throw new ArgumentException($"{nameof(resolutionResult)} must contain at least one non-blancer address.");
+                throw new ArgumentException($"{nameof(resolvedAddresses)} must contain at least one non-blancer address.");
             }
             _logger.LogDebug($"Start round_robin policy");
             var result = hostsAddresses.Select(x =>

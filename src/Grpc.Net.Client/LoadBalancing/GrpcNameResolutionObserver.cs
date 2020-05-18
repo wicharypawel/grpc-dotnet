@@ -20,7 +20,9 @@ namespace Grpc.Net.Client.LoadBalancing
         {
             _helper.GetSynchronizationContext().Execute(() =>
             {
-                _grpcChannel.HandleResolvedAddresses(value);
+                var effectiveServiceConfig = value.ServiceConfig.Config ?? new object();
+                var resolvedAddresses = new GrpcResolvedAddresses(value.HostsAddresses, effectiveServiceConfig, value.Attributes);
+                _grpcChannel.HandleResolvedAddresses(resolvedAddresses);
             });
         }
 

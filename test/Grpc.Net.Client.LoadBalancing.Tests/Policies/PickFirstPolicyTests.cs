@@ -20,18 +20,18 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             using var policy = new PickFirstPolicy(helper);
             var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(0, 2);
             var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
-            var resolutionResults = new GrpcNameResolutionResult(hostsAddresses, config, GrpcAttributes.Empty);
+            var resolvedAddresses = new GrpcResolvedAddresses(hostsAddresses, config, GrpcAttributes.Empty);
 
             // Act
             // Assert
             var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
             {
-                await policy.CreateSubChannelsAsync(resolutionResults, "", false);
+                await policy.CreateSubChannelsAsync(resolvedAddresses, "", false);
             });
             Assert.Equal("serviceName not defined.", exception.Message);
             exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
             {
-                await policy.CreateSubChannelsAsync(resolutionResults, string.Empty, false);
+                await policy.CreateSubChannelsAsync(resolvedAddresses, string.Empty, false);
             });
             Assert.Equal("serviceName not defined.", exception.Message);
         }
@@ -44,13 +44,13 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             using var policy = new PickFirstPolicy(helper);
             var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(0, 0);
             var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
-            var resolutionResults = new GrpcNameResolutionResult(hostsAddresses, config, GrpcAttributes.Empty);
+            var resolvedAddresses = new GrpcResolvedAddresses(hostsAddresses, config, GrpcAttributes.Empty);
 
             // Act
             // Assert
             var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
             {
-                await policy.CreateSubChannelsAsync(resolutionResults, "sample-service.contoso.com", false);
+                await policy.CreateSubChannelsAsync(resolvedAddresses, "sample-service.contoso.com", false);
             });
             Assert.Equal("resolutionResult must contain at least one non-blancer address.", exception.Message);
         }
@@ -63,13 +63,13 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             using var policy = new PickFirstPolicy(helper);
             var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(2, 0);
             var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
-            var resolutionResults = new GrpcNameResolutionResult(hostsAddresses, config, GrpcAttributes.Empty);
+            var resolvedAddresses = new GrpcResolvedAddresses(hostsAddresses, config, GrpcAttributes.Empty);
 
             // Act
             // Assert
             var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
             {
-                await policy.CreateSubChannelsAsync(resolutionResults, "sample-service.contoso.com", false); // load balancers are ignored
+                await policy.CreateSubChannelsAsync(resolvedAddresses, "sample-service.contoso.com", false); // load balancers are ignored
             });
             Assert.Equal("resolutionResult must contain at least one non-blancer address.", exception.Message);
         }
@@ -82,10 +82,10 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             using var policy = new PickFirstPolicy(helper);
             var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(0, 4);
             var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
-            var resolutionResults = new GrpcNameResolutionResult(hostsAddresses, config, GrpcAttributes.Empty);
+            var resolvedAddresses = new GrpcResolvedAddresses(hostsAddresses, config, GrpcAttributes.Empty);
 
             // Act
-            await policy.CreateSubChannelsAsync(resolutionResults, "sample-service.contoso.com", false);
+            await policy.CreateSubChannelsAsync(resolvedAddresses, "sample-service.contoso.com", false);
             var subChannels = policy.SubChannels;
 
             // Assert
@@ -121,10 +121,10 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
                 }
             };
             var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
-            var resolutionResults = new GrpcNameResolutionResult(hostsAddresses, config, GrpcAttributes.Empty);
+            var resolvedAddresses = new GrpcResolvedAddresses(hostsAddresses, config, GrpcAttributes.Empty);
 
             // Act
-            await policy.CreateSubChannelsAsync(resolutionResults, "sample-service.contoso.com", true);
+            await policy.CreateSubChannelsAsync(resolvedAddresses, "sample-service.contoso.com", true);
             var subChannels = policy.SubChannels;
 
             // Assert

@@ -55,22 +55,22 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 
         internal ILoadBalancerClient? OverrideLoadBalancerClient { private get; set; }
 
-        public async Task CreateSubChannelsAsync(GrpcNameResolutionResult resolutionResult, string serviceName, bool isSecureConnection)
+        public async Task CreateSubChannelsAsync(GrpcResolvedAddresses resolvedAddresses, string serviceName, bool isSecureConnection)
         {
-            if (resolutionResult == null)
+            if (resolvedAddresses == null)
             {
-                throw new ArgumentNullException(nameof(resolutionResult));
+                throw new ArgumentNullException(nameof(resolvedAddresses));
             }
             if (string.IsNullOrWhiteSpace(serviceName))
             {
                 throw new ArgumentException($"{nameof(serviceName)} not defined.");
             }
-            var hostsAddresses = resolutionResult.HostsAddresses;
+            var hostsAddresses = resolvedAddresses.HostsAddresses;
             _fallbackAddresses = hostsAddresses.Where(x => !x.IsLoadBalancer).ToList();
             hostsAddresses = hostsAddresses.Where(x => x.IsLoadBalancer).ToList();
             if (hostsAddresses.Count == 0)
             {
-                throw new ArgumentException($"{nameof(resolutionResult)} must contain at least one blancer address.");
+                throw new ArgumentException($"{nameof(resolvedAddresses)} must contain at least one blancer address.");
             }
             _isSecureConnection = isSecureConnection;
             _logger.LogDebug($"Start grpclb policy");

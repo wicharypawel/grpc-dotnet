@@ -27,6 +27,7 @@ GrpcServiceConfigOrError | ConfigOrError _(NameResolver.java)_
 GrpcHostAddress | EquivalentAddressGroup _(EquivalentAddressGroup.java)_
 GrpcNameResolutionObserver | NameResolverListener _(ManagedChannelImpl.java)_
 GrpcLoadBalancingPolicyRegistry | LoadBalancerRegistry _(LoadBalancerRegistry.java)_
+GrpcResolvedAddresses | ResolvedAddresses _(LoadBalancer.java)_
 GrpcPickResult | PickResult _(LoadBalancer.java)_
 GrpcSubChannel | SubchannelImpl _(ManagedChannelImpl.java)_
 GrpcConnectivityStateManager | ConnectivityStateManager _(ConnectivityStateManager.java)_

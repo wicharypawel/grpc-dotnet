@@ -114,14 +114,14 @@ namespace Grpc.Net.Client
             ResolverPlugin.Subscribe(Address, nameResolutionObserver);
         }
 
-        internal void HandleResolvedAddresses(GrpcNameResolutionResult resolutionResult)
+        internal void HandleResolvedAddresses(GrpcResolvedAddresses resolvedAddresses)
         {
-            var serviceConfig = resolutionResult.ServiceConfig.Config as GrpcServiceConfig ?? GrpcServiceConfig.Create("pick_first");
+            var serviceConfig = resolvedAddresses.ServiceConfig as GrpcServiceConfig ?? GrpcServiceConfig.Create("pick_first");
             var requestedPolicies = serviceConfig.RequestedLoadBalancingPolicies;
             LoadBalancingPolicy = CreateRequestedPolicy(requestedPolicies, LoggerFactory, Helper);
             LoadBalancingPolicy.LoggerFactory = LoggerFactory;
             var isSecureConnection = Address.Scheme == Uri.UriSchemeHttps || Address.Port == 443;
-            LoadBalancingPolicy.CreateSubChannelsAsync(resolutionResult, Address.Host, isSecureConnection).Wait();
+            LoadBalancingPolicy.CreateSubChannelsAsync(resolvedAddresses, Address.Host, isSecureConnection).Wait();
         }
 
         internal void HandleResolvedAddressesError(Status status)
