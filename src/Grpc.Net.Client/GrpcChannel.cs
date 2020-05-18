@@ -1,4 +1,4 @@
-#region Copyright notice and license
+﻿#region Copyright notice and license
 
 // Copyright 2019 The gRPC Authors
 //
@@ -167,6 +167,13 @@ namespace Grpc.Net.Client
         {
             SyncContext.ThrowIfNotInThisSynchronizationContext();
             ResolverPlugin.RefreshResolution();
+        }
+
+        internal void RefreshAndResetNameResolution()
+        {
+            SyncContext.ThrowIfNotInThisSynchronizationContext();
+            CancelNameResolverBackoff();
+            RefreshNameResolution();
         }
 
         internal void CancelNameResolverBackoff()

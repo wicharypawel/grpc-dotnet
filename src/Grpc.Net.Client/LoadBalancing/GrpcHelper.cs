@@ -10,7 +10,7 @@ namespace Grpc.Net.Client.LoadBalancing
 
         public GrpcHelper(GrpcChannel channel)
         {
-            _channel = channel;
+            _channel = channel ?? throw new ArgumentNullException(nameof(channel));
             _logger = channel.LoggerFactory.CreateLogger<GrpcHelper>();
         }
 
@@ -29,6 +29,10 @@ namespace Grpc.Net.Client.LoadBalancing
             }
             _channel.SyncContext.Execute(() => 
             { 
+                if (this != _channel.Helper)
+                {
+                    return;
+                }
                 _channel.UpdateSubchannelPicker(newPicker);
                 // It's not appropriate to report SHUTDOWN state from lb.
                 // Ignore the case of newState == SHUTDOWN for now.
@@ -40,15 +44,15 @@ namespace Grpc.Net.Client.LoadBalancing
             });
         }
 
-        public GrpcSynchronizationContext GetSynchronizationContext()
-        {
-            return _channel.SyncContext;
-        }
-
         public void RefreshNameResolution()
         {
             _channel.SyncContext.ThrowIfNotInThisSynchronizationContext();
-            _channel.SyncContext.Execute(() => { _channel.RefreshNameResolution(); });
+            _channel.SyncContext.Execute(() => { _channel.RefreshAndResetNameResolution(); });
+        }
+
+        public GrpcSynchronizationContext GetSynchronizationContext()
+        {
+            return _channel.SyncContext;
         }
     }
 }
