@@ -56,7 +56,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             {
                 await policy.HandleResolvedAddressesAsync(resolvedAddresses, "sample-service.contoso.com", false);
             });
-            Assert.Equal("resolutionResult must contain at least one blancer address.", exception.Message);
+            Assert.Equal("resolvedAddresses must contain at least one blancer address.", exception.Message);
         }
 
         [Fact]
@@ -75,7 +75,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             {
                 await policy.HandleResolvedAddressesAsync(resolvedAddresses, "sample-service.contoso.com", false); // non-balancers are ignored
             });
-            Assert.Equal("resolutionResult must contain at least one blancer address.", exception.Message);
+            Assert.Equal("resolvedAddresses must contain at least one blancer address.", exception.Message);
         }
 
         [Fact]

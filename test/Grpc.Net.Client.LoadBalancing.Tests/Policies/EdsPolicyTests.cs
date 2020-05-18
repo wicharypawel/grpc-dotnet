@@ -56,7 +56,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             {
                 await policy.HandleResolvedAddressesAsync(resolvedAddresses, "sample-service.contoso.com", false);
             });
-            Assert.Equal("resolutionResult is expected to be empty.", exception.Message);
+            Assert.Equal("HostsAddresses is expected to be empty.", exception.Message);
         }
 
         [Fact]

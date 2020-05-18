@@ -54,7 +54,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             {
                 await policy.HandleResolvedAddressesAsync(resolvedAddresses, "sample-service.contoso.com", false);
             });
-            Assert.Equal("resolutionResult is expected to be empty.", exception.Message);
+            Assert.Equal("HostsAddresses is expected to be empty.", exception.Message);
         }
 
         [Fact]
@@ -122,11 +122,11 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
                 { XdsAttributesConstants.CdsClusterName, clusterName }
             });
             var resolvedAddresses = new GrpcResolvedAddresses(hostsAddresses, config, attributes);
-            
-            GrpcNameResolutionResult? edsResolutionResult = null;
+
+            GrpcResolvedAddresses? edsResolvedAddresses = null;
             var edsPolicyMock = new Mock<IGrpcLoadBalancingPolicy>(MockBehavior.Loose);
             edsPolicyMock.Setup(x => x.HandleResolvedAddressesAsync(It.IsAny<GrpcResolvedAddresses>(), It.IsAny<string>(), It.IsAny<bool>()))
-                .Callback<GrpcNameResolutionResult, string, bool>((resolutionResult, _, __) => { edsResolutionResult = resolutionResult; })
+                .Callback<GrpcResolvedAddresses, string, bool>((addresses, _, __) => { edsResolvedAddresses = addresses; })
                 .Returns(Task.CompletedTask);
 
             // Act
@@ -139,9 +139,9 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             xdsClientMock.Verify(x => x.GetCdsAsync(clusterName, serviceName), Times.Once);
             policy.Dispose();
             xdsClientMock.Verify(x => x.Dispose(), Times.Once);
-            Assert.NotNull(edsResolutionResult);
-            Assert.NotNull(edsResolutionResult!.Attributes.Get(XdsAttributesConstants.XdsClientPoolInstance));
-            Assert.NotNull(edsResolutionResult!.Attributes.Get(XdsAttributesConstants.EdsClusterName));
+            Assert.NotNull(edsResolvedAddresses);
+            Assert.NotNull(edsResolvedAddresses!.Attributes.Get(XdsAttributesConstants.XdsClientPoolInstance));
+            Assert.NotNull(edsResolvedAddresses!.Attributes.Get(XdsAttributesConstants.EdsClusterName));
             edsPolicyMock.Verify(x => x.HandleResolvedAddressesAsync(It.IsAny<GrpcResolvedAddresses>(), It.IsAny<string>(), It.IsAny<bool>()), Times.Once);
         }
 
