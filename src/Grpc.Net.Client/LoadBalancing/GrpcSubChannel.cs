@@ -19,16 +19,16 @@ namespace Grpc.Net.Client.LoadBalancing
 
         public GrpcAttributes Attributes { get; private set; }
 
-        public GrpcSubChannel(GrpcChannel channel, CreateSubchannelArgs args, IGrpcHelper grpcHelper)
+        public GrpcSubChannel(GrpcChannel channel, CreateSubchannelArgs arguments, IGrpcHelper grpcHelper)
         {
             if (channel == null) throw new ArgumentNullException(nameof(channel));
-            if (args == null) throw new ArgumentNullException(nameof(args));
+            if (arguments == null) throw new ArgumentNullException(nameof(arguments));
             if (grpcHelper == null) throw new ArgumentNullException(nameof(grpcHelper));
-            Address = args.Address;
-            Attributes = args.Attributes;
+            Address = arguments.Address;
+            Attributes = arguments.Attributes;
             _backoffPolicyProvider = channel.BackoffPolicyProvider ?? throw new ArgumentNullException(nameof(channel.BackoffPolicyProvider));
             _synchronizationContext = channel.SyncContext ?? throw new ArgumentNullException(nameof(channel.SyncContext));
-            _logger = channel.LoggerFactory.CreateLogger(nameof(GrpcSubChannel) + args.Address.ToString());
+            _logger = channel.LoggerFactory.CreateLogger(nameof(GrpcSubChannel) + arguments.Address.ToString());
         }
 
         public void Start(IGrpcSubchannelStateObserver observer)

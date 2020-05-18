@@ -14,10 +14,10 @@ namespace Grpc.Net.Client.LoadBalancing
             _logger = channel.LoggerFactory.CreateLogger<GrpcHelper>();
         }
 
-        public IGrpcSubChannel CreateSubChannel(CreateSubchannelArgs args)
+        public IGrpcSubChannel CreateSubChannel(CreateSubchannelArgs arguments)
         {
             _channel.SyncContext.ThrowIfNotInThisSynchronizationContext();
-            return new GrpcSubChannel(_channel, args, this);
+            return new GrpcSubChannel(_channel, arguments, this);
         }
 
         public void UpdateBalancingState(GrpcConnectivityState newState, IGrpcSubChannelPicker newPicker)
