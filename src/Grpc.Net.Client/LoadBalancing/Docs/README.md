@@ -35,3 +35,11 @@ GrpcConnectivityState | ConnectivityState _(ConnectivityState.java)_
 GrpcAttributes | Attributes _(Attributes.java)_
 GrpcHelper | LbHelperImpl _(ManagedChannelImpl.java)_
 GrpcSynchronizationContext | SynchronizationContext _(SynchronizationContext.java)_
+
+### Other types ported from JAVA
+gRPC dotnet type| gRPC java type
+---|---
+IGrpcBackoffPolicy | BackoffPolicy _(BackoffPolicy.java)_
+IGrpcBackoffPolicyProvider | Provider _(BackoffPolicy.java)_
+GrpcExponentialBackoffPolicy | ExponentialBackoffPolicy _(ExponentialBackoffPolicy.java)_
+GrpcExponentialBackoffPolicyProvider | Provider _(ExponentialBackoffPolicy.java)_
