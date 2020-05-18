@@ -20,6 +20,6 @@
         /// LoadBalancer usually don't need to react to a SHUTDOWN state.
         /// </summary>
         /// <param name="value">NewState the new state.</param>
-        void OnNext(GrpcConnectivityStateInfo value);
+        public void OnNext(GrpcConnectivityStateInfo value);
     }
 }

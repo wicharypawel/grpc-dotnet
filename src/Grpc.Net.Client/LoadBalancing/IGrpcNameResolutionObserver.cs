@@ -12,13 +12,13 @@ namespace Grpc.Net.Client.LoadBalancing
         /// Handles updates on resolved addresses and attributes.
         /// </summary>
         /// <param name="value">ResolutionResult the resolved server addresses, attributes, and Service Config.</param>
-        void OnNext(GrpcNameResolutionResult value);
+        public void OnNext(GrpcNameResolutionResult value);
 
         /// <summary>
         /// Handles a name resolving error from the resolver. The observer is responsible for eventually
         /// invoking Refresh method to re-attempt resolution.
         /// </summary>
         /// <param name="error">Error a non-OK status.</param>
-        void OnError(Status error);
+        public void OnError(Status error);
     }
 }

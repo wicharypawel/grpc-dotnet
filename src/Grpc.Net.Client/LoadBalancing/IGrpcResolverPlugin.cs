@@ -13,19 +13,19 @@ namespace Grpc.Net.Client.LoadBalancing
         /// <summary>
         /// LoggerFactory is configured (injected) when class is being instantiated.
         /// </summary>
-        ILoggerFactory LoggerFactory { set; }
+        public ILoggerFactory LoggerFactory { set; }
 
         /// <summary>
         /// Starts the resolution.
         /// </summary>
         /// <param name="target">Server address with scheme.</param>
         /// <param name="observer">Observer used to receive updates on the target.</param>
-        void Subscribe(Uri target, IGrpcNameResolutionObserver observer);
+        public void Subscribe(Uri target, IGrpcNameResolutionObserver observer);
 
         /// <summary>
         /// Stops the resolution. Updates to the Listener will stop.
         /// </summary>
-        void Unsubscribe();
+        public void Unsubscribe();
 
         /// <summary>
         /// Re-resolve the name. Can only be called after Start method has been called.
@@ -34,6 +34,6 @@ namespace Grpc.Net.Client.LoadBalancing
         /// 
         /// It is possible to leave this operation empty (no-op). 
         /// </summary>
-        void RefreshResolution();
+        public void RefreshResolution();
     }
 }

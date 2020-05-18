@@ -5,10 +5,10 @@ namespace Grpc.Net.Client.LoadBalancing
 {
     public interface IGrpcHelper
     {
-        IGrpcSubChannel CreateSubChannel(CreateSubchannelArgs args);
-        void UpdateBalancingState(GrpcConnectivityState newState, IGrpcSubChannelPicker newPicker);
-        void RefreshNameResolution();
-        GrpcSynchronizationContext GetSynchronizationContext();
+        public IGrpcSubChannel CreateSubChannel(CreateSubchannelArgs args);
+        public void UpdateBalancingState(GrpcConnectivityState newState, IGrpcSubChannelPicker newPicker);
+        public void RefreshNameResolution();
+        public GrpcSynchronizationContext GetSynchronizationContext();
     }
 
     public sealed class CreateSubchannelArgs

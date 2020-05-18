@@ -13,7 +13,7 @@ namespace Grpc.Net.Client.LoadBalancing
         /// <summary>
         /// LoggerFactory is configured (injected) when class is being instantiated.
         /// </summary>
-        ILoggerFactory LoggerFactory { set; }
+        public ILoggerFactory LoggerFactory { set; }
 
         /// <summary>
         /// Creates a subchannel to each server address. Depending on policy this may require additional 
@@ -23,14 +23,14 @@ namespace Grpc.Net.Client.LoadBalancing
         /// <param name="serviceName">The name of the load balanced service (e.g., service.googleapis.com).</param>
         /// <param name="isSecureConnection">Flag if connection between client and destination server should be secured.</param>
         /// <returns>List of subchannels.</returns>
-        Task CreateSubChannelsAsync(GrpcResolvedAddresses resolvedAddresses, string serviceName, bool isSecureConnection);
+        public Task CreateSubChannelsAsync(GrpcResolvedAddresses resolvedAddresses, string serviceName, bool isSecureConnection);
 
         /// <summary>
         /// Handles an error from the name resolution system.
         /// </summary>
         /// <param name="error">Error a non-OK status</param>
         /// <returns>Task instance.</returns>
-        Task HandleNameResolutionErrorAsync(Status error);
+        public Task HandleNameResolutionErrorAsync(Status error);
 
         /// <summary>
         /// Whether this LoadBalancer can handle empty address group list to be passed to <see cref="CreateSubChannelsAsync"/>.
@@ -39,7 +39,7 @@ namespace Grpc.Net.Client.LoadBalancing
         /// accept empty lists should return true.
         /// </summary>
         /// <returns>True if policy accept empty list, false if not.</returns>
-        bool CanHandleEmptyAddressListFromNameResolution();
+        public bool CanHandleEmptyAddressListFromNameResolution();
 
         /// <summary>
         /// The channel asks the LoadBalancer to establish connections now (if applicable) so that the
@@ -50,6 +50,6 @@ namespace Grpc.Net.Client.LoadBalancing
         /// request.
         /// </summary>
         /// <returns>Task instance.</returns>
-        Task RequestConnectionAsync();
+        public Task RequestConnectionAsync();
     }
 }
