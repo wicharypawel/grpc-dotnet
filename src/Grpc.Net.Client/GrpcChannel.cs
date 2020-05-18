@@ -118,6 +118,7 @@ namespace Grpc.Net.Client
 
         internal void HandleResolvedAddresses(GrpcResolvedAddresses resolvedAddresses)
         {
+            SyncContext.ThrowIfNotInThisSynchronizationContext();
             var serviceConfig = resolvedAddresses.ServiceConfig as GrpcServiceConfig ?? GrpcServiceConfig.Create("pick_first");
             var requestedPolicies = serviceConfig.RequestedLoadBalancingPolicies;
             LoadBalancingPolicy = CreateRequestedPolicy(requestedPolicies, LoggerFactory, Helper);
@@ -128,6 +129,7 @@ namespace Grpc.Net.Client
 
         internal void HandleNameResolutionError(Status status)
         {
+            SyncContext.ThrowIfNotInThisSynchronizationContext();
             LoadBalancingPolicy.HandleNameResolutionErrorAsync(status).Wait();
         }
 
