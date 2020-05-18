@@ -121,7 +121,7 @@ namespace Grpc.Net.Client
             LoadBalancingPolicy = CreateRequestedPolicy(requestedPolicies, LoggerFactory, Helper);
             LoadBalancingPolicy.LoggerFactory = LoggerFactory;
             var isSecureConnection = Address.Scheme == Uri.UriSchemeHttps || Address.Port == 443;
-            LoadBalancingPolicy.CreateSubChannelsAsync(resolvedAddresses, Address.Host, isSecureConnection).Wait();
+            LoadBalancingPolicy.HandleResolvedAddressesAsync(resolvedAddresses, Address.Host, isSecureConnection).Wait();
         }
 
         internal void HandleResolvedAddressesError(Status status)

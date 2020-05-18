@@ -55,7 +55,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 
         internal ILoadBalancerClient? OverrideLoadBalancerClient { private get; set; }
 
-        public async Task CreateSubChannelsAsync(GrpcResolvedAddresses resolvedAddresses, string serviceName, bool isSecureConnection)
+        public async Task HandleResolvedAddressesAsync(GrpcResolvedAddresses resolvedAddresses, string serviceName, bool isSecureConnection)
         {
             if (resolvedAddresses == null)
             {

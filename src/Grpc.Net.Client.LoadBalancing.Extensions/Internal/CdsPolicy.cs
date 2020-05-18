@@ -57,7 +57,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 
         internal bool Disposed { get; private set; }
 
-        public async Task CreateSubChannelsAsync(GrpcResolvedAddresses resolvedAddresses, string serviceName, bool isSecureConnection)
+        public async Task HandleResolvedAddressesAsync(GrpcResolvedAddresses resolvedAddresses, string serviceName, bool isSecureConnection)
         {
             if (resolvedAddresses == null)
             {
@@ -88,7 +88,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             var resolvedAddressesNewAttributes = new GrpcResolvedAddresses(resolvedAddresses.HostsAddresses, resolvedAddresses.ServiceConfig,
                 resolvedAddresses.Attributes.Add(XdsAttributesConstants.EdsClusterName, clustersUpdate.EdsServiceName ?? clusterName)); 
             _logger.LogDebug($"CDS create EDS");
-            await _edsPolicy.CreateSubChannelsAsync(resolvedAddressesNewAttributes, serviceName, isSecureConnection).ConfigureAwait(false);
+            await _edsPolicy.HandleResolvedAddressesAsync(resolvedAddressesNewAttributes, serviceName, isSecureConnection).ConfigureAwait(false);
         }
 
         public void Dispose()

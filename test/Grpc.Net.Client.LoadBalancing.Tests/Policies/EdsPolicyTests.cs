@@ -28,12 +28,12 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             // Assert
             var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
             {
-                await policy.CreateSubChannelsAsync(resolvedAddresses, "", false);
+                await policy.HandleResolvedAddressesAsync(resolvedAddresses, "", false);
             });
             Assert.Equal("serviceName not defined.", exception.Message);
             exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
             {
-                await policy.CreateSubChannelsAsync(resolvedAddresses, string.Empty, false);
+                await policy.HandleResolvedAddressesAsync(resolvedAddresses, string.Empty, false);
             });
             Assert.Equal("serviceName not defined.", exception.Message);
         }
@@ -54,7 +54,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             // Assert
             var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
             {
-                await policy.CreateSubChannelsAsync(resolvedAddresses, "sample-service.contoso.com", false);
+                await policy.HandleResolvedAddressesAsync(resolvedAddresses, "sample-service.contoso.com", false);
             });
             Assert.Equal("resolutionResult is expected to be empty.", exception.Message);
         }
@@ -84,7 +84,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             var resolvedAddresses = new GrpcResolvedAddresses(hostsAddresses, config, attributes);
 
             // Act
-            await policy.CreateSubChannelsAsync(resolvedAddresses, serviceName, false);
+            await policy.HandleResolvedAddressesAsync(resolvedAddresses, serviceName, false);
             IGrpcSubChannelPicker picker = helper?.SubChannelPicker ?? throw new ArgumentNullException();
             var subChannels = ((WeightedRandomPicker)picker)._weightedPickers
                 .Select(x => (RoundRobinPicker)x.ChildPicker)

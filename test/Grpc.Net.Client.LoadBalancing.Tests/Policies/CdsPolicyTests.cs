@@ -26,12 +26,12 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             // Assert
             var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
             {
-                await policy.CreateSubChannelsAsync(resolvedAddresses, "", false);
+                await policy.HandleResolvedAddressesAsync(resolvedAddresses, "", false);
             });
             Assert.Equal("serviceName not defined.", exception.Message);
             exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
             {
-                await policy.CreateSubChannelsAsync(resolvedAddresses, string.Empty, false);
+                await policy.HandleResolvedAddressesAsync(resolvedAddresses, string.Empty, false);
             });
             Assert.Equal("serviceName not defined.", exception.Message);
         }
@@ -52,7 +52,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             // Assert
             var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
             {
-                await policy.CreateSubChannelsAsync(resolvedAddresses, "sample-service.contoso.com", false);
+                await policy.HandleResolvedAddressesAsync(resolvedAddresses, "sample-service.contoso.com", false);
             });
             Assert.Equal("resolutionResult is expected to be empty.", exception.Message);
         }
@@ -71,7 +71,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             // Assert
             var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
             {
-                await policy.CreateSubChannelsAsync(resolvedAddresses, "sample-service.contoso.com", false);
+                await policy.HandleResolvedAddressesAsync(resolvedAddresses, "sample-service.contoso.com", false);
             });
             Assert.Equal("Can not find xds client pool.", exception.Message);
         }
@@ -96,7 +96,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             // Assert
             var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
             {
-                await policy.CreateSubChannelsAsync(resolvedAddresses, "sample-service.contoso.com", false);
+                await policy.HandleResolvedAddressesAsync(resolvedAddresses, "sample-service.contoso.com", false);
             });
             Assert.Equal("Can not find CDS cluster name.", exception.Message);
         }
@@ -125,7 +125,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             
             GrpcNameResolutionResult? edsResolutionResult = null;
             var edsPolicyMock = new Mock<IGrpcLoadBalancingPolicy>(MockBehavior.Loose);
-            edsPolicyMock.Setup(x => x.CreateSubChannelsAsync(It.IsAny<GrpcResolvedAddresses>(), It.IsAny<string>(), It.IsAny<bool>()))
+            edsPolicyMock.Setup(x => x.HandleResolvedAddressesAsync(It.IsAny<GrpcResolvedAddresses>(), It.IsAny<string>(), It.IsAny<bool>()))
                 .Callback<GrpcNameResolutionResult, string, bool>((resolutionResult, _, __) => { edsResolutionResult = resolutionResult; })
                 .Returns(Task.CompletedTask);
 
@@ -133,7 +133,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             var helper = new HelperFake();
             using var policy = new CdsPolicy(helper);
             policy.OverrideEdsPolicy = edsPolicyMock.Object;
-            await policy.CreateSubChannelsAsync(resolvedAddresses, serviceName, false);
+            await policy.HandleResolvedAddressesAsync(resolvedAddresses, serviceName, false);
 
             // Assert
             xdsClientMock.Verify(x => x.GetCdsAsync(clusterName, serviceName), Times.Once);
@@ -142,7 +142,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             Assert.NotNull(edsResolutionResult);
             Assert.NotNull(edsResolutionResult!.Attributes.Get(XdsAttributesConstants.XdsClientPoolInstance));
             Assert.NotNull(edsResolutionResult!.Attributes.Get(XdsAttributesConstants.EdsClusterName));
-            edsPolicyMock.Verify(x => x.CreateSubChannelsAsync(It.IsAny<GrpcResolvedAddresses>(), It.IsAny<string>(), It.IsAny<bool>()), Times.Once);
+            edsPolicyMock.Verify(x => x.HandleResolvedAddressesAsync(It.IsAny<GrpcResolvedAddresses>(), It.IsAny<string>(), It.IsAny<bool>()), Times.Once);
         }
 
         private static ClusterUpdate GetSampleClusterUpdate(string serviceName)

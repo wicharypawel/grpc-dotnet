@@ -24,7 +24,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         }
         internal IReadOnlyList<IGrpcSubChannel> SubChannels { get; set; } = Array.Empty<IGrpcSubChannel>();
 
-        public Task CreateSubChannelsAsync(GrpcResolvedAddresses resolvedAddresses, string serviceName, bool isSecureConnection)
+        public Task HandleResolvedAddressesAsync(GrpcResolvedAddresses resolvedAddresses, string serviceName, bool isSecureConnection)
         {
             if (resolvedAddresses == null)
             {

@@ -23,7 +23,7 @@ namespace Grpc.Net.Client.LoadBalancing
         /// <param name="serviceName">The name of the load balanced service (e.g., service.googleapis.com).</param>
         /// <param name="isSecureConnection">Flag if connection between client and destination server should be secured.</param>
         /// <returns>List of subchannels.</returns>
-        public Task CreateSubChannelsAsync(GrpcResolvedAddresses resolvedAddresses, string serviceName, bool isSecureConnection);
+        public Task HandleResolvedAddressesAsync(GrpcResolvedAddresses resolvedAddresses, string serviceName, bool isSecureConnection);
 
         /// <summary>
         /// Handles an error from the name resolution system.
@@ -33,7 +33,7 @@ namespace Grpc.Net.Client.LoadBalancing
         public Task HandleNameResolutionErrorAsync(Status error);
 
         /// <summary>
-        /// Whether this LoadBalancer can handle empty address group list to be passed to <see cref="CreateSubChannelsAsync"/>.
+        /// Whether this LoadBalancer can handle empty address group list to be passed to <see cref="HandleResolvedAddressesAsync"/>.
         /// By default implementation should returns false, meaning that if the NameResolver returns an empty list, the Channel will turn
         /// that into an error and call <see cref="HandleNameResolutionErrorAsync"/>. LoadBalancers that want to
         /// accept empty lists should return true.
