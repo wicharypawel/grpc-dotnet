@@ -8,7 +8,6 @@ using Grpc.Net.Client.LoadBalancing.Tests.Policies.Fakes;
 using Moq;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -18,7 +17,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
     public sealed class GrpclbPolicyTests
     {
         [Fact]
-        public async Task ForEmptyServiceName_UseGrpclbPolicy_ThrowArgumentException()
+        public void ForEmptyServiceName_UseGrpclbPolicy_ThrowArgumentException()
         {
             // Arrange
             var helper = new HelperFake();
@@ -28,20 +27,20 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             var resolvedAddresses = new GrpcResolvedAddresses(hostsAddresses, config, GrpcAttributes.Empty);
             // Act
             // Assert
-            var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
+            var exception = Assert.Throws<ArgumentException>(() =>
             {
-                await policy.HandleResolvedAddressesAsync(resolvedAddresses, "", false);
+                policy.HandleResolvedAddresses(resolvedAddresses, "", false);
             });
             Assert.Equal("serviceName not defined.", exception.Message);
-            exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
+            exception = Assert.Throws<ArgumentException>(() =>
             {
-                await policy.HandleResolvedAddressesAsync(resolvedAddresses, string.Empty, false);
+                policy.HandleResolvedAddresses(resolvedAddresses, string.Empty, false);
             });
             Assert.Equal("serviceName not defined.", exception.Message);
         }
 
         [Fact]
-        public async Task ForEmptyResolutionPassed_UseGrpclbPolicy_ThrowArgumentException()
+        public void ForEmptyResolutionPassed_UseGrpclbPolicy_ThrowArgumentException()
         {
             // Arrange
             var helper = new HelperFake();
@@ -52,15 +51,15 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
 
             // Act
             // Assert
-            var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
+            var exception = Assert.Throws<ArgumentException>(() =>
             {
-                await policy.HandleResolvedAddressesAsync(resolvedAddresses, "sample-service.contoso.com", false);
+                policy.HandleResolvedAddresses(resolvedAddresses, "sample-service.contoso.com", false);
             });
             Assert.Equal("resolvedAddresses must contain at least one blancer address.", exception.Message);
         }
 
         [Fact]
-        public async Task ForServersResolutionOnly_UseGrpclbPolicy_ThrowArgumentException()
+        public void ForServersResolutionOnly_UseGrpclbPolicy_ThrowArgumentException()
         {
             // Arrange
             var helper = new HelperFake();
@@ -71,15 +70,15 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
 
             // Act
             // Assert
-            var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
+            var exception = Assert.Throws<ArgumentException>(() =>
             {
-                await policy.HandleResolvedAddressesAsync(resolvedAddresses, "sample-service.contoso.com", false); // non-balancers are ignored
+                policy.HandleResolvedAddresses(resolvedAddresses, "sample-service.contoso.com", false); // non-balancers are ignored
             });
             Assert.Equal("resolvedAddresses must contain at least one blancer address.", exception.Message);
         }
 
         [Fact]
-        public async Task ForResolutionResultWithBalancers_UseGrpclbPolicy_CreateSubchannelsForFoundServers()
+        public void ForResolutionResultWithBalancers_UseGrpclbPolicy_CreateSubchannelsForFoundServers()
         {
             // Arrange
             var timerFake = new TimerFake();
@@ -119,7 +118,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             var resolvedAddresses = new GrpcResolvedAddresses(hostsAddresses, config, GrpcAttributes.Empty);
 
             // Act
-            await policy.HandleResolvedAddressesAsync(resolvedAddresses, "sample-service.contoso.com", false);
+            policy.HandleResolvedAddresses(resolvedAddresses, "sample-service.contoso.com", false);
             var subChannels = policy.SubChannels;
 
             // Assert
@@ -134,7 +133,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         }
 
         [Fact]
-        public async Task ForLoadReporting_UseGrpclbPolicy_VerifySendingClientStats()
+        public void ForLoadReporting_UseGrpclbPolicy_VerifySendingClientStats()
         {
             // Arrange
             var timerFake = new TimerFake();
@@ -176,7 +175,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             var resolvedAddresses = new GrpcResolvedAddresses(hostsAddresses, config, GrpcAttributes.Empty);
 
             // Act
-            await policy.HandleResolvedAddressesAsync(resolvedAddresses, "sample-service.contoso.com", false);
+            policy.HandleResolvedAddresses(resolvedAddresses, "sample-service.contoso.com", false);
             timerFake.ManualCallbackTrigger();
             timerFake.ManualCallbackTrigger();
             timerFake.ManualCallbackTrigger();
@@ -196,7 +195,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         }
 
         [Fact]
-        public async Task ForLoadReportingFallback_UseGrpclbPolicy_VerifyFallbackSubchannels()
+        public void ForLoadReportingFallback_UseGrpclbPolicy_VerifyFallbackSubchannels()
         {
             // Arrange
             var timerFake = new TimerFake();
@@ -242,7 +241,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             var resolvedAddresses = new GrpcResolvedAddresses(hostsAddresses, config, GrpcAttributes.Empty);
 
             // Act
-            await policy.HandleResolvedAddressesAsync(resolvedAddresses, "sample-service.contoso.com", false);
+            policy.HandleResolvedAddresses(resolvedAddresses, "sample-service.contoso.com", false);
             timerFake.ManualCallbackTrigger();
             timerFake.ManualCallbackTrigger();
             var fallbackSubChannels = policy.FallbackSubChannels;

@@ -4,8 +4,6 @@ using Grpc.Net.Client.LoadBalancing.Tests.Policies.Factories;
 using Grpc.Net.Client.LoadBalancing.Tests.Policies.Fakes;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Xunit;
 
 namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
@@ -13,7 +11,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
     public sealed class RoundRobinPolicyTests
     {
         [Fact]
-        public async Task ForEmptyServiceName_UseRoundRobinPolicy_ThrowArgumentException()
+        public void ForEmptyServiceName_UseRoundRobinPolicy_ThrowArgumentException()
         {
             // Arrange
             var helper = new HelperFake();
@@ -24,20 +22,20 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
 
             // Act
             // Assert
-            var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
+            var exception = Assert.Throws<ArgumentException>(() =>
             {
-                await policy.HandleResolvedAddressesAsync(resolvedAddresses, "", false);
+                policy.HandleResolvedAddresses(resolvedAddresses, "", false);
             });
             Assert.Equal("serviceName not defined.", exception.Message);
-            exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
+            exception = Assert.Throws<ArgumentException>(() =>
             {
-                await policy.HandleResolvedAddressesAsync(resolvedAddresses, string.Empty, false);
+                policy.HandleResolvedAddresses(resolvedAddresses, string.Empty, false);
             });
             Assert.Equal("serviceName not defined.", exception.Message);
         }
 
         [Fact]
-        public async Task ForEmptyResolutionPassed_UseRoundRobinPolicy_ThrowArgumentException()
+        public void ForEmptyResolutionPassed_UseRoundRobinPolicy_ThrowArgumentException()
         {
             // Arrange
             var helper = new HelperFake();
@@ -48,15 +46,15 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
 
             // Act
             // Assert
-            var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
+            var exception = Assert.Throws<ArgumentException>(() =>
             {
-                await policy.HandleResolvedAddressesAsync(resolvedAddresses, "sample-service.contoso.com", false);
+                policy.HandleResolvedAddresses(resolvedAddresses, "sample-service.contoso.com", false);
             });
             Assert.Equal("resolvedAddresses must contain at least one non-blancer address.", exception.Message);
         }
 
         [Fact]
-        public async Task ForBalancersResolutionOnly_UseRoundRobinPolicy_ThrowArgumentException()
+        public void ForBalancersResolutionOnly_UseRoundRobinPolicy_ThrowArgumentException()
         {
             // Arrange
             var helper = new HelperFake();
@@ -67,15 +65,15 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
 
             // Act
             // Assert
-            var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
+            var exception = Assert.Throws<ArgumentException>(() =>
             {
-                await policy.HandleResolvedAddressesAsync(resolvedAddresses, "sample-service.contoso.com", false); // load balancers are ignored
+                policy.HandleResolvedAddresses(resolvedAddresses, "sample-service.contoso.com", false); // load balancers are ignored
             });
             Assert.Equal("resolvedAddresses must contain at least one non-blancer address.", exception.Message);
         }
 
         [Fact]
-        public async Task ForResolutionResults_UseRoundRobinPolicy_CreateAmmountSubChannels()
+        public void ForResolutionResults_UseRoundRobinPolicy_CreateAmmountSubChannels()
         {
             // Arrange
             var helper = new HelperFake();
@@ -85,7 +83,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             var resolvedAddresses = new GrpcResolvedAddresses(hostsAddresses, config, GrpcAttributes.Empty);
 
             // Act
-            await policy.HandleResolvedAddressesAsync(resolvedAddresses, "sample-service.contoso.com", false);
+            policy.HandleResolvedAddresses(resolvedAddresses, "sample-service.contoso.com", false);
             var subChannels = policy.SubChannels;
 
             // Assert
@@ -96,7 +94,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         }
 
         [Fact]
-        public async Task ForResolutionResultWithBalancers_UseRoundRobinPolicy_IgnoreBalancersCreateSubchannels()
+        public void ForResolutionResultWithBalancers_UseRoundRobinPolicy_IgnoreBalancersCreateSubchannels()
         {
             // Arrange
             var helper = new HelperFake();
@@ -128,7 +126,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             var resolvedAddresses = new GrpcResolvedAddresses(hostsAddresses, config, GrpcAttributes.Empty);
 
             // Act
-            await policy.HandleResolvedAddressesAsync(resolvedAddresses, "sample-service.contoso.com", true);
+            policy.HandleResolvedAddresses(resolvedAddresses, "sample-service.contoso.com", true);
             var subChannels = policy.SubChannels;
 
             // Assert

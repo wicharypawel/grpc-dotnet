@@ -2,7 +2,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
-using System.Threading.Tasks;
 
 namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 {
@@ -39,10 +38,9 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 
         internal IGrpcLoadBalancingPolicy? OverrideEdsPolicy { private get; set; }
 
-        public Task HandleNameResolutionErrorAsync(Status error)
+        public void HandleNameResolutionError(Status error)
         {
             // TODO
-            return Task.CompletedTask;
         }
 
         public bool CanHandleEmptyAddressListFromNameResolution()
@@ -50,14 +48,13 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             return true;
         }
 
-        public Task RequestConnectionAsync()
+        public void RequestConnection()
         {
-            return Task.CompletedTask;
         }
 
         internal bool Disposed { get; private set; }
 
-        public async Task HandleResolvedAddressesAsync(GrpcResolvedAddresses resolvedAddresses, string serviceName, bool isSecureConnection)
+        public void HandleResolvedAddresses(GrpcResolvedAddresses resolvedAddresses, string serviceName, bool isSecureConnection)
         {
             if (resolvedAddresses == null)
             {
@@ -80,7 +77,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             var clusterName = resolvedAddresses.Attributes.Get(XdsAttributesConstants.CdsClusterName) as string
                 ?? throw new InvalidOperationException("Can not find CDS cluster name.");
             _logger.LogDebug($"Start CDS policy");
-            var clustersUpdate = await _xdsClient.GetCdsAsync(clusterName, serviceName).ConfigureAwait(false);
+            var clustersUpdate = _xdsClient.GetCdsAsync(clusterName, serviceName).Result;
             var registry = GrpcLoadBalancingPolicyRegistry.GetDefaultRegistry(_loggerFactory);
             var edsPolicyProvider = registry.GetProvider(clustersUpdate.LbPolicy);
             _edsPolicy = OverrideEdsPolicy ?? edsPolicyProvider!.CreateLoadBalancingPolicy(_helper);
@@ -88,7 +85,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             var resolvedAddressesNewAttributes = new GrpcResolvedAddresses(resolvedAddresses.HostsAddresses, resolvedAddresses.ServiceConfig,
                 resolvedAddresses.Attributes.Add(XdsAttributesConstants.EdsClusterName, clustersUpdate.EdsServiceName ?? clusterName)); 
             _logger.LogDebug($"CDS create EDS");
-            await _edsPolicy.HandleResolvedAddressesAsync(resolvedAddressesNewAttributes, serviceName, isSecureConnection).ConfigureAwait(false);
+            _edsPolicy.HandleResolvedAddresses(resolvedAddressesNewAttributes, serviceName, isSecureConnection);
         }
 
         public void Dispose()

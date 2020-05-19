@@ -15,7 +15,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
     public sealed class EdsPolicyTests
     {
         [Fact]
-        public async Task ForEmptyServiceName_UseEdsPolicy_ThrowArgumentException()
+        public void ForEmptyServiceName_UseEdsPolicy_ThrowArgumentException()
         {
             // Arrange
             var helper = new HelperFake();
@@ -26,14 +26,14 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
 
             // Act
             // Assert
-            var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
+            var exception = Assert.Throws<ArgumentException>(() =>
             {
-                await policy.HandleResolvedAddressesAsync(resolvedAddresses, "", false);
+                policy.HandleResolvedAddresses(resolvedAddresses, "", false);
             });
             Assert.Equal("serviceName not defined.", exception.Message);
-            exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
+            exception = Assert.Throws<ArgumentException>(() =>
             {
-                await policy.HandleResolvedAddressesAsync(resolvedAddresses, string.Empty, false);
+                policy.HandleResolvedAddresses(resolvedAddresses, string.Empty, false);
             });
             Assert.Equal("serviceName not defined.", exception.Message);
         }
@@ -41,7 +41,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         [Theory]
         [InlineData(2, 0)]
         [InlineData(0, 2)]
-        public async Task ForNonEmptyResolutionPassed_UseEdsPolicy_ThrowArgumentException(int balancersCount, int serversCount)
+        public void ForNonEmptyResolutionPassed_UseEdsPolicy_ThrowArgumentException(int balancersCount, int serversCount)
         {
             // Arrange
             var helper = new HelperFake();
@@ -52,15 +52,15 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
 
             // Act
             // Assert
-            var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
+            var exception = Assert.Throws<ArgumentException>(() =>
             {
-                await policy.HandleResolvedAddressesAsync(resolvedAddresses, "sample-service.contoso.com", false);
+                policy.HandleResolvedAddresses(resolvedAddresses, "sample-service.contoso.com", false);
             });
             Assert.Equal("HostsAddresses is expected to be empty.", exception.Message);
         }
 
         [Fact]
-        public async Task ForResolutionResult_UseEdsPolicy_CreateSubchannelsForFoundServers()
+        public void ForResolutionResult_UseEdsPolicy_CreateSubchannelsForFoundServers()
         {
             // Arrange
             var edsClusterName = "eds-cluster-test-name";
@@ -84,7 +84,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             var resolvedAddresses = new GrpcResolvedAddresses(hostsAddresses, config, attributes);
 
             // Act
-            await policy.HandleResolvedAddressesAsync(resolvedAddresses, serviceName, false);
+            policy.HandleResolvedAddresses(resolvedAddresses, serviceName, false);
             IGrpcSubChannelPicker picker = helper?.SubChannelPicker ?? throw new ArgumentNullException();
             var subChannels = ((WeightedRandomPicker)picker)._weightedPickers
                 .Select(x => (RoundRobinPicker)x.ChildPicker)

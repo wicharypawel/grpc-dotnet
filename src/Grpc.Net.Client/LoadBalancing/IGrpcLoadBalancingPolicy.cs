@@ -1,7 +1,6 @@
 ﻿using Grpc.Core;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Threading.Tasks;
 
 namespace Grpc.Net.Client.LoadBalancing
 {
@@ -23,19 +22,19 @@ namespace Grpc.Net.Client.LoadBalancing
         /// <param name="serviceName">The name of the load balanced service (e.g., service.googleapis.com).</param>
         /// <param name="isSecureConnection">Flag if connection between client and destination server should be secured.</param>
         /// <returns>List of subchannels.</returns>
-        public Task HandleResolvedAddressesAsync(GrpcResolvedAddresses resolvedAddresses, string serviceName, bool isSecureConnection);
+        public void HandleResolvedAddresses(GrpcResolvedAddresses resolvedAddresses, string serviceName, bool isSecureConnection);
 
         /// <summary>
         /// Handles an error from the name resolution system.
         /// </summary>
         /// <param name="error">Error a non-OK status</param>
         /// <returns>Task instance.</returns>
-        public Task HandleNameResolutionErrorAsync(Status error);
+        public void HandleNameResolutionError(Status error);
 
         /// <summary>
-        /// Whether this LoadBalancer can handle empty address group list to be passed to <see cref="HandleResolvedAddressesAsync"/>.
+        /// Whether this LoadBalancer can handle empty address group list to be passed to <see cref="HandleResolvedAddresses"/>.
         /// By default implementation should returns false, meaning that if the NameResolver returns an empty list, the Channel will turn
-        /// that into an error and call <see cref="HandleNameResolutionErrorAsync"/>. LoadBalancers that want to
+        /// that into an error and call <see cref="HandleNameResolutionError"/>. LoadBalancers that want to
         /// accept empty lists should return true.
         /// </summary>
         /// <returns>True if policy accept empty list, false if not.</returns>
@@ -50,6 +49,6 @@ namespace Grpc.Net.Client.LoadBalancing
         /// request.
         /// </summary>
         /// <returns>Task instance.</returns>
-        public Task RequestConnectionAsync();
+        public void RequestConnection();
     }
 }

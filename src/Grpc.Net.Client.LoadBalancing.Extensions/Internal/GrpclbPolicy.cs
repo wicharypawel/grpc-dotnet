@@ -55,7 +55,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 
         internal ILoadBalancerClient? OverrideLoadBalancerClient { private get; set; }
 
-        public async Task HandleResolvedAddressesAsync(GrpcResolvedAddresses resolvedAddresses, string serviceName, bool isSecureConnection)
+        public void HandleResolvedAddresses(GrpcResolvedAddresses resolvedAddresses, string serviceName, bool isSecureConnection)
         {
             if (resolvedAddresses == null)
             {
@@ -80,9 +80,9 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             _loadBalancerClient = GetLoadBalancerClient($"http://{hostsAddresses[0].Host}:{hostsAddresses[0].Port}", channelOptionsForLB);
             _balancingStreaming = _loadBalancerClient.BalanceLoad();
             var initialRequest = new InitialLoadBalanceRequest() { Name = serviceName };
-            await _balancingStreaming.RequestStream.WriteAsync(new LoadBalanceRequest() { InitialRequest = initialRequest }).ConfigureAwait(false);
-            await ProcessInitialResponseAsync(_balancingStreaming.ResponseStream).ConfigureAwait(false);
-            await ProcessNextBalancerResponseAsync(_balancingStreaming.ResponseStream).ConfigureAwait(false);
+            _balancingStreaming.RequestStream.WriteAsync(new LoadBalanceRequest() { InitialRequest = initialRequest }).Wait();
+            ProcessInitialResponseAsync(_balancingStreaming.ResponseStream).Wait();
+            ProcessNextBalancerResponseAsync(_balancingStreaming.ResponseStream).Wait();
             _logger.LogDebug($"SubChannels list created");
             if (_clientStatsReportInterval > TimeSpan.Zero)
             {
@@ -92,10 +92,9 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             }
         }
 
-        public Task HandleNameResolutionErrorAsync(Status error)
+        public void HandleNameResolutionError(Status error)
         {
             // TODO
-            return Task.CompletedTask;
         }
 
         public bool CanHandleEmptyAddressListFromNameResolution()
@@ -103,10 +102,9 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             return true;
         }
 
-        public Task RequestConnectionAsync()
+        public void RequestConnection()
         {
             //TODO
-            return Task.CompletedTask;
         }
 
         public void Dispose()

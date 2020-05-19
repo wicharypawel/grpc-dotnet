@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace Grpc.Net.Client.LoadBalancing.Internal
 {
@@ -32,7 +31,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         }
         internal IReadOnlyList<IGrpcSubChannel> SubChannels { get; set; } = Array.Empty<IGrpcSubChannel>();
 
-        public Task HandleResolvedAddressesAsync(GrpcResolvedAddresses resolvedAddresses, string serviceName, bool isSecureConnection)
+        public void HandleResolvedAddresses(GrpcResolvedAddresses resolvedAddresses, string serviceName, bool isSecureConnection)
         {
             if (resolvedAddresses == null)
             {
@@ -62,14 +61,12 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             _logger.LogDebug($"SubChannels list created");
             SubChannels = result;
             _helper.UpdateBalancingState(GrpcConnectivityState.READY, new ReadyPicker(SubChannels));
-            return Task.CompletedTask;
         }
 
-        public Task HandleNameResolutionErrorAsync(Status error)
+        public void HandleNameResolutionError(Status error)
         {
             // TODO
             _helper.UpdateBalancingState(GrpcConnectivityState.TRANSIENT_FAILURE, new EmptyPicker(error));
-            return Task.CompletedTask;
         }
 
         public bool CanHandleEmptyAddressListFromNameResolution()
@@ -77,9 +74,8 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             return false;
         }
 
-        public Task RequestConnectionAsync()
+        public void RequestConnection()
         {
-            return Task.CompletedTask;
         }
 
         public void Dispose()

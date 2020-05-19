@@ -4,7 +4,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 
 namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
 {
@@ -40,7 +39,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         }
         internal bool Disposed { get; private set; }
 
-        public async Task HandleResolvedAddressesAsync(GrpcResolvedAddresses resolvedAddresses, string serviceName, bool isSecureConnection)
+        public void HandleResolvedAddresses(GrpcResolvedAddresses resolvedAddresses, string serviceName, bool isSecureConnection)
         {
             if (resolvedAddresses == null)
             {
@@ -64,7 +63,7 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 ?? throw new InvalidOperationException("Can not find EDS cluster name.");
             _isSecureConnection = isSecureConnection;
             _logger.LogDebug($"Start EDS policy");
-            var endpointUpdate = await _xdsClient.GetEdsAsync(edsClusterName).ConfigureAwait(false);
+            var endpointUpdate = _xdsClient.GetEdsAsync(edsClusterName).Result;
             var localities = endpointUpdate.LocalityLbEndpoints.Values.ToList();
             var childPolicies = localities.Select(locality =>
             {
@@ -76,10 +75,9 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             _logger.LogDebug($"SubChannels list created");
         }
 
-        public Task HandleNameResolutionErrorAsync(Status error)
+        public void HandleNameResolutionError(Status error)
         {
             // TODO
-            return Task.CompletedTask;
         }
 
         public bool CanHandleEmptyAddressListFromNameResolution()
@@ -87,9 +85,8 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             return true;
         }
 
-        public Task RequestConnectionAsync()
+        public void RequestConnection()
         {
-            return Task.CompletedTask;
         }
 
         public void Dispose()

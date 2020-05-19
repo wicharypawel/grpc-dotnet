@@ -141,7 +141,7 @@ namespace Grpc.Net.Client
             else
             {
                 var isSecureConnection = Address.Scheme == Uri.UriSchemeHttps || Address.Port == 443;
-                LoadBalancingPolicy.HandleResolvedAddressesAsync(resolvedAddresses, Address.Host, isSecureConnection).Wait();
+                LoadBalancingPolicy.HandleResolvedAddresses(resolvedAddresses, Address.Host, isSecureConnection);
                 return Status.DefaultSuccess;
             }
         }
@@ -149,7 +149,7 @@ namespace Grpc.Net.Client
         internal void HandleNameResolutionError(Status status)
         {
             SyncContext.ThrowIfNotInThisSynchronizationContext();
-            LoadBalancingPolicy.HandleNameResolutionErrorAsync(status).Wait();
+            LoadBalancingPolicy.HandleNameResolutionError(status);
         }
 
         private static IGrpcResolverPlugin CreateResolverPlugin(Uri address, ILoggerFactory loggerFactory, GrpcAttributes attributes)
