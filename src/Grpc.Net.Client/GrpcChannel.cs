@@ -54,10 +54,12 @@ namespace Grpc.Net.Client
         internal Dictionary<string, ICompressionProvider> CompressionProviders { get; }
         internal string MessageAcceptEncoding { get; }
         internal IGrpcHelper Helper { get; }
+        internal GrpcResolutionState LastResolutionState { get; set; } = GrpcResolutionState.NoResolution; // update only in SyncContext
         internal GrpcSynchronizationContext.ScheduledHandle? NameResolverRefreshSchedule { get; set; } // update only in SyncContext
         internal IGrpcBackoffPolicy? NameResolverRefreshBackoffPolicy { get; set; } // update only in SyncContext
         internal IGrpcResolverPlugin ResolverPlugin { get; }
         internal IGrpcLoadBalancingPolicy LoadBalancingPolicy { get; set; }
+        internal IGrpcLoadBalancingPolicyProvider LoadBalancingPolicyProvider { get; set; }
         internal IGrpcSubChannelPicker SubChannelPicker { get; set; } // update only in SyncContext
         internal GrpcConnectivityStateManager ChannelStateManager { get; } = new GrpcConnectivityStateManager();
         internal IGrpcBackoffPolicyProvider BackoffPolicyProvider { get; } = new GrpcExponentialBackoffPolicyProvider();
@@ -107,7 +109,8 @@ namespace Grpc.Net.Client
                 throw new ArgumentException($"Can not find host in {nameof(address)}, verify host and scheme were specified");
             }
             Helper = new GrpcHelper(this);
-            LoadBalancingPolicy = CreateRequestedPolicy(new string[] { channelOptions.DefaultLoadBalancingPolicy }, LoggerFactory, Helper);
+            LoadBalancingPolicyProvider = CreateRequestedPolicyProvider(new string[] { channelOptions.DefaultLoadBalancingPolicy }, LoggerFactory);
+            LoadBalancingPolicy = LoadBalancingPolicyProvider.CreateLoadBalancingPolicy(Helper);
             SubChannelPicker = new EmptyPicker();
             var resolverAttributes = channelOptions.Attributes.Add(GrpcAttributesConstants.DefaultLoadBalancingPolicy, channelOptions.DefaultLoadBalancingPolicy);
             ResolverPlugin = CreateResolverPlugin(Address, LoggerFactory, resolverAttributes);
@@ -116,15 +119,31 @@ namespace Grpc.Net.Client
             ResolverPlugin.Subscribe(Address, nameResolutionObserver);
         }
 
-        internal void HandleResolvedAddresses(GrpcResolvedAddresses resolvedAddresses)
+        internal Status TryHandleResolvedAddresses(GrpcResolvedAddresses resolvedAddresses)
         {
             SyncContext.ThrowIfNotInThisSynchronizationContext();
             var serviceConfig = resolvedAddresses.ServiceConfig as GrpcServiceConfig ?? GrpcServiceConfig.Create("pick_first");
             var requestedPolicies = serviceConfig.RequestedLoadBalancingPolicies;
-            LoadBalancingPolicy = CreateRequestedPolicy(requestedPolicies, LoggerFactory, Helper);
-            LoadBalancingPolicy.LoggerFactory = LoggerFactory;
-            var isSecureConnection = Address.Scheme == Uri.UriSchemeHttps || Address.Port == 443;
-            LoadBalancingPolicy.HandleResolvedAddressesAsync(resolvedAddresses, Address.Host, isSecureConnection).Wait();
+            var selectedPolicyProvider = CreateRequestedPolicyProvider(requestedPolicies, LoggerFactory);
+            if (!selectedPolicyProvider.PolicyName.Equals(LoadBalancingPolicyProvider.PolicyName, StringComparison.Ordinal)) // if true, new policy was requested
+            {
+                Helper.UpdateBalancingState(GrpcConnectivityState.CONNECTING, new EmptyPicker());
+                var oldPolicy = LoadBalancingPolicy;
+                LoadBalancingPolicyProvider = selectedPolicyProvider;
+                LoadBalancingPolicy = LoadBalancingPolicyProvider.CreateLoadBalancingPolicy(Helper);
+                LoadBalancingPolicy.LoggerFactory = LoggerFactory;
+                oldPolicy.Dispose();
+            }
+            if (resolvedAddresses.HostsAddresses.Count == 0 && !LoadBalancingPolicy.CanHandleEmptyAddressListFromNameResolution())
+            {
+                return new Status(StatusCode.Unavailable, "NameResolver returned no usable address.");
+            }
+            else
+            {
+                var isSecureConnection = Address.Scheme == Uri.UriSchemeHttps || Address.Port == 443;
+                LoadBalancingPolicy.HandleResolvedAddressesAsync(resolvedAddresses, Address.Host, isSecureConnection).Wait();
+                return Status.DefaultSuccess;
+            }
         }
 
         internal void HandleNameResolutionError(Status status)
@@ -145,7 +164,7 @@ namespace Grpc.Net.Client
             return resolverPluginProvider!.CreateResolverPlugin(address, attributes);
         }
 
-        private static IGrpcLoadBalancingPolicy CreateRequestedPolicy(IReadOnlyList<string> requestedPolicies, ILoggerFactory loggerFactory, IGrpcHelper helper)
+        private static IGrpcLoadBalancingPolicyProvider CreateRequestedPolicyProvider(IReadOnlyList<string> requestedPolicies, ILoggerFactory loggerFactory)
         {
             var registry = GrpcLoadBalancingPolicyRegistry.GetDefaultRegistry(loggerFactory);
             foreach (var requestedPolicyName in requestedPolicies)
@@ -153,7 +172,7 @@ namespace Grpc.Net.Client
                 var loadBalancingPolicyProvider = registry.GetProvider(requestedPolicyName);
                 if (loadBalancingPolicyProvider != null)
                 {
-                    return loadBalancingPolicyProvider.CreateLoadBalancingPolicy(helper);
+                    return loadBalancingPolicyProvider;
                 }
             }
             throw new InvalidOperationException("LoadBalancingPolicyProvider for requested policy not found");

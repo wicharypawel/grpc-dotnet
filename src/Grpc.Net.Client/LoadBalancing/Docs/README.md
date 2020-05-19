@@ -46,3 +46,8 @@ GrpcExponentialBackoffPolicy | ExponentialBackoffPolicy _(ExponentialBackoffPoli
 GrpcExponentialBackoffPolicyProvider | Provider _(ExponentialBackoffPolicy.java)_
 IGrpcPickSubchannelArgs | PickSubchannelArgs _(LoadBalancer.java)_
 GrpcPickSubchannelArgs | PickSubchannelArgsImpl _(PickSubchannelArgsImpl.java)_
+
+### Important types not ported from JAVA
+gRPC java type | Justification and future approach
+---|---
+AutoConfiguredLoadBalancer | Type was flattened (merged) into main channel class. gRPC dotnet doesn't support IDLE mode yet, so it was trivial. In current Java implementation this is an encapsulated private field in channel, so we can easily refactor to this approach in the future. 

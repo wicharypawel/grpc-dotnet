@@ -1,4 +1,5 @@
 ﻿using Grpc.Core;
+using Grpc.Net.Client.LoadBalancing.Internal;
 using Microsoft.Extensions.Logging;
 using System;
 
@@ -22,9 +23,26 @@ namespace Grpc.Net.Client.LoadBalancing
             _logger.LogDebug("Name resolution results received.");
             _helper.GetSynchronizationContext().Execute(() =>
             {
+                var lastResolutionStateCopy = _grpcChannel.LastResolutionState;
+                if (_grpcChannel.LastResolutionState != GrpcResolutionState.Success)
+                {
+                    _grpcChannel.LastResolutionState = GrpcResolutionState.Success;
+                }
                 var effectiveServiceConfig = value.ServiceConfig.Config ?? new object();
                 var resolvedAddresses = new GrpcResolvedAddresses(value.HostsAddresses, effectiveServiceConfig, value.Attributes);
-                _grpcChannel.HandleResolvedAddresses(resolvedAddresses);
+                if (_helper != _grpcChannel.Helper) return;
+                Status handleResult = _grpcChannel.TryHandleResolvedAddresses(resolvedAddresses);
+                if (handleResult.StatusCode != StatusCode.OK)
+                {
+                    if (value.HostsAddresses.Count == 0 && lastResolutionStateCopy == GrpcResolutionState.Success)
+                    {
+                        ScheduleExponentialBackOffInSyncContext();
+                    }
+                    else
+                    {
+                        HandleErrorInSyncContext(handleResult);
+                    }
+                }
             });
         }
 
@@ -43,11 +61,12 @@ namespace Grpc.Net.Client.LoadBalancing
 
         private void HandleErrorInSyncContext(Status error)
         {
-            // Call LB only if it's not shutdown. If LB is shutdown, lbHelper won't match. This is required for idle mode implementation.
-            if (_helper != _grpcChannel.Helper)
+            if (_grpcChannel.LastResolutionState != GrpcResolutionState.Error)
             {
-                return;
+                _grpcChannel.LastResolutionState = GrpcResolutionState.Error;
             }
+            // Call LB only if it's not shutdown. If LB is shutdown, lbHelper won't match. This is required for idle mode implementation.
+            if (_helper != _grpcChannel.Helper) return;
             _grpcChannel.HandleNameResolutionError(error);
             ScheduleExponentialBackOffInSyncContext();
         }
