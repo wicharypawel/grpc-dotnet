@@ -1,4 +1,4 @@
-#region Copyright notice and license
+﻿#region Copyright notice and license
 
 // Copyright 2019 The gRPC Authors
 //
@@ -58,12 +58,12 @@ namespace Grpc.Net.Client
         internal GrpcSynchronizationContext.ScheduledHandle? NameResolverRefreshSchedule { get; set; } // update only in SyncContext
         internal IGrpcBackoffPolicy? NameResolverRefreshBackoffPolicy { get; set; } // update only in SyncContext
         internal IGrpcResolverPlugin ResolverPlugin { get; }
-        internal IGrpcLoadBalancingPolicy LoadBalancingPolicy { get; set; }
-        internal IGrpcLoadBalancingPolicyProvider LoadBalancingPolicyProvider { get; set; }
+        internal IGrpcLoadBalancingPolicy LoadBalancingPolicy { get; set; } // update only in SyncContext
+        internal IGrpcLoadBalancingPolicyProvider LoadBalancingPolicyProvider { get; set; } // update only in SyncContext
         internal IGrpcSubChannelPicker SubChannelPicker { get; set; } // update only in SyncContext
-        internal GrpcConnectivityStateManager ChannelStateManager { get; } = new GrpcConnectivityStateManager();
-        internal IGrpcBackoffPolicyProvider BackoffPolicyProvider { get; } = new GrpcExponentialBackoffPolicyProvider();
-        internal GrpcSynchronizationContext SyncContext { get; } = new GrpcSynchronizationContext((ex) => { /*TODO implement panic mode */});
+        internal GrpcConnectivityStateManager ChannelStateManager { get; }
+        internal IGrpcBackoffPolicyProvider BackoffPolicyProvider { get; }
+        internal GrpcSynchronizationContext SyncContext { get; }
         internal bool Disposed { get; private set; }
         // Timing related options that are set in unit tests
         internal ISystemClock Clock = SystemClock.Instance;
@@ -110,6 +110,9 @@ namespace Grpc.Net.Client
                 throw new ArgumentException($"Can not find host in {nameof(address)}, verify host and scheme were specified");
             }
             Helper = new GrpcHelper(this);
+            ChannelStateManager = new GrpcConnectivityStateManager();
+            BackoffPolicyProvider = new GrpcExponentialBackoffPolicyProvider();
+            SyncContext = new GrpcSynchronizationContext((ex) => Panic(ex));
             LoadBalancingPolicyProvider = CreateRequestedPolicyProvider(new string[] { channelOptions.DefaultLoadBalancingPolicy }, LoggerFactory);
             LoadBalancingPolicy = LoadBalancingPolicyProvider.CreateLoadBalancingPolicy(Helper);
             SubChannelPicker = new EmptyPicker();
