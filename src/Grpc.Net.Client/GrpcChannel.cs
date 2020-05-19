@@ -322,7 +322,7 @@ namespace Grpc.Net.Client
         /// <param name="callback">The one-off callback.</param>
         public void NotifyWhenStateChanged(GrpcConnectivityState sourceState, Action callback)
         {
-            ChannelStateManager.NotifyWhenStateChanged(callback, sourceState);
+            SyncContext.Execute(() => { ChannelStateManager.NotifyWhenStateChanged(callback, sourceState); });
         }
 
         private class DefaultChannelCredentialsConfigurator : ChannelCredentialsConfiguratorBase
