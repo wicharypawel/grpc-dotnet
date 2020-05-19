@@ -1,4 +1,4 @@
-﻿#region Copyright notice and license
+#region Copyright notice and license
 
 // Copyright 2019 The gRPC Authors
 //
@@ -72,6 +72,7 @@ namespace Grpc.Net.Client
 
         internal readonly InterlockedBool _shutdown = new InterlockedBool(false);
         internal bool _terminating = false;
+        private bool _panicMode = false; // access only in SyncContext 
         private bool _shouldDisposeHttpClient;
 
         internal GrpcChannel(Uri address, GrpcChannelOptions channelOptions) : base(address.Authority)
@@ -206,6 +207,18 @@ namespace Grpc.Net.Client
                 NameResolverRefreshSchedule = null;
                 NameResolverRefreshBackoffPolicy = null;
             }
+        }
+
+        private void Panic(Exception ex)
+        {
+            SyncContext.ThrowIfNotInThisSynchronizationContext();
+            if (_panicMode)
+            {
+                return;
+            }
+            _panicMode = true;
+            UpdateSubchannelPicker(new PanicPicker());
+            ChannelStateManager.SetState(GrpcConnectivityState.TRANSIENT_FAILURE);
         }
 
         private static HttpClient CreateInternalHttpClient()
