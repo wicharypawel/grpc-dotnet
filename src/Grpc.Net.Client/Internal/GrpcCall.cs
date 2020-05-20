@@ -461,10 +461,15 @@ namespace Grpc.Net.Client.Internal
                     try
                     {
                         _httpResponseTask = Channel.HttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, _callCts.Token);
-                        HttpResponse = await _httpResponseTask.ConfigureAwait(false);
+                        await Task.WhenAny(_httpResponseTask, Task.Delay(1500)).ConfigureAwait(false);
                         #region HTTP_CLIENT_MISSING_MONITORING_WORKAROUND
+                        if (!_httpResponseTask.IsCompleted)
+                        {
+                            throw new TimeoutException("Starting gRPC call timedout.");
+                        }
                         (_subChannel as GrpcSubChannel)?.TriggerSubChannelSuccess();
                         #endregion
+                        HttpResponse = _httpResponseTask.Result;
                     }
                     catch (Exception ex)
                     {
