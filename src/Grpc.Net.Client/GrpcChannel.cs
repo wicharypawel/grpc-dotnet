@@ -1,4 +1,4 @@
-#region Copyright notice and license
+﻿#region Copyright notice and license
 
 // Copyright 2019 The gRPC Authors
 //
@@ -114,6 +114,7 @@ namespace Grpc.Net.Client
             SyncContext = new GrpcSynchronizationContext((ex) => Panic(ex));
             LoadBalancingPolicyProvider = CreateRequestedPolicyProvider(new string[] { channelOptions.DefaultLoadBalancingPolicy }, LoggerFactory);
             LoadBalancingPolicy = LoadBalancingPolicyProvider.CreateLoadBalancingPolicy(Helper);
+            LoadBalancingPolicy.LoggerFactory = LoggerFactory;
             SubChannelPicker = new EmptyPicker();
             var resolverAttributes = channelOptions.Attributes.Add(GrpcAttributesConstants.DefaultLoadBalancingPolicy, channelOptions.DefaultLoadBalancingPolicy);
             ResolverPlugin = CreateResolverPlugin(Address, LoggerFactory, resolverAttributes);
@@ -430,6 +431,8 @@ namespace Grpc.Net.Client
             {
                 return;
             }
+            Disposed = true;
+            
             ShutdownNow();
             LoadBalancingPolicy.Dispose();
             ResolverPlugin.Dispose();
@@ -438,7 +441,6 @@ namespace Grpc.Net.Client
             {
                 HttpClient.Dispose();
             }
-            Disposed = true;
         }
 
         private void ShutdownNow()
