@@ -462,7 +462,9 @@ namespace Grpc.Net.Client.Internal
                     {
                         _httpResponseTask = Channel.HttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, _callCts.Token);
                         HttpResponse = await _httpResponseTask.ConfigureAwait(false);
+                        #region HTTP_CLIENT_MISSING_MONITORING_WORKAROUND
                         (_subChannel as GrpcSubChannel)?.TriggerSubChannelSuccess();
+                        #endregion
                     }
                     catch (Exception ex)
                     {
@@ -585,10 +587,12 @@ namespace Grpc.Net.Client.Internal
             {
                 status = rpcException.Status;
                 resolvedException = CreateRpcException(status.Value);
+                #region HTTP_CLIENT_MISSING_MONITORING_WORKAROUND
                 if (status.Value.StatusCode == StatusCode.Unavailable || status.Value.StatusCode == StatusCode.Internal)
                 {
                     (_subChannel as GrpcSubChannel)?.TriggerSubChannelFailure(new Status(StatusCode.Internal, "Subchannel TransientFailure"));
                 }
+                #endregion
             }
             else
             {
@@ -596,7 +600,9 @@ namespace Grpc.Net.Client.Internal
 
                 status = new Status(StatusCode.Internal, "Error starting gRPC call. " +  exceptionMessage);
                 resolvedException = CreateRpcException(status.Value);
+                #region HTTP_CLIENT_MISSING_MONITORING_WORKAROUND
                 (_subChannel as GrpcSubChannel)?.TriggerSubChannelFailure(new Status(StatusCode.Internal, "Subchannel TransientFailure"));
+                #endregion
             }
         }
 

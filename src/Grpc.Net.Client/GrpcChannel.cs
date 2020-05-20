@@ -201,6 +201,15 @@ namespace Grpc.Net.Client
             RefreshNameResolution();
         }
 
+        internal void HandleInternalSubchannelState(GrpcConnectivityStateInfo newState)
+        {
+            SyncContext.ThrowIfNotInThisSynchronizationContext();
+            if (newState.State == GrpcConnectivityState.TRANSIENT_FAILURE || newState.State == GrpcConnectivityState.IDLE)
+            {
+                RefreshAndResetNameResolution();
+            }
+        }
+
         internal void CancelNameResolverBackoff()
         {
             SyncContext.ThrowIfNotInThisSynchronizationContext();
