@@ -229,6 +229,7 @@ namespace Grpc.Net.Client
                 return;
             }
             _panicMode = true;
+            LoggerFactory.CreateLogger(nameof(GrpcChannel)).LogDebug("Channel enters PANIC mode! Exception: " + ex.Message);
             UpdateSubchannelPicker(new PanicPicker());
             ChannelStateManager.SetState(GrpcConnectivityState.TRANSIENT_FAILURE);
         }
