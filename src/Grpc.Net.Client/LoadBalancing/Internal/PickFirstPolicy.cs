@@ -92,7 +92,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
 
         private void ProcessSubchannelState(IGrpcSubChannel subChannel, GrpcConnectivityStateInfo stateInfo)
         {
-            if (SubChannels[subChannel.Address] != subChannel)
+            if (SubChannels.GetValueOrDefault(subChannel.Address) != subChannel)
             {
                 return;
             }
