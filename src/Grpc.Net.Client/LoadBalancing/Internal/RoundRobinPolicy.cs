@@ -88,7 +88,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
 
         public void HandleNameResolutionError(Status error)
         {
-            _helper.UpdateBalancingState(GrpcConnectivityState.TRANSIENT_FAILURE, _currentPickerCache is ReadyPicker ? _currentPickerCache : new EmptyPicker(error));
+            UpdateBalancingState(GrpcConnectivityState.TRANSIENT_FAILURE, _currentPickerCache is ReadyPicker ? _currentPickerCache : new EmptyPicker(error));
         }
 
         private void ProcessSubchannelState(IGrpcSubChannel subChannel, GrpcConnectivityStateInfo stateInfo)
