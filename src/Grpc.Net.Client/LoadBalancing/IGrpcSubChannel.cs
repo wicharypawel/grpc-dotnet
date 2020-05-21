@@ -48,12 +48,5 @@ namespace Grpc.Net.Client.LoadBalancing
         /// LoadBalancer can use it to attach additional information.
         /// </summary>
         public GrpcAttributes Attributes { get; }
-
-        /// <summary>
-        /// Replaces the existing addresses used with this <see cref="IGrpcSubChannel"/>. If the new and old
-        /// addresses overlap, the Subchannel can continue using an existing connection.
-        /// It must be called from the Synchronization Context or will throw.
-        /// </summary>
-        public void UpdateAddress(Uri address);
     }
 }

@@ -74,12 +74,6 @@ namespace Grpc.Net.Client.LoadBalancing
             #endregion
         }
 
-        public void UpdateAddress(Uri address)
-        {
-            _synchronizationContext.ThrowIfNotInThisSynchronizationContext();
-            Address = address ?? throw new ArgumentNullException(nameof(address));
-        }
-
         private void SetState(GrpcConnectivityStateInfo newState)
         {
             if (newState == null)
