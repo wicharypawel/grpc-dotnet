@@ -201,13 +201,13 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             return GetSubchannelStateInfoRef(subChannel).Value.State == GrpcConnectivityState.READY;
         }
 
-        private abstract class RoundRobinPicker : IGrpcSubChannelPicker
+        internal abstract class RoundRobinPicker : IGrpcSubChannelPicker
         {
             public abstract GrpcPickResult GetNextSubChannel(IGrpcPickSubchannelArgs arguments);
             public abstract bool IsEquivalentTo(RoundRobinPicker picker);
         }
 
-        private sealed class ReadyPicker : RoundRobinPicker
+        internal sealed class ReadyPicker : RoundRobinPicker
         {
             private readonly IReadOnlyList<IGrpcSubChannel> _subChannels;
             private int index;
@@ -217,7 +217,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
                 if (subChannels == null) throw new ArgumentNullException(nameof(subChannels));
                 if (subChannels.Count == 0) throw new ArgumentException($"Empty {nameof(subChannels)}.");
                 _subChannels = subChannels;
-                index = 0;
+                index = -1;
             }
 
             public override GrpcPickResult GetNextSubChannel(IGrpcPickSubchannelArgs arguments)
@@ -236,7 +236,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             }
         }
 
-        private sealed class EmptyPicker : RoundRobinPicker
+        internal sealed class EmptyPicker : RoundRobinPicker
         {
             private readonly Status _status;
 

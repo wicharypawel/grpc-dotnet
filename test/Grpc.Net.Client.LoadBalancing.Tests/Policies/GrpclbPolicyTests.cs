@@ -261,7 +261,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         {
             // Arrange
             var subChannels = GrpcSubChannelFactory.GetSubChannelsWithoutLoadBalanceTokens();
-            using var picker = new GrpclbPolicy.Picker(subChannels);
+            var picker = new GrpclbPolicy.Picker(subChannels);
 
             // Act
             // Assert

@@ -84,13 +84,13 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
 
             // Act
             policy.HandleResolvedAddresses(resolvedAddresses, "sample-service.contoso.com", false);
-            var subChannels = policy.SubChannels;
+            var subChannel = policy.SubChannel;
 
             // Assert
-            Assert.Single(subChannels);
-            Assert.Equal("http", subChannels[0].Address.Scheme);
-            Assert.Equal(80, subChannels[0].Address.Port);
-            Assert.StartsWith("10.1.5.210", subChannels[0].Address.Host);
+            Assert.NotNull(subChannel);
+            Assert.Equal("http", subChannel!.Address.Scheme);
+            Assert.Equal(80, subChannel.Address.Port);
+            Assert.StartsWith("10.1.5.210", subChannel.Address.Host);
         }
 
         [Fact]
@@ -123,13 +123,13 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
 
             // Act
             policy.HandleResolvedAddresses(resolvedAddresses, "sample-service.contoso.com", true);
-            var subChannels = policy.SubChannels;
+            var subChannel = policy.SubChannel;
 
             // Assert
-            Assert.Single(subChannels); // load balancers are ignored
-            Assert.Equal("https", subChannels[0].Address.Scheme);
-            Assert.Equal(8443, subChannels[0].Address.Port);
-            Assert.StartsWith("10.1.5.212", subChannels[0].Address.Host);
+            Assert.NotNull(subChannel);
+            Assert.Equal("https", subChannel!.Address.Scheme);
+            Assert.Equal(8443, subChannel.Address.Port);
+            Assert.StartsWith("10.1.5.212", subChannel.Address.Host);
         }
 
         [Fact]
@@ -137,7 +137,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         {
             // Arrange
             var subChannels = GrpcSubChannelFactory.GetSubChannelsWithoutLoadBalanceTokens();
-            using var picker = new PickFirstPolicy.Picker(subChannels[0]);
+            var picker = new PickFirstPolicy.ReadyPicker(subChannels[0]);
 
             // Act
             // Assert

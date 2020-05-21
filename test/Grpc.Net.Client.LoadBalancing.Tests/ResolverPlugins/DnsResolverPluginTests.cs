@@ -56,13 +56,15 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             // Arrange
             var serviceHostName = "my-service";
             var attributes = new GrpcAttributes(new Dictionary<string, object>() { { GrpcAttributesConstants.DefaultLoadBalancingPolicy, "round_robin" } });
-            var resolverPlugin = new DnsResolverPlugin(attributes);
+            var timerFake = new TimerFake();
+            var resolverPlugin = new DnsResolverPlugin(attributes, timerFake);
             resolverPlugin.OverrideDnsResults = Task.FromResult(new IPAddress[] { IPAddress.Parse("10.1.5.211"),
                 IPAddress.Parse("10.1.5.212"), IPAddress.Parse("10.1.5.213") });
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
             // Act
             resolverPlugin.Subscribe(new Uri($"dns://{serviceHostName}:443"), nameResolutionObserver);
+            timerFake.ManualCallbackTrigger();
             var resolutionResult = await nameResolutionObserver.GetFirstValueOrDefaultAsync();
             Assert.NotNull(resolutionResult);
             var serviceConfig = resolutionResult!.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");

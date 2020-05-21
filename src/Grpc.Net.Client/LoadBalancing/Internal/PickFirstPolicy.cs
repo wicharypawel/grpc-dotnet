@@ -168,13 +168,13 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             }
         }
 
-        private abstract class PickFirstPicker : IGrpcSubChannelPicker
+        internal abstract class PickFirstPicker : IGrpcSubChannelPicker
         {
             public abstract GrpcPickResult GetNextSubChannel(IGrpcPickSubchannelArgs arguments);
             public abstract bool IsEquivalentTo(PickFirstPicker picker);
         }
 
-        private sealed class ReadyPicker : PickFirstPicker
+        internal sealed class ReadyPicker : PickFirstPicker
         {
             private readonly IGrpcSubChannel _subChannel;
 
@@ -198,7 +198,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             }
         }
 
-        private sealed class EmptyPicker : PickFirstPicker
+        internal sealed class EmptyPicker : PickFirstPicker
         {
             private readonly Status _status;
 

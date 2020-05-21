@@ -84,7 +84,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
 
             // Act
             policy.HandleResolvedAddresses(resolvedAddresses, "sample-service.contoso.com", false);
-            var subChannels = policy.SubChannels;
+            var subChannels = policy.SubChannels.Values;
 
             // Assert
             Assert.Equal(4, subChannels.Count);
@@ -127,7 +127,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
 
             // Act
             policy.HandleResolvedAddresses(resolvedAddresses, "sample-service.contoso.com", true);
-            var subChannels = policy.SubChannels;
+            var subChannels = policy.SubChannels.Values;
 
             // Assert
             Assert.Equal(3, subChannels.Count); // load balancers are ignored
@@ -141,7 +141,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         {
             // Arrange
             var subChannels = GrpcSubChannelFactory.GetSubChannelsWithoutLoadBalanceTokens();
-            using var picker = new RoundRobinPolicy.ReadyPicker(subChannels);
+            var picker = new RoundRobinPolicy.ReadyPicker(subChannels);
 
             // Act
             // Assert
