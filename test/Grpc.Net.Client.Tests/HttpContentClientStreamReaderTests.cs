@@ -25,6 +25,7 @@ using System.Threading.Tasks;
 using Greet;
 using Grpc.Core;
 using Grpc.Net.Client.Internal;
+using Grpc.Net.Client.LoadBalancing;
 using Grpc.Tests.Shared;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
@@ -209,7 +210,7 @@ namespace Grpc.Net.Client.Tests
                 ClientTestHelpers.ServiceMethod,
                 new GrpcMethodInfo(new GrpcCallScope(ClientTestHelpers.ServiceMethod.Type, uri), uri),
                 new CallOptions(),
-                channel);
+                channel, new GrpcSubChannelFake());
         }
 
         private static GrpcChannel CreateChannel(HttpClient httpClient, ILoggerFactory? loggerFactory = null, bool? throwOperationCanceledOnCancellation = null)
@@ -222,6 +223,25 @@ namespace Grpc.Net.Client.Tests
                     LoggerFactory = loggerFactory,
                     ThrowOperationCanceledOnCancellation = throwOperationCanceledOnCancellation ?? false
                 });
+        }
+    }
+
+    internal sealed class GrpcSubChannelFake : IGrpcSubChannel
+    {
+        public Uri Address => throw new NotImplementedException();
+
+        public GrpcAttributes Attributes => GrpcAttributes.Empty;
+
+        public void RequestConnection()
+        {
+        }
+
+        public void Shutdown()
+        {
+        }
+
+        public void Start(IGrpcSubchannelStateObserver observer)
+        {
         }
     }
 }
