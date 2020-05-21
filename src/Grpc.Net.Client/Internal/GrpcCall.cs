@@ -469,7 +469,7 @@ namespace Grpc.Net.Client.Internal
                         }
                         (_subChannel as GrpcSubChannel)?.TriggerSubChannelSuccess();
                         #endregion
-                        HttpResponse = _httpResponseTask.Result;
+                        HttpResponse = await _httpResponseTask.ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
