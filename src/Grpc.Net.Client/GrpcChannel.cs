@@ -444,8 +444,6 @@ namespace Grpc.Net.Client
             Disposed = true;
             
             ShutdownNow();
-            LoadBalancingPolicy.Dispose();
-            ResolverPlugin.Dispose();
 
             if (_shouldDisposeHttpClient)
             {
@@ -467,7 +465,11 @@ namespace Grpc.Net.Client
             }
             // Put gotoState(SHUTDOWN) as early into the syncContext's queue as possible.
             SyncContext.ExecuteLater(() => { ChannelStateManager.SetState(GrpcConnectivityState.SHUTDOWN); });
-            SyncContext.ExecuteLater(() => { CancelNameResolverBackoff(); });
+            SyncContext.ExecuteLater(() => {
+                CancelNameResolverBackoff();
+                LoadBalancingPolicy.Dispose();
+                ResolverPlugin.Dispose();
+            });
             // Add more stuff in the future here...
             SyncContext.Drain();
         }
