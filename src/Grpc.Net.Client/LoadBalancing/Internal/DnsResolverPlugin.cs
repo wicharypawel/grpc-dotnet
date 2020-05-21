@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Grpc.Net.Client.Internal;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Linq;
@@ -15,6 +16,9 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
     /// </summary>
     internal sealed class DnsResolverPlugin : IGrpcResolverPlugin
     {
+        private static readonly int DefaultNetworkTtlSeconds = 30;
+        private readonly int _networkTtlSeconds;
+        private readonly ITimer _timer;
         private ILogger _logger = NullLogger.Instance;
         private readonly string _defaultLoadBalancingPolicy;
         private Uri? _target = null;
@@ -37,7 +41,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         /// <summary>
         /// Creates a new <seealso cref="DnsResolverPlugin"/> instance, with default settings.
         /// </summary>
-        public DnsResolverPlugin() : this(GrpcAttributes.Empty)
+        public DnsResolverPlugin() : this(GrpcAttributes.Empty, new SystemTimer())
         {
         }
 
@@ -45,10 +49,12 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         /// Creates a <seealso cref="DnsResolverPlugin"/> using specified <seealso cref="GrpcAttributes"/>.
         /// </summary>
         /// <param name="attributes">Attributes with options.</param>
-        public DnsResolverPlugin(GrpcAttributes attributes)
+        /// <param name="timer">Timer object required for periodic re-resolve.</param>
+        public DnsResolverPlugin(GrpcAttributes attributes, ITimer timer)
         {
-            _defaultLoadBalancingPolicy = attributes.Get(GrpcAttributesConstants.DefaultLoadBalancingPolicy) as string
-                ?? "pick_first";
+            _defaultLoadBalancingPolicy = attributes.Get(GrpcAttributesConstants.DefaultLoadBalancingPolicy) as string ?? "pick_first";
+            _networkTtlSeconds = int.TryParse(attributes.Get(GrpcAttributesConstants.DnsResolverNetworkTtlSeconds) as string, out int ttlValue) ? ttlValue : DefaultNetworkTtlSeconds;
+            _timer = timer ?? throw new ArgumentNullException(nameof(timer));
         }
 
         public void Subscribe(Uri target, IGrpcNameResolutionObserver observer)
@@ -60,7 +66,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             _observer = observer ?? throw new ArgumentNullException(nameof(observer));
             _target = target ?? throw new ArgumentNullException(nameof(target));
             _cancellationTokenSource = new CancellationTokenSource();
-            Resolve();
+            _timer.Start((state) => { Resolve(); }, null, TimeSpan.Zero, TimeSpan.FromSeconds(_networkTtlSeconds));
         }
 
         public void Unsubscribe()
@@ -70,6 +76,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             _cancellationTokenSource?.Cancel();
             _cancellationTokenSource?.Dispose();
             _cancellationTokenSource = null;
+            _timer.Change(TimeSpan.FromMilliseconds(-1), TimeSpan.FromMilliseconds(-1));
         }
 
         public void RefreshResolution()
@@ -124,6 +131,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         public void Dispose()
         {
             Unsubscribe();
+            _timer.Dispose();
         }
 
         private GrpcHostAddress ParseARecord(IPAddress address, int port, bool isLoadBalancer)

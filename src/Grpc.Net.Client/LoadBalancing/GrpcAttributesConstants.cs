@@ -14,5 +14,10 @@
         /// Used to attach load balance token to subchannel.
         /// </summary>
         public static readonly string SubChannelLoadBalanceToken = "subchannel-loadbalance-token";
+
+        /// <summary>
+        /// Used to override default DNS cache duration (TTL).
+        /// </summary>
+        public static readonly string DnsResolverNetworkTtlSeconds = "dns-resolver-network-ttl-seconds";
     }
 }

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Grpc.Net.Client.Internal;
+using System;
 
 namespace Grpc.Net.Client.LoadBalancing.Internal
 {
@@ -16,7 +17,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             {
                 throw new ArgumentException(nameof(target));
             }
-            return new DnsResolverPlugin(attributes);
+            return new DnsResolverPlugin(attributes, new SystemTimer());
         }
     }
 }
