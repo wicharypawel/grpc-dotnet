@@ -10,23 +10,25 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
     internal sealed class PickFirstPolicy : IGrpcLoadBalancingPolicy
     {
         private static readonly Status StatusEmptyOk = new Status(StatusCode.OK, "no subchannels ready");
-        private static readonly string StateInfoKey = "state-info";
         private readonly IGrpcHelper _helper;
         private ILogger _logger = NullLogger.Instance;
         private GrpcConnectivityState? _currentStateCache;
-        private RoundRobinPicker _currentPickerCache = new EmptyPicker(StatusEmptyOk);
+        private PickFirstPicker _currentPickerCache = new EmptyPicker(StatusEmptyOk);
 
         public PickFirstPolicy(IGrpcHelper helper)
         {
             _helper = helper ?? throw new ArgumentNullException(nameof(helper));
         }
-        
+
         public ILoggerFactory LoggerFactory
         {
             set => _logger = value.CreateLogger<PickFirstPolicy>();
         }
 
-        internal Dictionary<Uri, IGrpcSubChannel> SubChannels { get; set; } = new Dictionary<Uri, IGrpcSubChannel>();
+        private Uri[] _resolvedUris { get; set; } = Array.Empty<Uri>();
+        private int _currentUriIndex = 0;
+        
+        internal IGrpcSubChannel? SubChannel { get; set; }
 
         public void HandleResolvedAddresses(GrpcResolvedAddresses resolvedAddresses, string serviceName, bool isSecureConnection)
         {
@@ -55,36 +57,22 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
                 _logger.LogDebug($"Found a server {uri}");
                 return uri;
             }).ToArray();
-            var removedSubChannels = new List<IGrpcSubChannel>();
-            foreach (var uri in SubChannels.Keys)
+            if (EqualResolution(_resolvedUris, resolvedUris))
             {
-                if (!resolvedUris.Contains(uri)) // uri is no longer available mark subChannel for deletion
-                {
-                    removedSubChannels.Add(SubChannels[uri]);
-                    SubChannels.Remove(uri);
-                }
+                return;
             }
-            foreach (var uri in resolvedUris)
-            {
-                if (SubChannels.GetValueOrDefault(uri) != null)
-                {
-                    continue; // subChannel for this address already exist
-                }
-                var initialStateInfo = GrpcConnectivityStateInfo.ForNonError(GrpcConnectivityState.IDLE);
-                var attributes = new GrpcAttributes(new Dictionary<string, object>() { { StateInfoKey, new Ref<GrpcConnectivityStateInfo>(initialStateInfo) } });
-                var subChannel = _helper.CreateSubChannel(new CreateSubchannelArgs(uri, attributes));
-                subChannel.Start(new BaseSubchannelStateObserver((stateInfo)=> { ProcessSubchannelState(subChannel, stateInfo); }));
-                SubChannels[uri] = subChannel;
-                subChannel.RequestConnection();
-            }
-            UpdateBalancingState();
-            foreach (var subChannel in removedSubChannels)
-            {
-                ShutdownSubchannel(subChannel);
-            }
+            _resolvedUris = resolvedUris;
+            _currentUriIndex = 0;
+            var previousSubChannel = SubChannel;
+            var subChannel = _helper.CreateSubChannel(new CreateSubchannelArgs(_resolvedUris[_currentUriIndex], GrpcAttributes.Empty));
+            subChannel.Start(new BaseSubchannelStateObserver((stateInfo) => { ProcessSubchannelState(subChannel, stateInfo); }));
+            SubChannel = subChannel;
+            SubChannel.RequestConnection();
+            UpdateBalancingState(GrpcConnectivityState.IDLE, new EmptyPicker(Status.DefaultSuccess));
+            previousSubChannel?.Shutdown();
             _logger.LogDebug($"SubChannels list created");
         }
-        
+
         public void HandleNameResolutionError(Status error)
         {
             _helper.UpdateBalancingState(GrpcConnectivityState.TRANSIENT_FAILURE, _currentPickerCache is ReadyPicker ? _currentPickerCache : new EmptyPicker(error));
@@ -92,24 +80,43 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
 
         private void ProcessSubchannelState(IGrpcSubChannel subChannel, GrpcConnectivityStateInfo stateInfo)
         {
-            if (SubChannels.GetValueOrDefault(subChannel.Address) != subChannel)
+            if (SubChannel != subChannel)
             {
                 return;
             }
-            if (stateInfo.State == GrpcConnectivityState.IDLE)
+            var currentState = stateInfo.State;
+            PickFirstPicker picker;
+            switch (currentState)
             {
-                subChannel.RequestConnection();
-            }
-            Ref<GrpcConnectivityStateInfo> subchannelStateRef = GetSubchannelStateInfoRef(subChannel);
-            if (subchannelStateRef.Value.State == GrpcConnectivityState.TRANSIENT_FAILURE)
-            {
-                if (stateInfo.State == GrpcConnectivityState.CONNECTING || stateInfo.State == GrpcConnectivityState.IDLE)
-                {
+                case GrpcConnectivityState.IDLE:
+                    subChannel.RequestConnection();
+                    picker = new EmptyPicker(StatusEmptyOk);
+                    break;
+                case GrpcConnectivityState.CONNECTING:
+                    picker = new EmptyPicker(StatusEmptyOk);
+                    break;
+                case GrpcConnectivityState.READY:
+                    picker = new ReadyPicker(SubChannel);
+                    break;
+                case GrpcConnectivityState.TRANSIENT_FAILURE:
+                    if (_currentUriIndex + 1 < _resolvedUris.Length)
+                    {
+                        _currentUriIndex += 1;
+                        var previousSubChannel = SubChannel;
+                        var newSubChannel = _helper.CreateSubChannel(new CreateSubchannelArgs(_resolvedUris[_currentUriIndex], GrpcAttributes.Empty));
+                        newSubChannel.Start(new BaseSubchannelStateObserver((stateInfo) => { ProcessSubchannelState(newSubChannel, stateInfo); }));
+                        SubChannel = newSubChannel;
+                        SubChannel.RequestConnection();
+                        previousSubChannel?.Shutdown();
+                    }
+                    picker = new EmptyPicker(stateInfo.Status);
+                    break;
+                case GrpcConnectivityState.SHUTDOWN:
                     return;
-                }
+                default:
+                    throw new InvalidOperationException($"Unsupported state: {currentState}.");
             }
-            subchannelStateRef.Value = stateInfo;
-            UpdateBalancingState();
+            UpdateBalancingState(currentState, picker);
         }
 
         public bool CanHandleEmptyAddressListFromNameResolution()
@@ -119,54 +126,39 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
 
         public void RequestConnection()
         {
+            SubChannel?.RequestConnection();
         }
 
         public void Dispose()
         {
-            foreach (var subChannel in SubChannels.Values.ToArray())
+            SubChannel?.Shutdown();
+        }
+
+        private static bool EqualResolution(Uri[] current, Uri[] other)
+        {
+            if (ReferenceEquals(current, other))
             {
-                ShutdownSubchannel(subChannel);
+                return true;
             }
-        }
-
-        private static void ShutdownSubchannel(IGrpcSubChannel subChannel)
-        {
-            subChannel.Shutdown();
-            GetSubchannelStateInfoRef(subChannel).Value = GrpcConnectivityStateInfo.ForNonError(GrpcConnectivityState.SHUTDOWN);
-        }
-
-        private void UpdateBalancingState()
-        {
-            var activeList = FilterNonFailingSubchannels(SubChannels.Values.ToArray());
-            if (activeList.Count == 0)
+            if (current == null || other == null)
             {
-                // No READY subchannels, determine aggregate state and error status
-                var isConnecting = false;
-                var aggStatus = StatusEmptyOk;
-                foreach (var subchannel in SubChannels.Values.ToArray())
+                return false;
+            }
+            if (current.Length != other.Length)
+            {
+                return false;
+            }
+            for (int i = 0; i < current.Length; i++)
+            {
+                if (!other.Contains(current[i]))
                 {
-                    var stateInfo = GetSubchannelStateInfoRef(subchannel).Value;
-                    // This subchannel IDLE is not because of channel IDLE_TIMEOUT,
-                    // in which case LB is already shutdown.
-                    // RRLB will request connection immediately on subchannel IDLE.
-                    if (stateInfo.State == GrpcConnectivityState.CONNECTING || stateInfo.State == GrpcConnectivityState.IDLE)
-                    {
-                        isConnecting = true;
-                    }
-                    if (aggStatus.StatusCode == StatusEmptyOk.StatusCode || aggStatus.StatusCode != StatusCode.OK)
-                    {
-                        aggStatus = stateInfo.Status;
-                    }
+                    return false;
                 }
-                UpdateBalancingState(isConnecting ? GrpcConnectivityState.CONNECTING : GrpcConnectivityState.TRANSIENT_FAILURE, new EmptyPicker(aggStatus));
             }
-            else
-            {
-                UpdateBalancingState(GrpcConnectivityState.READY, new ReadyPicker(activeList));
-            }
+            return true;
         }
 
-        private void UpdateBalancingState(GrpcConnectivityState newState, RoundRobinPicker newPicker)
+        private void UpdateBalancingState(GrpcConnectivityState newState, PickFirstPicker newPicker)
         {
             if (newState != _currentStateCache || !newPicker.IsEquivalentTo(_currentPickerCache))
             {
@@ -176,46 +168,20 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             }
         }
 
-        private static IReadOnlyList<IGrpcSubChannel> FilterNonFailingSubchannels(IReadOnlyList<IGrpcSubChannel> subChannels)
-        {
-            var readySubChannels = new List<IGrpcSubChannel>();
-            foreach (var subChannel in subChannels)
-            {
-                if (IsReady(subChannel))
-                {
-                    readySubChannels.Add(subChannel);
-                }
-            }
-            return readySubChannels;
-        }
-
-        private static Ref<GrpcConnectivityStateInfo> GetSubchannelStateInfoRef(IGrpcSubChannel subChannel)
-        {
-            var result = subChannel.Attributes.Get(StateInfoKey) as Ref<GrpcConnectivityStateInfo>;
-            return result ?? throw new InvalidOperationException("SubChannel state not found.");
-        }
-
-        private static bool IsReady(IGrpcSubChannel subChannel)
-        {
-            return GetSubchannelStateInfoRef(subChannel).Value.State == GrpcConnectivityState.READY;
-        }
-
-        private abstract class RoundRobinPicker : IGrpcSubChannelPicker
+        private abstract class PickFirstPicker : IGrpcSubChannelPicker
         {
             public abstract GrpcPickResult GetNextSubChannel(IGrpcPickSubchannelArgs arguments);
-            public abstract bool IsEquivalentTo(RoundRobinPicker picker);
+            public abstract bool IsEquivalentTo(PickFirstPicker picker);
             public abstract void Dispose();
         }
 
-        private sealed class ReadyPicker : RoundRobinPicker
+        private sealed class ReadyPicker : PickFirstPicker
         {
             private readonly IGrpcSubChannel _subChannel;
 
-            public ReadyPicker(IReadOnlyList<IGrpcSubChannel> subChannels)
+            public ReadyPicker(IGrpcSubChannel subChannel)
             {
-                if (subChannels == null) throw new ArgumentNullException(nameof(subChannels));
-                if (subChannels.Count == 0) throw new ArgumentException($"Empty {nameof(subChannels)}.");
-                _subChannel = subChannels[0];
+                _subChannel = subChannel ?? throw new ArgumentNullException(nameof(subChannel));
             }
 
             public override GrpcPickResult GetNextSubChannel(IGrpcPickSubchannelArgs arguments)
@@ -223,7 +189,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
                 return GrpcPickResult.WithSubChannel(_subChannel);
             }
 
-            public override bool IsEquivalentTo(RoundRobinPicker picker)
+            public override bool IsEquivalentTo(PickFirstPicker picker)
             {
                 if(!(picker is ReadyPicker other))
                 {
@@ -237,7 +203,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             }
         }
 
-        private sealed class EmptyPicker : RoundRobinPicker
+        private sealed class EmptyPicker : PickFirstPicker
         {
             private readonly Status _status;
 
@@ -251,7 +217,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
                 return _status.StatusCode == StatusCode.OK ? GrpcPickResult.WithNoResult() : GrpcPickResult.WithError(_status);
             }
 
-            public override bool IsEquivalentTo(RoundRobinPicker picker)
+            public override bool IsEquivalentTo(PickFirstPicker picker)
             {
                 if (picker is EmptyPicker emptyPicker)
                 {
@@ -262,16 +228,6 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
 
             public override void Dispose()
             {
-            }
-        }
-
-        private sealed class Ref<T>
-        {
-            public T Value { get; set; }
-
-            public Ref(T value)
-            {
-                Value = value;
             }
         }
     }
