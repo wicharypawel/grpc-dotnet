@@ -9,9 +9,5 @@
         {
             return GrpcPickResult.WithNoResult();
         }
-
-        public void Dispose()
-        {
-        }
     }
 }

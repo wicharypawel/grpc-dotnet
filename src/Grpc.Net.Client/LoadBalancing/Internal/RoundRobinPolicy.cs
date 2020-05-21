@@ -205,7 +205,6 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         {
             public abstract GrpcPickResult GetNextSubChannel(IGrpcPickSubchannelArgs arguments);
             public abstract bool IsEquivalentTo(RoundRobinPicker picker);
-            public abstract void Dispose();
         }
 
         private sealed class ReadyPicker : RoundRobinPicker
@@ -235,10 +234,6 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
                 }
                 return this == other || (_subChannels.Count == other._subChannels.Count); //TODO HERE
             }
-
-            public override void Dispose()
-            {
-            }
         }
 
         private sealed class EmptyPicker : RoundRobinPicker
@@ -262,10 +257,6 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
                     return _status.StatusCode == emptyPicker._status.StatusCode;
                 }
                 return false;
-            }
-
-            public override void Dispose()
-            {
             }
         }
 

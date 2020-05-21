@@ -54,10 +54,6 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
             throw new InvalidOperationException("ChildPicker not found.");
         }
 
-        public void Dispose()
-        {
-        }
-
         internal sealed class WeightedChildPicker
         {
             public int Weight { get; }
@@ -95,10 +91,6 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         {
             return PickResults[Interlocked.Increment(ref _subChannelsSelectionCounter) % PickResults.Count];
         }
-
-        public void Dispose()
-        {
-        }
     }
 
     internal sealed class EmptyPicker : IGrpcSubChannelPicker
@@ -106,10 +98,6 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
         public GrpcPickResult GetNextSubChannel(IGrpcPickSubchannelArgs arguments)
         {
             return GrpcPickResult.WithNoResult();
-        }
-
-        public void Dispose()
-        {
         }
     }
 }

@@ -5,7 +5,7 @@ namespace Grpc.Net.Client.LoadBalancing
     /// <summary>
     /// Picker does the actual load-balancing work. It selects a <see cref="GrpcPickResult"/> for each new RPC.
     /// </summary>
-    public interface IGrpcSubChannelPicker : IDisposable
+    public interface IGrpcSubChannelPicker
     {
         /// <summary>
         /// For each RPC sent, the load balancing policy decides which subchannel (i.e., which server) the RPC should be sent to.

@@ -266,10 +266,6 @@ namespace Grpc.Net.Client.LoadBalancing.Extensions.Internal
                 var nextSubChannel = _subChannels[Interlocked.Increment(ref _subChannelsSelectionCounter) % _subChannels.Count];
                 return GrpcPickResult.WithSubChannel(nextSubChannel);
             }
-
-            public void Dispose()
-            {
-            }
         }
     }
 }
