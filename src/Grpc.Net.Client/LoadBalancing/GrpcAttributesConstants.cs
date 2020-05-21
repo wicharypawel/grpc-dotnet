@@ -6,6 +6,11 @@
     public sealed class GrpcAttributesConstants
     {
         /// <summary>
+        /// Key used to set options for static resolver.
+        /// </summary>
+        public static readonly string StaticResolverOptions = "static-resolver-options";
+
+        /// <summary>
         /// Key used to set default load balancing policy.
         /// </summary>
         public static readonly string DefaultLoadBalancingPolicy = "default-loadbalancing-policy";
