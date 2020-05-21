@@ -136,6 +136,10 @@ namespace Grpc.Net.Client.Internal
                 Task.Delay(TimeSpan.FromSeconds(5)).Wait();
                 pickResult = Channel.SubChannelPicker.GetNextSubChannel(GrpcPickSubchannelArgs.Empty);
             }
+            if (pickResult.Status.StatusCode != StatusCode.OK)
+            {
+                throw new RpcException(pickResult.Status);
+            }
             var scope = Channel.GetCachedGrpcCallScope(method);
             var methodInfo = new GrpcMethodInfo(scope, new Uri(pickResult!.SubChannel!.Address, scope.Uri));
             var call = new GrpcCall<TRequest, TResponse>(method, methodInfo, options, Channel, pickResult!.SubChannel);
