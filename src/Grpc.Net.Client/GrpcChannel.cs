@@ -60,10 +60,11 @@ namespace Grpc.Net.Client
         internal IGrpcResolverPlugin ResolverPlugin { get; }
         internal IGrpcLoadBalancingPolicy LoadBalancingPolicy { get; set; } // update only in SyncContext
         internal IGrpcLoadBalancingPolicyProvider LoadBalancingPolicyProvider { get; set; } // update only in SyncContext
-        internal IGrpcSubChannelPicker SubChannelPicker { get; set; } // update only in SyncContext
+        internal IGrpcSubChannelPicker? SubChannelPicker { get; set; } // update only in SyncContext
         internal GrpcConnectivityStateManager ChannelStateManager { get; }
         internal IGrpcBackoffPolicyProvider BackoffPolicyProvider { get; }
         internal GrpcSynchronizationContext SyncContext { get; }
+        internal GrpcDelayedClientTransport DelayedClientTransport { get; }
         internal bool Disposed { get; private set; }
         // Timing related options that are set in unit tests
         internal ISystemClock Clock = SystemClock.Instance;
@@ -112,10 +113,11 @@ namespace Grpc.Net.Client
             ChannelStateManager = new GrpcConnectivityStateManager();
             BackoffPolicyProvider = new GrpcExponentialBackoffPolicyProvider();
             SyncContext = new GrpcSynchronizationContext((ex) => Panic(ex));
+            DelayedClientTransport = new GrpcDelayedClientTransport(SyncContext);
             LoadBalancingPolicyProvider = CreateRequestedPolicyProvider(new string[] { channelOptions.DefaultLoadBalancingPolicy }, LoggerFactory);
             LoadBalancingPolicy = LoadBalancingPolicyProvider.CreateLoadBalancingPolicy(Helper);
             LoadBalancingPolicy.LoggerFactory = LoggerFactory;
-            SubChannelPicker = new EmptyPicker();
+            SubChannelPicker = null;
             var resolverAttributes = channelOptions.Attributes.Add(GrpcAttributesConstants.DefaultLoadBalancingPolicy, channelOptions.DefaultLoadBalancingPolicy);
             ResolverPlugin = CreateResolverPlugin(Address, LoggerFactory, resolverAttributes);
             ResolverPlugin.LoggerFactory = LoggerFactory;
@@ -185,7 +187,8 @@ namespace Grpc.Net.Client
         internal void UpdateSubchannelPicker(IGrpcSubChannelPicker newPicker)
         {
             SyncContext.ThrowIfNotInThisSynchronizationContext();
-            SubChannelPicker = newPicker;
+            SubChannelPicker = newPicker ?? throw new ArgumentNullException(nameof(newPicker));
+            DelayedClientTransport.Reprocess(newPicker);
         }
 
         internal void RefreshNameResolution()
@@ -455,6 +458,7 @@ namespace Grpc.Net.Client
         {
             Shutdown();
             // Add more stuff in the future here...
+            DelayedClientTransport.Dispose();
         }
 
         private void Shutdown()

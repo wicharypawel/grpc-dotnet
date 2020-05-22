@@ -40,6 +40,7 @@ namespace Grpc.Net.Client.Internal
 
         private readonly CancellationTokenSource _callCts;
         private readonly TaskCompletionSource<Status> _callTcs;
+        private readonly TaskCompletionSource<bool> _callStartedTcs;
         private readonly DateTime _deadline;
         private readonly GrpcMethodInfo _grpcMethodInfo;
 
@@ -48,7 +49,7 @@ namespace Grpc.Net.Client.Internal
         private Timer? _deadlineTimer;
         private Metadata? _trailers;
         private CancellationTokenRegistration? _ctsRegistration;
-        private readonly IGrpcSubChannel _subChannel;
+        private IGrpcSubChannel? _subChannel;
 
         public bool Disposed { get; private set; }
         public bool ResponseFinished { get; private set; }
@@ -64,7 +65,7 @@ namespace Grpc.Net.Client.Internal
         public HttpContentClientStreamReader<TRequest, TResponse>? ClientStreamReader { get; private set; }
 
         public GrpcCall(Method<TRequest, TResponse> method, GrpcMethodInfo grpcMethodInfo, CallOptions options, 
-            GrpcChannel channel, IGrpcSubChannel subChannel)
+            GrpcChannel channel)
         {
             // Validate deadline before creating any objects that require cleanup
             ValidateDeadline(options.Deadline);
@@ -72,13 +73,13 @@ namespace Grpc.Net.Client.Internal
             _callCts = new CancellationTokenSource();
             // Run the callTcs continuation immediately to keep the same context. Required for Activity.
             _callTcs = new TaskCompletionSource<Status>();
+            _callStartedTcs = new TaskCompletionSource<bool>();
             Method = method;
             _grpcMethodInfo = grpcMethodInfo;
             Options = options;
             Channel = channel;
             Logger = channel.LoggerFactory.CreateLogger(LoggerName);
             _deadline = options.Deadline ?? DateTime.MaxValue;
-            _subChannel = subChannel;
 
         }
 
@@ -231,6 +232,7 @@ namespace Grpc.Net.Client.Internal
 
         private async Task<Metadata> GetResponseHeadersCoreAsync()
         {
+            await _callStartedTcs.Task.ConfigureAwait(false);
             Debug.Assert(_httpResponseTask != null);
 
             try
@@ -438,6 +440,45 @@ namespace Grpc.Net.Client.Internal
 
         private async ValueTask RunCall(HttpRequestMessage request, TimeSpan? timeout)
         {
+            if (Channel.SubChannelPicker == null)
+            {
+                Channel.DelayedClientTransport.BufforPendingCall((delayedSubChannel) =>
+                {
+                    request.RequestUri = new Uri(delayedSubChannel.Address, request.RequestUri);
+                    _subChannel = delayedSubChannel;
+                    _ = RunCallCore(request, timeout);
+                }, GrpcPickSubchannelArgs.Empty);
+                return;
+            }
+            var pickResult = Channel.SubChannelPicker.GetNextSubChannel(GrpcPickSubchannelArgs.Empty);
+            if (pickResult.Status.StatusCode != StatusCode.OK)
+            {
+                throw new RpcException(pickResult.Status);
+            }
+            IGrpcSubChannel? subChannel = pickResult.SubChannel;
+            if (subChannel == null)
+            {
+                Channel.DelayedClientTransport.BufforPendingCall((delayedSubChannel) =>
+                {
+                    request.RequestUri = new Uri(delayedSubChannel.Address, request.RequestUri);
+                    _subChannel = delayedSubChannel;
+                    _ = RunCallCore(request, timeout);
+                }, GrpcPickSubchannelArgs.Empty);
+            }
+            else
+            {
+                request.RequestUri = new Uri(subChannel.Address, request.RequestUri);
+                _subChannel = subChannel;
+                await RunCallCore(request, timeout).ConfigureAwait(false);
+            }
+        }
+
+        private async Task RunCallCore(HttpRequestMessage request, TimeSpan? timeout)
+        {
+            if (_subChannel == null)
+            {
+                throw new RpcException(new Status(StatusCode.Unavailable, "SubChannel not available."));
+            }
             using (StartScope())
             {
                 var (diagnosticSourceEnabled, activity) = InitializeCall(request, timeout);
@@ -469,9 +510,11 @@ namespace Grpc.Net.Client.Internal
                         (_subChannel as GrpcSubChannel)?.TriggerSubChannelSuccess();
                         #endregion
                         HttpResponse = await _httpResponseTask.ConfigureAwait(false);
+                        _callStartedTcs.SetResult(true);
                     }
                     catch (Exception ex)
                     {
+                        _callStartedTcs.SetResult(false);
                         GrpcCallLog.ErrorStartingCall(Logger, ex);
                         throw;
                     }
