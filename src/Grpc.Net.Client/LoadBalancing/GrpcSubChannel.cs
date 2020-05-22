@@ -113,18 +113,42 @@ namespace Grpc.Net.Client.LoadBalancing
 
         #region HTTP_CLIENT_MISSING_MONITORING_WORKAROUND
 
+        /// <summary>
+        /// This method allows for the emulation of the missing connectivity state 
+        /// monitoring in HttpClient. Call this method whenever the <see cref="GrpcSubChannel"/>
+        /// is faulty.
+        /// 
+        /// This method should return quickly.
+        /// </summary>
         internal void TriggerSubChannelFailure(Status status)
         {
             Task.Factory.StartNew(() => _synchronizationContext.Execute(() => TriggerSubChannelFailureCore(status)));
         }
 
+        /// <summary>
+        /// This method allows for the emulation of the missing connectivity state 
+        /// monitoring in HttpClient. Call this method whenever the <see cref="GrpcSubChannel"/>
+        /// is working fine.
+        /// 
+        /// This method must be blazingly fast as this is executed every successful call. 
+        /// 
+        /// Workaround assumes that <see cref="GrpcSubChannel"/> will be in READY state 
+        /// when executing call, there is no point in checking status here. If backoffPolicy 
+        /// is set it may inform that subchannel has been in TRANSIENT_FAILURE state before.
+        /// </summary>
         internal void TriggerSubChannelSuccess()
         {
+            if (_backoffPolicy == null)
+            {
+                // subchannel was "healthy" and it's "healthy" now so skip as fast as possible to reduce overhead
+                return; 
+            }
             Task.Factory.StartNew(() => _synchronizationContext.Execute(() => TriggerSubChannelSuccessCore()));
         }
 
         private void TriggerSubChannelFailureCore(Status status)
         {
+            _synchronizationContext.ThrowIfNotInThisSynchronizationContext();
             if (_backoffPolicy == null)
             {
                 _backoffPolicy = _channel.BackoffPolicyProvider.CreateBackoffPolicy();
@@ -137,6 +161,7 @@ namespace Grpc.Net.Client.LoadBalancing
 
         private void TriggerSubChannelSuccessCore()
         {
+            _synchronizationContext.ThrowIfNotInThisSynchronizationContext();
             _backoffPolicy = null;
         }
 
