@@ -20,7 +20,6 @@ using Grpc.Core;
 using Grpc.Net.Client.LoadBalancing;
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace Grpc.Net.Client.Internal
 {
@@ -42,13 +41,18 @@ namespace Grpc.Net.Client.Internal
         {
             if (callDelegate == null) throw new ArgumentNullException(nameof(callDelegate));
             if (pickSubchannelArgs == null) throw new ArgumentNullException(nameof(pickSubchannelArgs));
-            if (_shutdownStatus != null) return;
-            var newPendingCall = new PendingCall(callDelegate, pickSubchannelArgs);
             lock (_lockObject)
             {
+                if (_shutdownStatus != null)
+                {
+                    Status errorStatus = _shutdownStatus.Value;
+                    _executor.Execute(() => callDelegate(GrpcPickResult.WithError(errorStatus)));
+                    return;
+                }
+                var newPendingCall = new PendingCall(callDelegate, pickSubchannelArgs);
                 _pendingCalls.Add(newPendingCall);
             }
-        }
+        }             
 
         // This method MUST NOT be called concurrently with itself.
         public void Reprocess(IGrpcSubChannelPicker? picker)
@@ -66,12 +70,7 @@ namespace Grpc.Net.Client.Internal
             foreach (var call in toProcess)
             {
                 var pickResult = picker.GetNextSubChannel(call.PickSubchannelArgs);
-                if (pickResult.Status.StatusCode != StatusCode.OK)
-                {
-                    _executor.Execute(() => call.CallDelegate(pickResult));
-                    toRemove.Add(call);
-                }
-                if (pickResult.SubChannel != null && pickResult.Status.StatusCode == StatusCode.OK)
+                if (IsTransportReadyOrError(pickResult))
                 {
                     _executor.Execute(() => call.CallDelegate(pickResult));
                     toRemove.Add(call);
@@ -111,6 +110,19 @@ namespace Grpc.Net.Client.Internal
         public void Dispose()
         {
             ShutdownNow(new Status(StatusCode.Unavailable, "Dispose"));
+        }
+
+        private bool IsTransportReadyOrError(GrpcPickResult pickResult)
+        {
+            if (pickResult.Status.StatusCode != StatusCode.OK)
+            {
+                return true;
+            }
+            if (pickResult.SubChannel != null && pickResult.Status.StatusCode == StatusCode.OK)
+            {
+                return true;
+            }
+            return false;
         }
 
         private bool HasPendingCalls()

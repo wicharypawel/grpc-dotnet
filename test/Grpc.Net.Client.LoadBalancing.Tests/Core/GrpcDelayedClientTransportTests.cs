@@ -147,7 +147,6 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
             Status? actualErrorStatus = null;
 
             // Act
-
             delayedTransport.BufforPendingCall((pickResult) => { actualErrorStatus = pickResult.Status; }, GrpcPickSubchannelArgs.Empty);
             delayedTransport.Reprocess(picker);
             executor.DrainSingleAction();
@@ -155,6 +154,47 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
             // Assert
             Assert.Equal(0, delayedTransport.GetPendingCallsCount());
             Assert.Equal(StatusCode.Internal, actualErrorStatus?.StatusCode);
+        }
+        
+        [Fact]
+        public void ForShutdownInstance_UsingGrpcDelayedClientTransportBufforPendingCall_VerifyCallIsNotInQueue()
+        {
+            // Arrange
+            var executor = new ExecutorFake();
+            var synchronizationContext = new GrpcSynchronizationContext((ex) => { });
+            var delayedTransport = new GrpcDelayedClientTransport(executor, synchronizationContext);
+            Status? actualErrorStatus = null;
+
+            // Act
+            delayedTransport.ShutdownNow(new Status(StatusCode.Unavailable, "Dispose"));
+            delayedTransport.BufforPendingCall((pickResult) => { actualErrorStatus = pickResult.Status; }, GrpcPickSubchannelArgs.Empty);
+            executor.DrainSingleAction();
+
+            // Assert
+            Assert.Equal(0, delayedTransport.GetPendingCallsCount());
+            Assert.Equal(StatusCode.Unavailable, actualErrorStatus?.StatusCode);
+        }
+
+        [Fact]
+        public void ForNoPendingCallsAndReadyPicker_UsingGrpcDelayedClientTransportAndReprocess_Verify()
+        {
+            // Arrange
+            var executor = new ExecutorFake();
+            var synchronizationContext = new GrpcSynchronizationContext((ex) => { });
+            var delayedTransport = new GrpcDelayedClientTransport(executor, synchronizationContext);
+            var picker = new SubchannelPickerFake((args) =>
+            {
+                var subChannel = new GrpcSubChannelFake(new Uri("http://10.0.0.60"), GrpcAttributes.Empty);
+                return GrpcPickResult.WithSubChannel(subChannel);
+            });
+
+            // Act
+            delayedTransport.BufforPendingCall((pickResult) => { }, GrpcPickSubchannelArgs.Empty);
+            delayedTransport.Reprocess(picker);
+            delayedTransport.BufforPendingCall((pickResult) => { }, GrpcPickSubchannelArgs.Empty);
+
+            // Assert
+            Assert.Equal(1, delayedTransport.GetPendingCallsCount());
         }
     }
 }
