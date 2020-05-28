@@ -105,7 +105,7 @@ namespace Grpc.Net.Client.Internal
             var timeout = GetTimeout();
             var message = CreateHttpRequestMessage(timeout);
             SetMessageContent(request, message);
-            RunCallSync(message, timeout);
+            StartCallBlocking(message, timeout);
         }
 
         public void StartClientStreaming()
@@ -115,7 +115,7 @@ namespace Grpc.Net.Client.Internal
             var timeout = GetTimeout();
             var message = CreateHttpRequestMessage(timeout);
             CreateWriter(message);
-            RunCallSync(message, timeout);
+            StartCallBlocking(message, timeout);
         }
 
         public void StartServerStreaming(TRequest request)
@@ -124,7 +124,7 @@ namespace Grpc.Net.Client.Internal
             var message = CreateHttpRequestMessage(timeout);
             SetMessageContent(request, message);
             ClientStreamReader = new HttpContentClientStreamReader<TRequest, TResponse>(this);
-            RunCallSync(message, timeout);
+            StartCallBlocking(message, timeout);
         }
 
         public void StartDuplexStreaming()
@@ -133,7 +133,7 @@ namespace Grpc.Net.Client.Internal
             var message = CreateHttpRequestMessage(timeout);
             CreateWriter(message);
             ClientStreamReader = new HttpContentClientStreamReader<TRequest, TResponse>(this);
-            RunCallSync(message, timeout);
+            StartCallBlocking(message, timeout);
         }
 
         public void Dispose()
@@ -439,12 +439,12 @@ namespace Grpc.Net.Client.Internal
         }
 
         /// <summary>
-        /// This code require discussion, <see cref="RunCallSync"/> method is a temporary workaround
-        /// for non-blocking <see cref="RunCall"/> method. Before setting new version it is required
+        /// This code require discussion, <see cref="StartCallBlocking"/> method is a temporary workaround
+        /// for non-blocking <see cref="StartCall"/> method. Before setting new version it is required
         /// to verify if GrpcCall behaves the same in non-blocking scenario (eg. returns the same 
         /// values when asked for trailers)
         /// </summary>
-        private void RunCallSync(HttpRequestMessage request, TimeSpan? timeout)
+        private void StartCallBlocking(HttpRequestMessage request, TimeSpan? timeout)
         {
             GrpcPickResult? pickResult = Channel.SubChannelPicker?.GetNextSubChannel(GrpcPickSubchannelArgs.Empty);
             IGrpcSubChannel? subChannel = pickResult?.SubChannel;
@@ -460,50 +460,32 @@ namespace Grpc.Net.Client.Internal
             }
             request.RequestUri = new Uri(subChannel.Address, request.RequestUri);
             _subChannel = subChannel;
-            _ = RunCallCore(request, timeout).ConfigureAwait(false);
+            _ = RunCall(request, timeout, pickResult ?? throw new InvalidOperationException());
         }
 
-        private async Task RunCall(HttpRequestMessage request, TimeSpan? timeout)
+        private void StartCall(HttpRequestMessage request, TimeSpan? timeout)
         {
             if (Channel.SubChannelPicker == null)
             {
-                Channel.DelayedClientTransport.BufforPendingCall((delayedSubChannel) =>
-                {
-                    request.RequestUri = new Uri(delayedSubChannel.Address, request.RequestUri);
-                    _subChannel = delayedSubChannel;
-                    _ = RunCallCore(request, timeout);
-                }, GrpcPickSubchannelArgs.Empty);
+                Channel.DelayedClientTransport.BufforPendingCall((pickResult) => 
+                    _ = RunCall(request, timeout, pickResult), GrpcPickSubchannelArgs.Empty);
                 return;
             }
             var pickResult = Channel.SubChannelPicker.GetNextSubChannel(GrpcPickSubchannelArgs.Empty);
-            if (pickResult.Status.StatusCode != StatusCode.OK)
-            {
-                throw new RpcException(pickResult.Status);
-            }
             IGrpcSubChannel? subChannel = pickResult.SubChannel;
             if (subChannel == null)
             {
-                Channel.DelayedClientTransport.BufforPendingCall((delayedSubChannel) =>
-                {
-                    request.RequestUri = new Uri(delayedSubChannel.Address, request.RequestUri);
-                    _subChannel = delayedSubChannel;
-                    _ = RunCallCore(request, timeout);
-                }, GrpcPickSubchannelArgs.Empty);
+                Channel.DelayedClientTransport.BufforPendingCall((pickResult) => 
+                    _ = RunCall(request, timeout, pickResult), GrpcPickSubchannelArgs.Empty);
             }
             else
             {
-                request.RequestUri = new Uri(subChannel.Address, request.RequestUri);
-                _subChannel = subChannel;
-                await RunCallCore(request, timeout).ConfigureAwait(false);
+                _ = RunCall(request, timeout, pickResult);
             }
         }
 
-        private async Task RunCallCore(HttpRequestMessage request, TimeSpan? timeout)
+        private async Task RunCall(HttpRequestMessage request, TimeSpan? timeout, GrpcPickResult pickResultSubChannelOrError)
         {
-            if (_subChannel == null)
-            {
-                throw new RpcException(new Status(StatusCode.Unavailable, "SubChannel not available."));
-            }
             using (StartScope())
             {
                 var (diagnosticSourceEnabled, activity) = InitializeCall(request, timeout);
@@ -522,6 +504,16 @@ namespace Grpc.Net.Client.Internal
                 {
                     // Fail early if deadline has already been exceeded
                     _callCts.Token.ThrowIfCancellationRequested();
+
+                    if (pickResultSubChannelOrError.SubChannel != null)
+                    {
+                        _subChannel = pickResultSubChannelOrError.SubChannel;
+                        request.RequestUri = new Uri(_subChannel.Address, request.RequestUri);
+                    }
+                    else
+                    {
+                        throw new RpcException(pickResultSubChannelOrError.Status);
+                    }
 
                     try
                     {

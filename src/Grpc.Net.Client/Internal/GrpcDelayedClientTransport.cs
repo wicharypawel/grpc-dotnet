@@ -36,7 +36,7 @@ namespace Grpc.Net.Client.Internal
             _synchronizationContext = synchronizationContext ?? throw new ArgumentNullException(nameof(synchronizationContext));
         }
 
-        public void BufforPendingCall(Action<IGrpcSubChannel> callDelegate, IGrpcPickSubchannelArgs pickSubchannelArgs)
+        public void BufforPendingCall(Action<GrpcPickResult> callDelegate, IGrpcPickSubchannelArgs pickSubchannelArgs)
         {
             if (callDelegate == null) throw new ArgumentNullException(nameof(callDelegate));
             if (pickSubchannelArgs == null) throw new ArgumentNullException(nameof(pickSubchannelArgs));
@@ -54,7 +54,7 @@ namespace Grpc.Net.Client.Internal
             var toProcess = new List<PendingCall>();
             lock (_lockObject)
             {
-                if (picker == null || _pendingCalls.Count == 0)
+                if (picker == null || !HasPendingCalls())
                 {
                     return;
                 }
@@ -66,18 +66,19 @@ namespace Grpc.Net.Client.Internal
                 var pickResult = picker.GetNextSubChannel(call.PickSubchannelArgs);
                 if (pickResult.Status.StatusCode != StatusCode.OK)
                 {
-                    throw new RpcException(pickResult.Status);
+                    Task.Factory.StartNew(() => call.CallDelegate(pickResult));
+                    toRemove.Add(call);
                 }
-                if (pickResult.SubChannel != null)
+                if (pickResult.SubChannel != null && pickResult.Status.StatusCode == StatusCode.OK)
                 {
-                    Task.Factory.StartNew(() => call.CallDelegate(pickResult.SubChannel));
+                    Task.Factory.StartNew(() => call.CallDelegate(pickResult));
                     toRemove.Add(call);
                 }
                 // else: stay pending
             }
             lock (_lockObject)
             {
-                if (_pendingCalls.Count == 0) // Shutdown can be called in between locks
+                if (!HasPendingCalls()) // Shutdown can be called in between locks
                 {
                     return;
                 }
@@ -85,7 +86,7 @@ namespace Grpc.Net.Client.Internal
                 {
                     _pendingCalls.Remove(call);
                 }
-                if (_pendingCalls.Count == 0) //Because delayed transport is long-lived, we take this opportunity to down-size the collection
+                if (!HasPendingCalls()) //Because delayed transport is long-lived, we take this opportunity to down-size the collection
                 {
                     _pendingCalls = new List<PendingCall>();
                 }
@@ -110,12 +111,31 @@ namespace Grpc.Net.Client.Internal
             ShutdownNow(new Status(StatusCode.Unavailable, "Dispose"));
         }
 
+        private bool HasPendingCalls()
+        {
+            lock (_lockObject)
+            {
+                return _pendingCalls.Count != 0;
+            }
+        }
+
+        /// <summary>
+        /// The method can only be used for testing purposes.
+        /// </summary>
+        internal int GetPendingCallsCount()
+        {
+            lock (_lockObject)
+            {
+                return _pendingCalls.Count;
+            }
+        }
+
         private sealed class PendingCall
         {
-            public Action<IGrpcSubChannel> CallDelegate { get; }
+            public Action<GrpcPickResult> CallDelegate { get; }
             public IGrpcPickSubchannelArgs PickSubchannelArgs { get; }
 
-            public PendingCall(Action<IGrpcSubChannel> callDelegate, IGrpcPickSubchannelArgs pickSubchannelArgs)
+            public PendingCall(Action<GrpcPickResult> callDelegate, IGrpcPickSubchannelArgs pickSubchannelArgs)
             {
                 CallDelegate = callDelegate;
                 PickSubchannelArgs = pickSubchannelArgs;
