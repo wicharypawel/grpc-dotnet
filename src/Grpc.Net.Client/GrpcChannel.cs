@@ -113,7 +113,7 @@ namespace Grpc.Net.Client
             ChannelStateManager = new GrpcConnectivityStateManager();
             BackoffPolicyProvider = new GrpcExponentialBackoffPolicyProvider();
             SyncContext = new GrpcSynchronizationContext((ex) => Panic(ex));
-            DelayedClientTransport = new GrpcDelayedClientTransport(SyncContext);
+            DelayedClientTransport = new GrpcDelayedClientTransport(new TaskFactoryExecutor(), SyncContext);
             LoadBalancingPolicyProvider = CreateRequestedPolicyProvider(new string[] { channelOptions.DefaultLoadBalancingPolicy }, LoggerFactory);
             LoadBalancingPolicy = LoadBalancingPolicyProvider.CreateLoadBalancingPolicy(Helper);
             LoadBalancingPolicy.LoggerFactory = LoggerFactory;

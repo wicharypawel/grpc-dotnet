@@ -27,12 +27,14 @@ namespace Grpc.Net.Client.Internal
     internal sealed class GrpcDelayedClientTransport : IDisposable
     {
         private readonly object _lockObject = new object();
+        private readonly IGrpcExecutor _executor;
         private readonly GrpcSynchronizationContext _synchronizationContext;
         private List<PendingCall> _pendingCalls = new List<PendingCall>();
         private Status? _shutdownStatus = null;
 
-        public GrpcDelayedClientTransport(GrpcSynchronizationContext synchronizationContext)
+        public GrpcDelayedClientTransport(IGrpcExecutor executor, GrpcSynchronizationContext synchronizationContext)
         {
+            _executor = executor ?? throw new ArgumentNullException(nameof(executor));
             _synchronizationContext = synchronizationContext ?? throw new ArgumentNullException(nameof(synchronizationContext));
         }
 
@@ -66,12 +68,12 @@ namespace Grpc.Net.Client.Internal
                 var pickResult = picker.GetNextSubChannel(call.PickSubchannelArgs);
                 if (pickResult.Status.StatusCode != StatusCode.OK)
                 {
-                    Task.Factory.StartNew(() => call.CallDelegate(pickResult));
+                    _executor.Execute(() => call.CallDelegate(pickResult));
                     toRemove.Add(call);
                 }
                 if (pickResult.SubChannel != null && pickResult.Status.StatusCode == StatusCode.OK)
                 {
-                    Task.Factory.StartNew(() => call.CallDelegate(pickResult));
+                    _executor.Execute(() => call.CallDelegate(pickResult));
                     toRemove.Add(call);
                 }
                 // else: stay pending
