@@ -72,6 +72,7 @@ namespace Grpc.Net.Client.Internal
                 if (IsTransportReadyOrError(pickResult))
                 {
                     _executor.Execute(() => callDelegate(pickResult));
+                    return;
                 }
             }
         }             
