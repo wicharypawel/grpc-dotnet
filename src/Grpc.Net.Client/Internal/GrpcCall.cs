@@ -1,4 +1,4 @@
-﻿#region Copyright notice and license
+#region Copyright notice and license
 
 // Copyright 2019 The gRPC Authors
 //
@@ -40,7 +40,6 @@ namespace Grpc.Net.Client.Internal
 
         private readonly CancellationTokenSource _callCts;
         private readonly TaskCompletionSource<Status> _callTcs;
-        private readonly TaskCompletionSource<bool> _callStartedTcs;
         private readonly DateTime _deadline;
         private readonly GrpcMethodInfo _grpcMethodInfo;
 
@@ -73,7 +72,6 @@ namespace Grpc.Net.Client.Internal
             _callCts = new CancellationTokenSource();
             // Run the callTcs continuation immediately to keep the same context. Required for Activity.
             _callTcs = new TaskCompletionSource<Status>();
-            _callStartedTcs = new TaskCompletionSource<bool>();
             Method = method;
             _grpcMethodInfo = grpcMethodInfo;
             Options = options;
@@ -105,7 +103,7 @@ namespace Grpc.Net.Client.Internal
             var timeout = GetTimeout();
             var message = CreateHttpRequestMessage(timeout);
             SetMessageContent(request, message);
-            StartCallBlocking(message, timeout);
+            WaitSubChannelsAndRunCall(message, timeout);
         }
 
         public void StartClientStreaming()
@@ -115,7 +113,7 @@ namespace Grpc.Net.Client.Internal
             var timeout = GetTimeout();
             var message = CreateHttpRequestMessage(timeout);
             CreateWriter(message);
-            StartCallBlocking(message, timeout);
+            WaitSubChannelsAndRunCall(message, timeout);
         }
 
         public void StartServerStreaming(TRequest request)
@@ -124,7 +122,7 @@ namespace Grpc.Net.Client.Internal
             var message = CreateHttpRequestMessage(timeout);
             SetMessageContent(request, message);
             ClientStreamReader = new HttpContentClientStreamReader<TRequest, TResponse>(this);
-            StartCallBlocking(message, timeout);
+            WaitSubChannelsAndRunCall(message, timeout);
         }
 
         public void StartDuplexStreaming()
@@ -133,7 +131,7 @@ namespace Grpc.Net.Client.Internal
             var message = CreateHttpRequestMessage(timeout);
             CreateWriter(message);
             ClientStreamReader = new HttpContentClientStreamReader<TRequest, TResponse>(this);
-            StartCallBlocking(message, timeout);
+            WaitSubChannelsAndRunCall(message, timeout);
         }
 
         public void Dispose()
@@ -232,7 +230,6 @@ namespace Grpc.Net.Client.Internal
 
         private async Task<Metadata> GetResponseHeadersCoreAsync()
         {
-            await _callStartedTcs.Task.ConfigureAwait(false);
             Debug.Assert(_httpResponseTask != null);
 
             try
@@ -438,50 +435,39 @@ namespace Grpc.Net.Client.Internal
             return new RpcException(status, trailers ?? Metadata.Empty);
         }
 
-        /// <summary>
-        /// This code require discussion, <see cref="StartCallBlocking"/> method is a temporary workaround
-        /// for non-blocking <see cref="StartCall"/> method. Before setting new version it is required
-        /// to verify if GrpcCall behaves the same in non-blocking scenario (eg. returns the same 
-        /// values when asked for trailers)
-        /// </summary>
-        private void StartCallBlocking(HttpRequestMessage request, TimeSpan? timeout)
-        {
-            GrpcPickResult? pickResult = Channel.SubChannelPicker?.GetNextSubChannel(GrpcPickSubchannelArgs.Empty);
-            IGrpcSubChannel? subChannel = pickResult?.SubChannel;
-            while (subChannel == null)
-            {
-                if (pickResult != null && pickResult.Status.StatusCode != StatusCode.OK)
-                {
-                    throw new RpcException(pickResult.Status);
-                }
-                Task.Delay(TimeSpan.FromMilliseconds(1000)).Wait();
-                pickResult = Channel.SubChannelPicker?.GetNextSubChannel(GrpcPickSubchannelArgs.Empty);
-                subChannel = pickResult?.SubChannel;
-            }
-            request.RequestUri = new Uri(subChannel.Address, request.RequestUri);
-            _subChannel = subChannel;
-            _ = RunCall(request, timeout, pickResult ?? throw new InvalidOperationException());
-        }
-
-        private void StartCall(HttpRequestMessage request, TimeSpan? timeout)
+        private void WaitSubChannelsAndRunCall(HttpRequestMessage request, TimeSpan? timeout)
         {
             if (Channel.SubChannelPicker == null)
             {
-                Channel.DelayedClientTransport.BufforPendingCall((pickResult) => 
-                    _ = RunCall(request, timeout, pickResult), GrpcPickSubchannelArgs.Empty);
+                var delayCallStart = new TaskCompletionSource<GrpcPickResult>();
+                Channel.DelayedClientTransport.BufforPendingCall((x) => delayCallStart.SetResult(x), GrpcPickSubchannelArgs.Empty);
+                var delayedPickResult = delayCallStart.Task.GetAwaiter().GetResult();
+                if (delayedPickResult.Status.StatusCode != StatusCode.OK)
+                {
+                    throw new RpcException(delayedPickResult.Status);
+                }
+                _ = RunCall(request, timeout, delayedPickResult);
                 return;
             }
             var pickResult = Channel.SubChannelPicker.GetNextSubChannel(GrpcPickSubchannelArgs.Empty);
+            if (pickResult.Status.StatusCode != StatusCode.OK)
+            {
+                throw new RpcException(pickResult.Status);
+            }
             IGrpcSubChannel? subChannel = pickResult.SubChannel;
             if (subChannel == null)
             {
-                Channel.DelayedClientTransport.BufforPendingCall((pickResult) => 
-                    _ = RunCall(request, timeout, pickResult), GrpcPickSubchannelArgs.Empty);
+                var delayCallStart = new TaskCompletionSource<GrpcPickResult>();
+                Channel.DelayedClientTransport.BufforPendingCall((x) => delayCallStart.SetResult(x), GrpcPickSubchannelArgs.Empty);
+                var delayedPickResult = delayCallStart.Task.GetAwaiter().GetResult();
+                if (delayedPickResult.Status.StatusCode != StatusCode.OK)
+                {
+                    throw new RpcException(delayedPickResult.Status);
+                }
+                _ = RunCall(request, timeout, delayedPickResult);
+                return;
             }
-            else
-            {
-                _ = RunCall(request, timeout, pickResult);
-            }
+            _ = RunCall(request, timeout, pickResult);
         }
 
         private async Task RunCall(HttpRequestMessage request, TimeSpan? timeout, GrpcPickResult pickResultSubChannelOrError)
@@ -527,11 +513,9 @@ namespace Grpc.Net.Client.Internal
                         (_subChannel as GrpcSubChannel)?.TriggerSubChannelSuccess();
                         #endregion
                         HttpResponse = await _httpResponseTask.ConfigureAwait(false);
-                        _callStartedTcs.SetResult(true);
                     }
                     catch (Exception ex)
                     {
-                        _callStartedTcs.SetResult(false);
                         GrpcCallLog.ErrorStartingCall(Logger, ex);
                         throw;
                     }

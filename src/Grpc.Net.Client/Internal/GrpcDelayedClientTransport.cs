@@ -30,6 +30,8 @@ namespace Grpc.Net.Client.Internal
         private readonly GrpcSynchronizationContext _synchronizationContext;
         private List<PendingCall> _pendingCalls = new List<PendingCall>();
         private Status? _shutdownStatus = null;
+        private IGrpcSubChannelPicker? _lastPicker;
+        private long _lastPickerVersion;
 
         public GrpcDelayedClientTransport(IGrpcExecutor executor, GrpcSynchronizationContext synchronizationContext)
         {
@@ -41,16 +43,36 @@ namespace Grpc.Net.Client.Internal
         {
             if (callDelegate == null) throw new ArgumentNullException(nameof(callDelegate));
             if (pickSubchannelArgs == null) throw new ArgumentNullException(nameof(pickSubchannelArgs));
-            lock (_lockObject)
+            IGrpcSubChannelPicker? picker = null;
+            long pickerVersion = -1;
+            while (true)
             {
-                if (_shutdownStatus != null)
+                lock (_lockObject)
                 {
-                    Status errorStatus = _shutdownStatus.Value;
-                    _executor.Execute(() => callDelegate(GrpcPickResult.WithError(errorStatus)));
-                    return;
+                    if (_shutdownStatus != null)
+                    {
+                        Status errorStatus = _shutdownStatus.Value;
+                        _executor.Execute(() => callDelegate(GrpcPickResult.WithError(errorStatus)));
+                        return;
+                    }
+                    if (_lastPicker == null)
+                    {
+                        _pendingCalls.Add(new PendingCall(callDelegate, pickSubchannelArgs));
+                        return;
+                    }
+                    if (picker != null && pickerVersion == _lastPickerVersion)
+                    {
+                        _pendingCalls.Add(new PendingCall(callDelegate, pickSubchannelArgs));
+                        return;
+                    }
+                    picker = _lastPicker;
+                    pickerVersion = _lastPickerVersion;
                 }
-                var newPendingCall = new PendingCall(callDelegate, pickSubchannelArgs);
-                _pendingCalls.Add(newPendingCall);
+                var pickResult = picker.GetNextSubChannel(pickSubchannelArgs);
+                if (IsTransportReadyOrError(pickResult))
+                {
+                    _executor.Execute(() => callDelegate(pickResult));
+                }
             }
         }             
 
@@ -60,6 +82,8 @@ namespace Grpc.Net.Client.Internal
             var toProcess = new List<PendingCall>();
             lock (_lockObject)
             {
+                _lastPicker = picker;
+                _lastPickerVersion++;
                 if (picker == null || !HasPendingCalls())
                 {
                     return;
