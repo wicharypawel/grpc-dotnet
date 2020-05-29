@@ -20,7 +20,6 @@ using System;
 using System.Threading.Tasks;
 using Grpc.Core;
 using Grpc.Net.Client.Internal;
-using Grpc.Net.Client.LoadBalancing;
 
 namespace Grpc.Net.Client.Internal
 {
@@ -130,8 +129,7 @@ namespace Grpc.Net.Client.Internal
                 throw new ObjectDisposedException(nameof(GrpcChannel));
             }
 
-            var scope = Channel.GetCachedGrpcCallScope(method);
-            var methodInfo = new GrpcMethodInfo(scope, scope.Uri);
+            var methodInfo = Channel.GetCachedGrpcMethodInfo(method);
             var call = new GrpcCall<TRequest, TResponse>(method, methodInfo, options, Channel);
 
             return call;

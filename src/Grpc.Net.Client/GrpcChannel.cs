@@ -40,8 +40,8 @@ namespace Grpc.Net.Client
     {
         internal const int DefaultMaxReceiveMessageSize = 1024 * 1024 * 4; // 4 MB
 
-        private readonly ConcurrentDictionary<IMethod, GrpcCallScope> _callScopeCache;
-        private readonly Func<IMethod, GrpcCallScope> _createCallScopeFunc;
+        private readonly ConcurrentDictionary<IMethod, GrpcMethodInfo> _methodInfoCache;
+        private readonly Func<IMethod, GrpcMethodInfo> _createMethodInfoFunc;
 
         internal Uri Address { get; }
         internal HttpClient HttpClient { get; }
@@ -77,7 +77,7 @@ namespace Grpc.Net.Client
 
         internal GrpcChannel(Uri address, GrpcChannelOptions channelOptions) : base(address.Authority)
         {
-            _callScopeCache = new ConcurrentDictionary<IMethod, GrpcCallScope>();
+            _methodInfoCache = new ConcurrentDictionary<IMethod, GrpcMethodInfo>();
 
             // Dispose the HttpClient if...
             //   1. No client was specified and so the channel created the HttpClient itself
@@ -92,7 +92,7 @@ namespace Grpc.Net.Client
             MessageAcceptEncoding = GrpcProtocolHelpers.GetMessageAcceptEncoding(CompressionProviders);
             LoggerFactory = channelOptions.LoggerFactory ?? NullLoggerFactory.Instance;
             ThrowOperationCanceledOnCancellation = channelOptions.ThrowOperationCanceledOnCancellation;
-            _createCallScopeFunc = CreateCallScope;
+            _createMethodInfoFunc = CreateMethodInfo;
 
             if (channelOptions.Credentials != null)
             {
@@ -254,15 +254,17 @@ namespace Grpc.Net.Client
             return httpClient;
         }
 
-        internal GrpcCallScope GetCachedGrpcCallScope(IMethod method)
+        internal GrpcMethodInfo GetCachedGrpcMethodInfo(IMethod method)
         {
-            return _callScopeCache.GetOrAdd(method, _createCallScopeFunc);
+            return _methodInfoCache.GetOrAdd(method, _createMethodInfoFunc);
         }
 
-        private GrpcCallScope CreateCallScope(IMethod method)
+        private GrpcMethodInfo CreateMethodInfo(IMethod method)
         {
             var uri = new Uri(method.FullName, UriKind.Relative);
-            return new GrpcCallScope(method.Type, uri);
+            var scope = new GrpcCallScope(method.Type, uri);
+
+            return new GrpcMethodInfo(scope, uri); // the GrpcMethodInfo keeps relative uri because a subchannel address is variable
         }
 
         private static Dictionary<string, ICompressionProvider> ResolveCompressionProviders(IList<ICompressionProvider>? compressionProviders)
