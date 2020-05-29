@@ -105,7 +105,7 @@ namespace Grpc.Net.Client.Internal
             var timeout = GetTimeout();
             var message = CreateHttpRequestMessage(timeout);
             SetMessageContent(request, message);
-            _ = RunCall(message, timeout);
+            RunCallSync(message, timeout);
         }
 
         public void StartClientStreaming()
@@ -115,7 +115,7 @@ namespace Grpc.Net.Client.Internal
             var timeout = GetTimeout();
             var message = CreateHttpRequestMessage(timeout);
             CreateWriter(message);
-            _ = RunCall(message, timeout);
+            RunCallSync(message, timeout);
         }
 
         public void StartServerStreaming(TRequest request)
@@ -124,7 +124,7 @@ namespace Grpc.Net.Client.Internal
             var message = CreateHttpRequestMessage(timeout);
             SetMessageContent(request, message);
             ClientStreamReader = new HttpContentClientStreamReader<TRequest, TResponse>(this);
-            _ = RunCall(message, timeout);
+            RunCallSync(message, timeout);
         }
 
         public void StartDuplexStreaming()
@@ -133,7 +133,7 @@ namespace Grpc.Net.Client.Internal
             var message = CreateHttpRequestMessage(timeout);
             CreateWriter(message);
             ClientStreamReader = new HttpContentClientStreamReader<TRequest, TResponse>(this);
-            _ = RunCall(message, timeout);
+            RunCallSync(message, timeout);
         }
 
         public void Dispose()
@@ -438,7 +438,32 @@ namespace Grpc.Net.Client.Internal
             return new RpcException(status, trailers ?? Metadata.Empty);
         }
 
-        private async ValueTask RunCall(HttpRequestMessage request, TimeSpan? timeout)
+        /// <summary>
+        /// This code require discussion, <see cref="RunCallSync"/> method is a temporary workaround
+        /// for non-blocking <see cref="RunCall"/> method. Before setting new version it is required
+        /// to verify if GrpcCall behaves the same in non-blocking scenario (eg. returns the same 
+        /// values when asked for trailers)
+        /// </summary>
+        private void RunCallSync(HttpRequestMessage request, TimeSpan? timeout)
+        {
+            GrpcPickResult? pickResult = Channel.SubChannelPicker?.GetNextSubChannel(GrpcPickSubchannelArgs.Empty);
+            IGrpcSubChannel? subChannel = pickResult?.SubChannel;
+            while (subChannel == null)
+            {
+                if (pickResult != null && pickResult.Status.StatusCode != StatusCode.OK)
+                {
+                    throw new RpcException(pickResult.Status);
+                }
+                Task.Delay(TimeSpan.FromMilliseconds(1000)).Wait();
+                pickResult = Channel.SubChannelPicker?.GetNextSubChannel(GrpcPickSubchannelArgs.Empty);
+                subChannel = pickResult?.SubChannel;
+            }
+            request.RequestUri = new Uri(subChannel.Address, request.RequestUri);
+            _subChannel = subChannel;
+            _ = RunCallCore(request, timeout).ConfigureAwait(false);
+        }
+
+        private async Task RunCall(HttpRequestMessage request, TimeSpan? timeout)
         {
             if (Channel.SubChannelPicker == null)
             {
