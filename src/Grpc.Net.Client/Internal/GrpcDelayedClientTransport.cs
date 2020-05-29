@@ -28,7 +28,7 @@ namespace Grpc.Net.Client.Internal
         private readonly object _lockObject = new object();
         private readonly IGrpcExecutor _executor;
         private readonly GrpcSynchronizationContext _synchronizationContext;
-        private List<PendingCall> _pendingCalls = new List<PendingCall>();
+        private HashSet<PendingCall> _pendingCalls = new HashSet<PendingCall>();
         private Status? _shutdownStatus = null;
         private IGrpcSubChannelPicker? _lastPicker;
         private long _lastPickerVersion;
@@ -113,7 +113,7 @@ namespace Grpc.Net.Client.Internal
                 }
                 if (!HasPendingCalls()) //Because delayed transport is long-lived, we take this opportunity to down-size the collection
                 {
-                    _pendingCalls = new List<PendingCall>();
+                    _pendingCalls = new HashSet<PendingCall>();
                 }
             }
         }
@@ -127,7 +127,7 @@ namespace Grpc.Net.Client.Internal
                     return;
                 }
                 _shutdownStatus = status;
-                _pendingCalls = new List<PendingCall>();
+                _pendingCalls = new HashSet<PendingCall>();
             }
         }
 
