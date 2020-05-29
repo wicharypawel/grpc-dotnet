@@ -42,7 +42,6 @@ namespace Grpc.Net.Client.Internal
         private readonly TaskCompletionSource<Status> _callTcs;
         private readonly DateTime _deadline;
         private readonly GrpcMethodInfo _grpcMethodInfo;
-        private readonly string _loadBalanceToken;
 
         private Task<HttpResponseMessage>? _httpResponseTask;
         private Task<Metadata>? _responseHeadersTask;
@@ -80,7 +79,7 @@ namespace Grpc.Net.Client.Internal
             Logger = channel.LoggerFactory.CreateLogger(LoggerName);
             _deadline = options.Deadline ?? DateTime.MaxValue;
             _subChannel = subChannel;
-            _loadBalanceToken = subChannel.Attributes.Get(GrpcAttributesConstants.SubChannelLoadBalanceToken) as string ?? string.Empty;
+
         }
 
         private void ValidateDeadline(DateTime? deadline)
@@ -461,8 +460,8 @@ namespace Grpc.Net.Client.Internal
                     try
                     {
                         _httpResponseTask = Channel.HttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, _callCts.Token);
-                        await Task.WhenAny(_httpResponseTask, Task.Delay(1500)).ConfigureAwait(false);
                         #region HTTP_CLIENT_MISSING_MONITORING_WORKAROUND
+                        await Task.WhenAny(_httpResponseTask, Task.Delay(1500)).ConfigureAwait(false);
                         if (!_httpResponseTask.IsCompleted)
                         {
                             throw new TimeoutException("Starting gRPC call timedout.");
@@ -789,14 +788,9 @@ namespace Grpc.Net.Client.Internal
             headers.Add(GrpcProtocolConstants.UserAgentHeader, GrpcProtocolConstants.UserAgentHeaderValue);
             // TE is required by some servers, e.g. C Core.
             // A missing TE header results in servers aborting the gRPC call.
-            headers.Add(GrpcProtocolConstants.TEHeader, GrpcProtocolConstants.TEHeaderValue);
-            headers.Add(GrpcProtocolConstants.MessageAcceptEncodingHeader, Channel.MessageAcceptEncoding);
-            
-            if (_loadBalanceToken != string.Empty)
-            {
-                headers.Add(GrpcProtocolConstants.LoadBalanceTokenHeader, _loadBalanceToken);
-            }
-            
+            headers.TryAddWithoutValidation(GrpcProtocolConstants.TEHeader, GrpcProtocolConstants.TEHeaderValue);
+            headers.TryAddWithoutValidation(GrpcProtocolConstants.MessageAcceptEncodingHeader, Channel.MessageAcceptEncoding);
+
             if (Options.Headers != null && Options.Headers.Count > 0)
             {
                 foreach (var entry in Options.Headers)
