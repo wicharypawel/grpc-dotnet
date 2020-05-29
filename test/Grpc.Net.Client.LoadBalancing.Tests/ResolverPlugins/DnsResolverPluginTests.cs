@@ -73,7 +73,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
         {
             // Arrange
             var serviceHostName = "my-service";
-            var attributes = new GrpcAttributes(new Dictionary<string, object>() { { GrpcAttributesConstants.DefaultLoadBalancingPolicy, "round_robin" } });
+            var attributes = GrpcAttributes.Builder.NewBuilder().Add(GrpcAttributesConstants.DefaultLoadBalancingPolicy, "round_robin").Build();
             var timerFake = new TimerFake();
             var resolverPlugin = new DnsResolverPlugin(attributes, timerFake);
             resolverPlugin.OverrideDnsResults = Task.FromResult(new IPAddress[] { IPAddress.Parse("10.1.5.211"),

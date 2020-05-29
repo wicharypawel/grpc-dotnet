@@ -53,7 +53,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
         public async Task ForOverrideDefaultPolicy_UseNoOpResolverPlugin_ReturnServiceConfigWithOverridenPolicyName()
         {
             // Arrange
-            var attributes = new GrpcAttributes(new Dictionary<string, object>() { { GrpcAttributesConstants.DefaultLoadBalancingPolicy, "round_robin" } });
+            var attributes = GrpcAttributes.Builder.NewBuilder().Add(GrpcAttributesConstants.DefaultLoadBalancingPolicy, "round_robin").Build();
             var resolverPlugin = new NoOpResolverPlugin(attributes);
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 

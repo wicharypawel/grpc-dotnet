@@ -50,8 +50,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
 
         public NoOpResolverPlugin(GrpcAttributes attributes)
         {
-            _defaultLoadBalancingPolicy = attributes.Get(GrpcAttributesConstants.DefaultLoadBalancingPolicy) as string
-                ?? "pick_first";
+            _defaultLoadBalancingPolicy = attributes.Get(GrpcAttributesConstants.DefaultLoadBalancingPolicy) ?? "pick_first";
         }
 
         public void Subscribe(Uri target, IGrpcNameResolutionObserver observer)

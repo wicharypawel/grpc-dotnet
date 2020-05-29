@@ -51,7 +51,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         /// <param name="attributes">Attributes with options.</param>
         public StaticResolverPlugin(GrpcAttributes attributes)
         {
-            var options = attributes.Get(GrpcAttributesConstants.StaticResolverOptions) as StaticResolverPluginOptions;
+            StaticResolverPluginOptions? options = attributes.Get(GrpcAttributesConstants.StaticResolverOptions);
             _staticNameResolution = options?.StaticNameResolution ?? throw new ArgumentNullException(nameof(options.StaticNameResolution));
         }
 

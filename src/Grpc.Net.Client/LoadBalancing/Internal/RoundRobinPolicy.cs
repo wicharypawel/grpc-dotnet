@@ -29,7 +29,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
     internal sealed class RoundRobinPolicy : IGrpcLoadBalancingPolicy
     {
         private static readonly Status StatusEmptyOk = new Status(StatusCode.OK, "no subchannels ready");
-        private static readonly string StateInfoKey = "state-info";
+        private static readonly GrpcAttributes.Key<Ref<GrpcConnectivityStateInfo>> StateInfoKey = GrpcAttributes.Key<Ref<GrpcConnectivityStateInfo>>.Create("state-info");
         private readonly IGrpcHelper _helper;
         private ILogger _logger = NullLogger.Instance;
         private GrpcConnectivityState? _currentStateCache;
@@ -90,7 +90,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
                     continue; // subChannel for this address already exist
                 }
                 var initialStateInfo = GrpcConnectivityStateInfo.ForNonError(GrpcConnectivityState.IDLE);
-                var attributes = new GrpcAttributes(new Dictionary<string, object>() { { StateInfoKey, new Ref<GrpcConnectivityStateInfo>(initialStateInfo) } });
+                var attributes = GrpcAttributes.Builder.NewBuilder().Add(StateInfoKey, new Ref<GrpcConnectivityStateInfo>(initialStateInfo)).Build();
                 var subChannel = _helper.CreateSubChannel(new CreateSubchannelArgs(uri, attributes));
                 subChannel.Start(new BaseSubchannelStateObserver((stateInfo) => { ProcessSubchannelState(subChannel, stateInfo); }));
                 SubChannels[uri] = subChannel;
@@ -210,7 +210,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
 
         private static Ref<GrpcConnectivityStateInfo> GetSubchannelStateInfoRef(IGrpcSubChannel subChannel)
         {
-            var result = subChannel.Attributes.Get(StateInfoKey) as Ref<GrpcConnectivityStateInfo>;
+            Ref<GrpcConnectivityStateInfo>? result = subChannel.Attributes.Get(StateInfoKey);
             return result ?? throw new InvalidOperationException("SubChannel state not found.");
         }
 

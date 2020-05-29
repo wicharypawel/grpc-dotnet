@@ -42,7 +42,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
                 return new GrpcNameResolutionResult(hosts, config, GrpcAttributes.Empty);
             };
             var options = new StaticResolverPluginOptions(resolveFunction);
-            var attributes = new GrpcAttributes(new Dictionary<string, object>() { { GrpcAttributesConstants.StaticResolverOptions, options } });
+            var attributes = GrpcAttributes.Builder.NewBuilder().Add(GrpcAttributesConstants.StaticResolverOptions, options).Build();
             var resolverPlugin = new StaticResolverPlugin(attributes);
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 

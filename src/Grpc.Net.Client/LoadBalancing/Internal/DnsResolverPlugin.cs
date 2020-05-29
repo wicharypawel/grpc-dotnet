@@ -70,8 +70,8 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         /// <param name="timer">Timer object required for periodic re-resolve.</param>
         public DnsResolverPlugin(GrpcAttributes attributes, ITimer timer)
         {
-            _defaultLoadBalancingPolicy = attributes.Get(GrpcAttributesConstants.DefaultLoadBalancingPolicy) as string ?? "pick_first";
-            _networkTtlSeconds = int.TryParse(attributes.Get(GrpcAttributesConstants.DnsResolverNetworkTtlSeconds) as string, out int ttlValue) ? ttlValue : DefaultNetworkTtlSeconds;
+            _defaultLoadBalancingPolicy = attributes.Get(GrpcAttributesConstants.DefaultLoadBalancingPolicy) ?? "pick_first";
+            _networkTtlSeconds = int.TryParse(attributes.Get(GrpcAttributesConstants.DnsResolverNetworkTtlSeconds), out int ttlValue) ? ttlValue : DefaultNetworkTtlSeconds;
             _timer = timer ?? throw new ArgumentNullException(nameof(timer));
         }
 

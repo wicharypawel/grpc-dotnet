@@ -26,21 +26,16 @@ namespace Grpc.Net.Client.LoadBalancing
         /// <summary>
         /// Key used to set options for static resolver.
         /// </summary>
-        public static readonly string StaticResolverOptions = "static-resolver-options";
+        public static readonly GrpcAttributes.Key<StaticResolverPluginOptions> StaticResolverOptions = GrpcAttributes.Key<StaticResolverPluginOptions>.Create("static-resolver-options");
 
         /// <summary>
         /// Key used to set default load balancing policy.
         /// </summary>
-        public static readonly string DefaultLoadBalancingPolicy = "default-loadbalancing-policy";
-
-        /// <summary>
-        /// Used to attach load balance token to subchannel.
-        /// </summary>
-        public static readonly string SubChannelLoadBalanceToken = "subchannel-loadbalance-token";
+        public static readonly GrpcAttributes.Key<string> DefaultLoadBalancingPolicy = GrpcAttributes.Key<string>.Create("default-loadbalancing-policy");
 
         /// <summary>
         /// Used to override default DNS cache duration (TTL).
         /// </summary>
-        public static readonly string DnsResolverNetworkTtlSeconds = "dns-resolver-network-ttl-seconds";
+        public static readonly GrpcAttributes.Key<string> DnsResolverNetworkTtlSeconds = GrpcAttributes.Key<string>.Create("dns-resolver-network-ttl-seconds");
     }
 }
