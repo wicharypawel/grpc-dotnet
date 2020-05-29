@@ -63,8 +63,7 @@ namespace Grpc.Net.Client.Internal
         public HttpContentClientStreamWriter<TRequest, TResponse>? ClientStreamWriter { get; private set; }
         public HttpContentClientStreamReader<TRequest, TResponse>? ClientStreamReader { get; private set; }
 
-        public GrpcCall(Method<TRequest, TResponse> method, GrpcMethodInfo grpcMethodInfo, CallOptions options, 
-            GrpcChannel channel)
+        public GrpcCall(Method<TRequest, TResponse> method, GrpcMethodInfo grpcMethodInfo, CallOptions options, GrpcChannel channel)
         {
             // Validate deadline before creating any objects that require cleanup
             ValidateDeadline(options.Deadline);
@@ -442,35 +441,23 @@ namespace Grpc.Net.Client.Internal
                 var delayCallStart = new TaskCompletionSource<GrpcPickResult>();
                 Channel.DelayedClientTransport.BufforPendingCall((x) => delayCallStart.SetResult(x), GrpcPickSubchannelArgs.Empty);
                 var delayedPickResult = delayCallStart.Task.GetAwaiter().GetResult();
-                if (delayedPickResult.Status.StatusCode != StatusCode.OK)
-                {
-                    throw new RpcException(delayedPickResult.Status);
-                }
                 _ = RunCall(request, timeout, delayedPickResult);
                 return;
             }
             var pickResult = Channel.SubChannelPicker.GetNextSubChannel(GrpcPickSubchannelArgs.Empty);
-            if (pickResult.Status.StatusCode != StatusCode.OK)
-            {
-                throw new RpcException(pickResult.Status);
-            }
             IGrpcSubChannel? subChannel = pickResult.SubChannel;
-            if (subChannel == null)
+            if (subChannel == null && pickResult.Status.StatusCode == StatusCode.OK)
             {
                 var delayCallStart = new TaskCompletionSource<GrpcPickResult>();
                 Channel.DelayedClientTransport.BufforPendingCall((x) => delayCallStart.SetResult(x), GrpcPickSubchannelArgs.Empty);
                 var delayedPickResult = delayCallStart.Task.GetAwaiter().GetResult();
-                if (delayedPickResult.Status.StatusCode != StatusCode.OK)
-                {
-                    throw new RpcException(delayedPickResult.Status);
-                }
                 _ = RunCall(request, timeout, delayedPickResult);
                 return;
             }
             _ = RunCall(request, timeout, pickResult);
         }
 
-        private async Task RunCall(HttpRequestMessage request, TimeSpan? timeout, GrpcPickResult pickResultSubChannelOrError)
+        private async Task RunCall(HttpRequestMessage request, TimeSpan? timeout, GrpcPickResult pickResult)
         {
             using (StartScope())
             {
@@ -491,14 +478,14 @@ namespace Grpc.Net.Client.Internal
                     // Fail early if deadline has already been exceeded
                     _callCts.Token.ThrowIfCancellationRequested();
 
-                    if (pickResultSubChannelOrError.SubChannel != null)
+                    if (pickResult.SubChannel != null)
                     {
-                        _subChannel = pickResultSubChannelOrError.SubChannel;
+                        _subChannel = pickResult.SubChannel;
                         request.RequestUri = new Uri(_subChannel.Address, request.RequestUri);
                     }
                     else
                     {
-                        throw new RpcException(pickResultSubChannelOrError.Status);
+                        throw new RpcException(pickResult.Status);
                     }
 
                     try
