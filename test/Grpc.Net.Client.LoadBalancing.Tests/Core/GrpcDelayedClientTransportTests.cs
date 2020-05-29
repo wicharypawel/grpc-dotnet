@@ -37,6 +37,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
 
             // Act
             // Assert
+            Assert.Empty(executor.Actions);
             Assert.Equal(0, delayedTransport.GetPendingCallsCount());
         }
 
@@ -50,10 +51,13 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
 
             // Act
             delayedTransport.BufforPendingCall((pickResult) => { }, GrpcPickSubchannelArgs.Empty);
+            Assert.Equal(1, delayedTransport.GetPendingCallsCount());
             delayedTransport.BufforPendingCall((pickResult) => { }, GrpcPickSubchannelArgs.Empty);
+            Assert.Equal(2, delayedTransport.GetPendingCallsCount());
             delayedTransport.BufforPendingCall((pickResult) => { }, GrpcPickSubchannelArgs.Empty);
 
             // Assert
+            Assert.Empty(executor.Actions);
             Assert.Equal(3, delayedTransport.GetPendingCallsCount());
         }
 
@@ -75,6 +79,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
             delayedTransport.Reprocess(picker);
 
             // Assert
+            Assert.Single(executor.Actions);
             Assert.Equal(0, delayedTransport.GetPendingCallsCount());
         }
 
@@ -92,6 +97,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
             delayedTransport.Reprocess(picker);
 
             // Assert
+            Assert.Empty(executor.Actions);
             Assert.Equal(1, delayedTransport.GetPendingCallsCount());
         }
 
@@ -109,6 +115,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
             delayedTransport.Reprocess(null);
 
             // Assert
+            Assert.Empty(executor.Actions);
             Assert.Equal(2, delayedTransport.GetPendingCallsCount());
         }
 
@@ -129,6 +136,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
             delayedTransport.Reprocess(picker);
 
             // Assert
+            Assert.Empty(executor.Actions);
             Assert.Equal(0, delayedTransport.GetPendingCallsCount());
         }
 
@@ -152,6 +160,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
             executor.DrainSingleAction();
 
             // Assert
+            Assert.Empty(executor.Actions);
             Assert.Equal(0, delayedTransport.GetPendingCallsCount());
             Assert.Equal(StatusCode.Internal, actualErrorStatus?.StatusCode);
         }
@@ -171,12 +180,13 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
             executor.DrainSingleAction();
 
             // Assert
+            Assert.Empty(executor.Actions);
             Assert.Equal(0, delayedTransport.GetPendingCallsCount());
             Assert.Equal(StatusCode.Unavailable, actualErrorStatus?.StatusCode);
         }
 
         [Fact]
-        public void ForNoPendingCallsAndReadyPicker_UsingGrpcDelayedClientTransportAndReprocess_Verify()
+        public void ForPendingCallsAndPreviousReadyPicker_UsingGrpcDelayedClientTransportAndReprocess_VerifyPreviousPickerIsUsed()
         {
             // Arrange
             var executor = new ExecutorFake();
@@ -192,9 +202,57 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
             delayedTransport.BufforPendingCall((pickResult) => { }, GrpcPickSubchannelArgs.Empty);
             delayedTransport.Reprocess(picker);
             delayedTransport.BufforPendingCall((pickResult) => { }, GrpcPickSubchannelArgs.Empty);
+            delayedTransport.BufforPendingCall((pickResult) => { }, GrpcPickSubchannelArgs.Empty);
 
             // Assert
-            Assert.Equal(1, delayedTransport.GetPendingCallsCount());
+            Assert.Equal(3, executor.Actions.Count);
+            Assert.Equal(0, delayedTransport.GetPendingCallsCount());
+        }
+
+        [Fact]
+        public void ForPendingCallsAndPreviousNotReadyPicker_UsingGrpcDelayedClientTransportAndReprocess_VerifyCallsInQueue()
+        {
+            // Arrange
+            var executor = new ExecutorFake();
+            var synchronizationContext = new GrpcSynchronizationContext((ex) => { });
+            var delayedTransport = new GrpcDelayedClientTransport(executor, synchronizationContext);
+            var picker = new SubchannelPickerFake((args) => GrpcPickResult.WithNoResult());
+
+            // Act
+            delayedTransport.BufforPendingCall((pickResult) => { }, GrpcPickSubchannelArgs.Empty);
+            delayedTransport.Reprocess(picker);
+            delayedTransport.BufforPendingCall((pickResult) => { }, GrpcPickSubchannelArgs.Empty);
+            delayedTransport.BufforPendingCall((pickResult) => { }, GrpcPickSubchannelArgs.Empty);
+
+            // Assert
+            Assert.Empty(executor.Actions);
+            Assert.Equal(3, delayedTransport.GetPendingCallsCount());
+        }
+
+        [Fact]
+        public void ForShutDown_UsingGrpcDelayedClientTransport_VerifyNoCallsInQueueAndStopProcessing()
+        {
+            // Arrange
+            var executor = new ExecutorFake();
+            var synchronizationContext = new GrpcSynchronizationContext((ex) => { });
+            var delayedTransport = new GrpcDelayedClientTransport(executor, synchronizationContext);
+            Status? actualErrorStatus = null;
+
+            // Act
+            delayedTransport.BufforPendingCall((pickResult) => { }, GrpcPickSubchannelArgs.Empty);
+            delayedTransport.BufforPendingCall((pickResult) => { }, GrpcPickSubchannelArgs.Empty);
+            delayedTransport.BufforPendingCall((pickResult) => { }, GrpcPickSubchannelArgs.Empty);
+            Assert.Equal(3, delayedTransport.GetPendingCallsCount());
+            delayedTransport.ShutdownNow(new Status(StatusCode.Unavailable, "Dispose"));
+            Assert.Empty(executor.Actions);
+            Assert.Equal(0, delayedTransport.GetPendingCallsCount());
+            delayedTransport.BufforPendingCall((pickResult) => { actualErrorStatus = pickResult.Status; }, GrpcPickSubchannelArgs.Empty);
+            executor.DrainSingleAction();
+
+            // Assert
+            Assert.Empty(executor.Actions);
+            Assert.Equal(0, delayedTransport.GetPendingCallsCount());
+            Assert.Equal(StatusCode.Unavailable, actualErrorStatus?.StatusCode);
         }
     }
 }
