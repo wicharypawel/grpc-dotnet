@@ -1,4 +1,4 @@
-#region Copyright notice and license
+﻿#region Copyright notice and license
 
 // Copyright 2019 The gRPC Authors
 //
@@ -18,6 +18,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Grpc.Net.Client.LoadBalancing
 {
@@ -51,6 +52,14 @@ namespace Grpc.Net.Client.LoadBalancing
                 return result as TValue;
             }
             return null; 
+        }
+
+        /// <summary>
+        /// The method can only be used for testing purposes.
+        /// </summary>
+        internal int GetKeysCount()
+        {
+            return _data.Keys.Count();
         }
 
         private interface IKey
