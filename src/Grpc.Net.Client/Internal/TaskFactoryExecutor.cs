@@ -23,6 +23,12 @@ namespace Grpc.Net.Client.Internal
 {
     internal sealed class TaskFactoryExecutor : IGrpcExecutor
     {
+        public static TaskFactoryExecutor Instance { get; } = new TaskFactoryExecutor();
+
+        private TaskFactoryExecutor()
+        {
+        }
+
         public void Execute(Action action)
         {
             Task.Factory.StartNew(action);

@@ -16,10 +16,10 @@
 
 #endregion
 
+using Grpc.Net.Client.Internal;
 using System;
 using System.Collections.Generic;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace Grpc.Net.Client.LoadBalancing
 {
@@ -33,9 +33,11 @@ namespace Grpc.Net.Client.LoadBalancing
         private List<Listener> _listeners = new List<Listener>();
         private GrpcConnectivityState _state = GrpcConnectivityState.IDLE;
 
-        public void NotifyWhenStateChanged(Action callback, GrpcConnectivityState sourceState)
+        public void NotifyWhenStateChanged(Action callback, IGrpcExecutor executor, GrpcConnectivityState sourceState)
         {
-            var listener = new Listener(callback ?? throw new ArgumentNullException(nameof(callback)));
+            if (callback == null) throw new ArgumentNullException(nameof(callback));
+            if (executor == null) throw new ArgumentNullException(nameof(executor));
+            var listener = new Listener(callback, executor); 
             if (_state != sourceState)
             {
                 listener.RunCallback();
@@ -71,15 +73,17 @@ namespace Grpc.Net.Client.LoadBalancing
         private sealed class Listener
         {
             private readonly Action _callback;
+            private readonly IGrpcExecutor _executor;
 
-            public Listener(Action callback)
+            public Listener(Action callback, IGrpcExecutor executor)
             {
                 _callback = callback;
+                _executor = executor;
             }
 
             public void RunCallback()
             {
-                Task.Factory.StartNew(_callback);
+                _executor.Execute(_callback);
             }
         }
     }

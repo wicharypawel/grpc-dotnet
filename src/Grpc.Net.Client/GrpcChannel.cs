@@ -113,7 +113,7 @@ namespace Grpc.Net.Client
             ChannelStateManager = new GrpcConnectivityStateManager();
             BackoffPolicyProvider = new GrpcExponentialBackoffPolicyProvider();
             SyncContext = new GrpcSynchronizationContext((ex) => Panic(ex));
-            DelayedClientTransport = new GrpcDelayedClientTransport(new TaskFactoryExecutor(), SyncContext);
+            DelayedClientTransport = new GrpcDelayedClientTransport(TaskFactoryExecutor.Instance, SyncContext);
             LoadBalancingPolicyProvider = CreateRequestedPolicyProvider(new string[] { channelOptions.DefaultLoadBalancingPolicy }, LoggerFactory);
             LoadBalancingPolicy = LoadBalancingPolicyProvider.CreateLoadBalancingPolicy(Helper);
             LoadBalancingPolicy.LoggerFactory = LoggerFactory;
@@ -343,7 +343,7 @@ namespace Grpc.Net.Client
         /// <param name="callback">The one-off callback.</param>
         public void NotifyWhenStateChanged(GrpcConnectivityState sourceState, Action callback)
         {
-            SyncContext.Execute(() => { ChannelStateManager.NotifyWhenStateChanged(callback, sourceState); });
+            SyncContext.Execute(() => { ChannelStateManager.NotifyWhenStateChanged(callback, TaskFactoryExecutor.Instance, sourceState); });
         }
 
         private class DefaultChannelCredentialsConfigurator : ChannelCredentialsConfiguratorBase

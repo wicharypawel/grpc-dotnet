@@ -16,6 +16,7 @@
 
 #endregion
 
+using Grpc.Net.Client.LoadBalancing.Tests.Core.Fakes;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -42,18 +43,19 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
         }
 
         [Fact]
-        public async Task ForRegisterCallbackBeforeStateChanged_UsingGrpcConnectivityStateManager_SuccessfullyCallBack()
+        public void ForRegisterCallbackBeforeStateChanged_UsingGrpcConnectivityStateManager_SuccessfullyCallBack()
         {
             // Arrange
+            var executor = new ExecutorFake();
             var stateManager = new GrpcConnectivityStateManager();
             var results = new List<GrpcConnectivityState>();
 
             // Act
             stateManager.SetState(GrpcConnectivityState.CONNECTING);
-            stateManager.NotifyWhenStateChanged(() => { results.Add(stateManager.GetState()); }, GrpcConnectivityState.CONNECTING);
+            stateManager.NotifyWhenStateChanged(() => { results.Add(stateManager.GetState()); }, executor, GrpcConnectivityState.CONNECTING);
             Assert.Empty(results);
             stateManager.SetState(GrpcConnectivityState.TRANSIENT_FAILURE);
-            await WaitUntilSizeChangeAsync(results, 0);
+            executor.DrainSingleAction();
             
             // Assert
             Assert.Single(results);
@@ -61,16 +63,17 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
         }
 
         [Fact]
-        public async Task ForRegisterCallbackAfterStateChanged_UsingGrpcConnectivityStateManager_SuccessfullyCallBack()
+        public void ForRegisterCallbackAfterStateChanged_UsingGrpcConnectivityStateManager_SuccessfullyCallBack()
         {
             // Arrange
+            var executor = new ExecutorFake();
             var stateManager = new GrpcConnectivityStateManager();
             var results = new List<GrpcConnectivityState>();
 
             // Act
             stateManager.SetState(GrpcConnectivityState.CONNECTING);
-            stateManager.NotifyWhenStateChanged(() => { results.Add(stateManager.GetState()); }, GrpcConnectivityState.IDLE);
-            await WaitUntilSizeChangeAsync(results, 0);
+            stateManager.NotifyWhenStateChanged(() => { results.Add(stateManager.GetState()); }, executor, GrpcConnectivityState.IDLE);
+            executor.DrainSingleAction();
 
             // Assert
             Assert.Single(results);
@@ -78,57 +81,61 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
         }
 
         [Fact]
-        public async Task ForCallbackOnlyCalledOnTransition_UsingGrpcConnectivityStateManager_NoCallback()
+        public void ForCallbackOnlyCalledOnTransition_UsingGrpcConnectivityStateManager_NoCallback()
         {
             // Arrange
+            var executor = new ExecutorFake();
             var stateManager = new GrpcConnectivityStateManager();
             var results = new List<GrpcConnectivityState>();
 
             // Act
-            stateManager.NotifyWhenStateChanged(() => { results.Add(stateManager.GetState()); }, GrpcConnectivityState.IDLE);
+            stateManager.NotifyWhenStateChanged(() => { results.Add(stateManager.GetState()); }, executor, GrpcConnectivityState.IDLE);
             stateManager.SetState(GrpcConnectivityState.IDLE);
-            await WaitUntilSizeChangeAsync(results, 0, TimeSpan.FromMilliseconds(100));
 
             // Assert
+            Assert.True(executor.Actions.Count == 0);
             Assert.Empty(results);
         }
 
         [Fact]
-        public async Task ForCallbacksAreOneShot_UsingGrpcConnectivityStateManager_NoRepetingOnCallback()
+        public void ForCallbacksAreOneShot_UsingGrpcConnectivityStateManager_NoRepetingOnCallback()
         {
             // Arrange
+            var executor = new ExecutorFake();
             var stateManager = new GrpcConnectivityStateManager();
             var results = new List<GrpcConnectivityState>();
 
             // Act
-            stateManager.NotifyWhenStateChanged(() => { results.Add(stateManager.GetState()); }, GrpcConnectivityState.IDLE);
+            stateManager.NotifyWhenStateChanged(() => { results.Add(stateManager.GetState()); }, executor, GrpcConnectivityState.IDLE);
             stateManager.SetState(GrpcConnectivityState.CONNECTING);
-            await WaitUntilSizeChangeAsync(results, 0);
+            executor.DrainSingleAction();
             stateManager.SetState(GrpcConnectivityState.READY);
-            await WaitUntilSizeChangeAsync(results, 1, TimeSpan.FromMilliseconds(100));
 
             // Assert
+            Assert.True(executor.Actions.Count == 0);
             Assert.Single(results);
             Assert.Contains(GrpcConnectivityState.CONNECTING, results);
         }
 
         [Fact]
-        public async Task ForMultipleCallbacks_UsingGrpcConnectivityStateManager_SuccessfullyCallBack()
+        public void ForMultipleCallbacks_UsingGrpcConnectivityStateManager_SuccessfullyCallBack()
         {
             // Arrange
+            var executor = new ExecutorFake();
             var stateManager = new GrpcConnectivityStateManager();
             var results = new List<GrpcConnectivityState>();
 
             // Act
-            stateManager.NotifyWhenStateChanged(() => { results.Add(stateManager.GetState()); }, GrpcConnectivityState.IDLE);
-            stateManager.NotifyWhenStateChanged(() => { results.Add(stateManager.GetState()); }, GrpcConnectivityState.IDLE);
-            stateManager.NotifyWhenStateChanged(() => { results.Add(stateManager.GetState()); }, GrpcConnectivityState.READY);
-            await WaitUntilSizeChangeAsync(results, 0); //last callback is run immediately because the source state is already different from the current
+            stateManager.NotifyWhenStateChanged(() => { results.Add(stateManager.GetState()); }, executor, GrpcConnectivityState.IDLE);
+            stateManager.NotifyWhenStateChanged(() => { results.Add(stateManager.GetState()); }, executor, GrpcConnectivityState.IDLE);
+            stateManager.NotifyWhenStateChanged(() => { results.Add(stateManager.GetState()); }, executor, GrpcConnectivityState.READY);
+            executor.DrainSingleAction(); //last callback is run immediately because the source state is already different from the current
             stateManager.SetState(GrpcConnectivityState.CONNECTING);
-            await WaitUntilSizeChangeAsync(results, 1);
-            await WaitUntilSizeChangeAsync(results, 2);
+            executor.DrainSingleAction();
+            executor.DrainSingleAction();
 
             // Assert
+            Assert.True(executor.Actions.Count == 0);
             Assert.Equal(3, results.Count);
             Assert.Contains(GrpcConnectivityState.IDLE, results);
             Assert.Contains(GrpcConnectivityState.CONNECTING, results);
@@ -136,9 +143,10 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
         }
 
         [Fact]
-        public async Task ForRegisterCallbackFromCallback_UsingGrpcConnectivityStateManager_SuccessfullyRegisterCallBack()
+        public void ForRegisterCallbackFromCallback_UsingGrpcConnectivityStateManager_SuccessfullyRegisterCallBack()
         {
             // Arrange
+            var executor = new ExecutorFake();
             var stateManager = new GrpcConnectivityStateManager();
             var results = new List<GrpcConnectivityState>();
 
@@ -146,14 +154,15 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
             stateManager.NotifyWhenStateChanged(() => 
             { 
                 results.Add(stateManager.GetState());
-                stateManager.NotifyWhenStateChanged(() => { results.Add(stateManager.GetState()); }, stateManager.GetState());
-            }, GrpcConnectivityState.IDLE);
+                stateManager.NotifyWhenStateChanged(() => { results.Add(stateManager.GetState()); }, executor, stateManager.GetState());
+            }, executor, GrpcConnectivityState.IDLE);
             stateManager.SetState(GrpcConnectivityState.CONNECTING);
-            await WaitUntilSizeChangeAsync(results, 0);
+            executor.DrainSingleAction();
             stateManager.SetState(GrpcConnectivityState.READY);
-            await WaitUntilSizeChangeAsync(results, 1);
+            executor.DrainSingleAction();
 
             // Assert
+            Assert.True(executor.Actions.Count == 0);
             Assert.Equal(2, results.Count);
             Assert.Contains(GrpcConnectivityState.CONNECTING, results);
             Assert.Contains(GrpcConnectivityState.READY, results);
@@ -172,15 +181,6 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
 
             // Assert
             Assert.Equal(GrpcConnectivityState.SHUTDOWN, stateManager.GetState());
-        }
-
-        private static async Task WaitUntilSizeChangeAsync(List<GrpcConnectivityState> list, int initialSize, TimeSpan? timeout = null)
-        {
-            var timeoutTask = timeout != null ? Task.Delay(timeout.Value) : null;
-            while (list.Count == initialSize && !(timeoutTask?.IsCompleted ?? false))
-            {
-                await Task.Delay(TimeSpan.FromMilliseconds(25));
-            }
         }
     }
 }
