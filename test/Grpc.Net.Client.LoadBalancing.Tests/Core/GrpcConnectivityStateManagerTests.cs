@@ -17,9 +17,7 @@
 #endregion
 
 using Grpc.Net.Client.LoadBalancing.Tests.Core.Fakes;
-using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using Xunit;
 
 namespace Grpc.Net.Client.LoadBalancing.Tests.Core
@@ -53,11 +51,13 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
             // Act
             stateManager.SetState(GrpcConnectivityState.CONNECTING);
             stateManager.NotifyWhenStateChanged(() => { results.Add(stateManager.GetState()); }, executor, GrpcConnectivityState.CONNECTING);
+            Assert.Empty(executor.Actions);
             Assert.Empty(results);
             stateManager.SetState(GrpcConnectivityState.TRANSIENT_FAILURE);
             executor.DrainSingleAction();
-            
+
             // Assert
+            Assert.Empty(executor.Actions);
             Assert.Single(results);
             Assert.Contains(GrpcConnectivityState.TRANSIENT_FAILURE, results);
         }
@@ -76,6 +76,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
             executor.DrainSingleAction();
 
             // Assert
+            Assert.Empty(executor.Actions);
             Assert.Single(results);
             Assert.Contains(GrpcConnectivityState.CONNECTING, results);
         }
@@ -93,6 +94,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
             stateManager.SetState(GrpcConnectivityState.IDLE);
 
             // Assert
+            Assert.Empty(executor.Actions);
             Assert.True(executor.Actions.Count == 0);
             Assert.Empty(results);
         }
@@ -107,12 +109,13 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
 
             // Act
             stateManager.NotifyWhenStateChanged(() => { results.Add(stateManager.GetState()); }, executor, GrpcConnectivityState.IDLE);
+            Assert.Empty(executor.Actions);
             stateManager.SetState(GrpcConnectivityState.CONNECTING);
             executor.DrainSingleAction();
             stateManager.SetState(GrpcConnectivityState.READY);
 
             // Assert
-            Assert.True(executor.Actions.Count == 0);
+            Assert.Empty(executor.Actions);
             Assert.Single(results);
             Assert.Contains(GrpcConnectivityState.CONNECTING, results);
         }
@@ -135,7 +138,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
             executor.DrainSingleAction();
 
             // Assert
-            Assert.True(executor.Actions.Count == 0);
+            Assert.Empty(executor.Actions);
             Assert.Equal(3, results.Count);
             Assert.Contains(GrpcConnectivityState.IDLE, results);
             Assert.Contains(GrpcConnectivityState.CONNECTING, results);
@@ -162,7 +165,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
             executor.DrainSingleAction();
 
             // Assert
-            Assert.True(executor.Actions.Count == 0);
+            Assert.Empty(executor.Actions);
             Assert.Equal(2, results.Count);
             Assert.Contains(GrpcConnectivityState.CONNECTING, results);
             Assert.Contains(GrpcConnectivityState.READY, results);
