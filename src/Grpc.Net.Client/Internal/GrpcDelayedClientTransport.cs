@@ -69,7 +69,7 @@ namespace Grpc.Net.Client.Internal
                     pickerVersion = _lastPickerVersion;
                 }
                 var pickResult = picker.GetNextSubChannel(pickSubchannelArgs);
-                if (IsTransportReadyOrError(pickResult))
+                if (!GrpcPickResult.IsWithNoResult(pickResult))
                 {
                     _executor.Execute(() => callDelegate(pickResult));
                     return;
@@ -95,7 +95,7 @@ namespace Grpc.Net.Client.Internal
             foreach (var call in toProcess)
             {
                 var pickResult = picker.GetNextSubChannel(call.PickSubchannelArgs);
-                if (IsTransportReadyOrError(pickResult))
+                if (!GrpcPickResult.IsWithNoResult(pickResult))
                 {
                     _executor.Execute(() => call.CallDelegate(pickResult));
                     toRemove.Add(call);
@@ -135,19 +135,6 @@ namespace Grpc.Net.Client.Internal
         public void Dispose()
         {
             ShutdownNow(new Status(StatusCode.Unavailable, "Dispose"));
-        }
-
-        private bool IsTransportReadyOrError(GrpcPickResult pickResult)
-        {
-            if (pickResult.Status.StatusCode != StatusCode.OK)
-            {
-                return true;
-            }
-            if (pickResult.SubChannel != null && pickResult.Status.StatusCode == StatusCode.OK)
-            {
-                return true;
-            }
-            return false;
         }
 
         private bool HasPendingCalls()

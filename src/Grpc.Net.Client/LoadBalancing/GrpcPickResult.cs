@@ -100,5 +100,15 @@ namespace Grpc.Net.Client.LoadBalancing
         {
             return NoResult;
         }
+
+        /// <summary>
+        /// It determines whether the pick result implies a buffering.
+        /// </summary>
+        /// <param name="pickResult">The pick result to be checked.</param>
+        /// <returns>True if the pick result is equal to the value returned by <see cref="WithNoResult"/>; otherwise, false.</returns>
+        public static bool IsWithNoResult(GrpcPickResult pickResult)
+        {
+            return pickResult == NoResult;
+        }
     }
 }

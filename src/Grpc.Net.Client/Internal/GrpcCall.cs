@@ -445,8 +445,7 @@ namespace Grpc.Net.Client.Internal
                 return;
             }
             var pickResult = Channel.SubChannelPicker.GetNextSubChannel(GrpcPickSubchannelArgs.Empty);
-            IGrpcSubChannel? subChannel = pickResult.SubChannel;
-            if (subChannel == null && pickResult.Status.StatusCode == StatusCode.OK)
+            if (GrpcPickResult.IsWithNoResult(pickResult))
             {
                 var delayCallStart = new TaskCompletionSource<GrpcPickResult>();
                 Channel.DelayedClientTransport.BufforPendingCall((x) => delayCallStart.SetResult(x), GrpcPickSubchannelArgs.Empty);

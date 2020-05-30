@@ -82,5 +82,18 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
             Assert.Equal(status, pickResult.Status);
             Assert.True(pickResult.Drop);
         }
+
+        [Fact]
+        public void ForNoResult_UsingIsWithNoResult_ReturnsTrue()
+        {
+            // Arrange
+            var pickResult = GrpcPickResult.WithNoResult();
+
+            // Act
+            var result = GrpcPickResult.IsWithNoResult(pickResult);
+
+            // Assert
+            Assert.True(result);
+        }
     }
 }
