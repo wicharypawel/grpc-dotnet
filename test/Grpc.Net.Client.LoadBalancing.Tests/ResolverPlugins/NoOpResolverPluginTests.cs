@@ -44,7 +44,6 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             Assert.Single(resolutionResult.HostsAddresses);
             Assert.Equal("sample.host.com", resolutionResult.HostsAddresses[0].Host);
             Assert.Equal(443, resolutionResult.HostsAddresses[0].Port);
-            Assert.False(resolutionResult.HostsAddresses[0].IsLoadBalancer);
             Assert.Single(serviceConfig.RequestedLoadBalancingPolicies);
             Assert.Equal("pick_first", serviceConfig.RequestedLoadBalancingPolicies[0]);
         }

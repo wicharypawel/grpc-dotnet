@@ -133,7 +133,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             {
                 var serversDnsQueryTask = OverrideDnsResults ?? Dns.GetHostAddressesAsync(serversDnsQuery);
                 await serversDnsQueryTask.ConfigureAwait(false);
-                var serversDnsQueryResults = serversDnsQueryTask.Result.Select(x => ParseARecord(x, target.Port, false)).ToArray();
+                var serversDnsQueryResults = serversDnsQueryTask.Result.Select(x => ParseARecord(x, target.Port)).ToArray();
                 var results = serversDnsQueryResults.ToList();
                 _logger.LogDebug($"NameResolution found {results.Count} DNS records");
                 var serviceConfig = GrpcServiceConfig.Create(_defaultLoadBalancingPolicy);
@@ -152,16 +152,10 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             _timer.Dispose();
         }
 
-        private GrpcHostAddress ParseARecord(IPAddress address, int port, bool isLoadBalancer)
+        private GrpcHostAddress ParseARecord(IPAddress address, int port)
         {
             _logger.LogDebug($"Found a A record {address.ToString()}");
-            return new GrpcHostAddress(address.ToString())
-            {
-                Port = port,
-                IsLoadBalancer = isLoadBalancer,
-                Priority = 0,
-                Weight = 0
-            };
+            return new GrpcHostAddress(address.ToString(), port);
         }
     }
 }

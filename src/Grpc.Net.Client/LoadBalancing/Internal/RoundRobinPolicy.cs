@@ -58,10 +58,9 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
                 throw new ArgumentException($"{nameof(serviceName)} not defined.");
             }
             var hostsAddresses = resolvedAddresses.HostsAddresses;
-            hostsAddresses = hostsAddresses.Where(x => !x.IsLoadBalancer).ToList();
             if (hostsAddresses.Count == 0)
             {
-                throw new ArgumentException($"{nameof(resolvedAddresses)} must contain at least one non-blancer address.");
+                throw new ArgumentException($"{nameof(resolvedAddresses)} must contain at least one address.");
             }
             _logger.LogDebug($"Start pick_first policy");
             var resolvedUris = hostsAddresses.Select(hostsAddress =>

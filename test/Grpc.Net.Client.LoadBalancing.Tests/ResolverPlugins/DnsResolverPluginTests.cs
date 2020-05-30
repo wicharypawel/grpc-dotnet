@@ -110,10 +110,8 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
 
             // Assert
             Assert.Equal(3, resolutionResult.HostsAddresses.Count);
-            Assert.Empty(resolutionResult.HostsAddresses.Where(x => x.IsLoadBalancer));
-            Assert.Equal(3, resolutionResult.HostsAddresses.Where(x => !x.IsLoadBalancer).Count());
-            Assert.All(resolutionResult.HostsAddresses.Where(x => !x.IsLoadBalancer), x => Assert.Equal(80, x.Port));
-            Assert.All(resolutionResult.HostsAddresses.Where(x => !x.IsLoadBalancer), x => Assert.StartsWith("10.1.5.", x.Host));
+            Assert.All(resolutionResult.HostsAddresses, x => Assert.Equal(80, x.Port));
+            Assert.All(resolutionResult.HostsAddresses, x => Assert.StartsWith("10.1.5.", x.Host));
             Assert.True(serviceConfig.RequestedLoadBalancingPolicies.Count == 1);
             Assert.True(serviceConfig.RequestedLoadBalancingPolicies.First() == "pick_first");
         }

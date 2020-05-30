@@ -21,7 +21,6 @@ using Grpc.Net.Client.LoadBalancing.Internal;
 using Grpc.Net.Client.LoadBalancing.Tests.Policies.Factories;
 using Grpc.Net.Client.LoadBalancing.Tests.Policies.Fakes;
 using System;
-using System.Collections.Generic;
 using Xunit;
 
 namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
@@ -34,7 +33,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             // Arrange
             var helper = new HelperFake();
             using var policy = new RoundRobinPolicy(helper);
-            var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(0, 2);
+            var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(2);
             var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
             var resolvedAddresses = new GrpcResolvedAddresses(hostsAddresses, config, GrpcAttributes.Empty);
 
@@ -58,7 +57,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             // Arrange
             var helper = new HelperFake();
             using var policy = new RoundRobinPolicy(helper);
-            var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(0, 0);
+            var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(0);
             var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
             var resolvedAddresses = new GrpcResolvedAddresses(hostsAddresses, config, GrpcAttributes.Empty);
 
@@ -68,26 +67,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             {
                 policy.HandleResolvedAddresses(resolvedAddresses, "sample-service.contoso.com", false);
             });
-            Assert.Equal("resolvedAddresses must contain at least one non-blancer address.", exception.Message);
-        }
-
-        [Fact]
-        public void ForBalancersResolutionOnly_UseRoundRobinPolicy_ThrowArgumentException()
-        {
-            // Arrange
-            var helper = new HelperFake();
-            using var policy = new RoundRobinPolicy(helper);
-            var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(2, 0);
-            var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
-            var resolvedAddresses = new GrpcResolvedAddresses(hostsAddresses, config, GrpcAttributes.Empty);
-
-            // Act
-            // Assert
-            var exception = Assert.Throws<ArgumentException>(() =>
-            {
-                policy.HandleResolvedAddresses(resolvedAddresses, "sample-service.contoso.com", false); // load balancers are ignored
-            });
-            Assert.Equal("resolvedAddresses must contain at least one non-blancer address.", exception.Message);
+            Assert.Equal("resolvedAddresses must contain at least one address.", exception.Message);
         }
 
         [Fact]
@@ -96,7 +76,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             // Arrange
             var helper = new HelperFake();
             using var policy = new RoundRobinPolicy(helper);
-            var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(0, 4);
+            var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(4);
             var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
             var resolvedAddresses = new GrpcResolvedAddresses(hostsAddresses, config, GrpcAttributes.Empty);
 
@@ -108,49 +88,6 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             Assert.Equal(4, subChannels.Count);
             Assert.All(subChannels, subChannel => Assert.Equal("http", subChannel.Address.Scheme));
             Assert.All(subChannels, subChannel => Assert.Equal(80, subChannel.Address.Port));
-            Assert.All(subChannels, subChannel => Assert.StartsWith("10.1.5.", subChannel.Address.Host));
-        }
-
-        [Fact]
-        public void ForResolutionResultWithBalancers_UseRoundRobinPolicy_IgnoreBalancersCreateSubchannels()
-        {
-            // Arrange
-            var helper = new HelperFake();
-            using var policy = new RoundRobinPolicy(helper);
-            var hostsAddresses = new List<GrpcHostAddress>()
-            {
-                new GrpcHostAddress("10.1.5.211", 8443)
-                {
-                    IsLoadBalancer = false,
-                },
-                new GrpcHostAddress("10.1.5.212", 8443)
-                {
-                    IsLoadBalancer = false
-                },
-                new GrpcHostAddress("10.1.6.120", 80)
-                {
-                    IsLoadBalancer = true
-                },
-                new GrpcHostAddress("10.1.6.121", 80)
-                {
-                    IsLoadBalancer = true
-                },
-                new GrpcHostAddress("10.1.5.214", 8443)
-                {
-                    IsLoadBalancer = false
-                }
-            };
-            var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
-            var resolvedAddresses = new GrpcResolvedAddresses(hostsAddresses, config, GrpcAttributes.Empty);
-
-            // Act
-            policy.HandleResolvedAddresses(resolvedAddresses, "sample-service.contoso.com", true);
-            var subChannels = policy.SubChannels.Values;
-
-            // Assert
-            Assert.Equal(3, subChannels.Count); // load balancers are ignored
-            Assert.All(subChannels, subChannel => Assert.Equal("https", subChannel.Address.Scheme));
-            Assert.All(subChannels, subChannel => Assert.Equal(8443, subChannel.Address.Port));
             Assert.All(subChannels, subChannel => Assert.StartsWith("10.1.5.", subChannel.Address.Host));
         }
 

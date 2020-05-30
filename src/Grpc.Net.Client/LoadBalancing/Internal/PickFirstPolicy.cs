@@ -20,7 +20,6 @@ using Grpc.Core;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 
 namespace Grpc.Net.Client.LoadBalancing.Internal
@@ -59,10 +58,9 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
                 throw new ArgumentException($"{nameof(serviceName)} not defined.");
             }
             var hostsAddresses = resolvedAddresses.HostsAddresses;
-            hostsAddresses = hostsAddresses.Where(x => !x.IsLoadBalancer).ToList();
             if (hostsAddresses.Count == 0)
             {
-                throw new ArgumentException($"{nameof(resolvedAddresses)} must contain at least one non-blancer address.");
+                throw new ArgumentException($"{nameof(resolvedAddresses)} must contain at least one address.");
             }
             _logger.LogDebug($"Start pick_first policy");
             var resolvedUris = hostsAddresses.Select(hostsAddress =>
