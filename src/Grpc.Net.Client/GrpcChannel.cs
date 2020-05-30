@@ -20,7 +20,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net.Http;
-using System.Threading;
 using Grpc.Core;
 using Grpc.Net.Client.Internal;
 using Grpc.Net.Client.LoadBalancing;
