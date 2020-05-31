@@ -16,6 +16,7 @@
 
 #endregion
 
+using Grpc.Net.Client.Internal;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
@@ -34,6 +35,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         private readonly string[] WellKnownSchemes = new string[] { "dns", "xds", "xds-experimental" }; 
         private ILogger _logger = NullLogger.Instance;
         private readonly string _defaultLoadBalancingPolicy;
+        private readonly IGrpcExecutor _executor;
         private Uri? _target = null;
         private IGrpcNameResolutionObserver? _observer = null;
         private CancellationTokenSource? _cancellationTokenSource = null;
@@ -46,9 +48,10 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         /// <summary>
         /// The ctor should only be called by <see cref="NoOpResolverPluginProvider"/> or test code.
         /// </summary>
-        internal NoOpResolverPlugin(GrpcAttributes attributes)
+        internal NoOpResolverPlugin(GrpcAttributes attributes, IGrpcExecutor executor)
         {
             _defaultLoadBalancingPolicy = attributes.Get(GrpcAttributesConstants.DefaultLoadBalancingPolicy) ?? "pick_first";
+            _executor = executor ?? throw new ArgumentNullException(nameof(executor));
         }
 
         public void Subscribe(Uri target, IGrpcNameResolutionObserver observer)
@@ -83,7 +86,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
 
         private void Resolve()
         {
-            Task.Factory.StartNew(async () => await ResolveCoreAsync(_target, _observer).ConfigureAwait(false), _cancellationTokenSource!.Token);
+            _executor.Execute(async () => await ResolveCoreAsync(_target, _observer).ConfigureAwait(false));
         }
 
         private Task ResolveCoreAsync(Uri? target, IGrpcNameResolutionObserver? observer)

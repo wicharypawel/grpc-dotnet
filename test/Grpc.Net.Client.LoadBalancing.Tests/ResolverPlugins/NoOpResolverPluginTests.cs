@@ -17,6 +17,7 @@
 #endregion
 
 using Grpc.Net.Client.LoadBalancing.Internal;
+using Grpc.Net.Client.LoadBalancing.Tests.Core.Fakes;
 using Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins.Fakes;
 using System;
 using System.Threading.Tasks;
@@ -30,11 +31,13 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
         public async Task ForTarget_UseNoOpResolverPlugin_ReturnResolutionResultWithTheSameValue()
         {
             // Arrange
-            var resolverPlugin = new NoOpResolverPlugin(GrpcAttributes.Empty);
+            var executor = new ExecutorFake();
+            var resolverPlugin = new NoOpResolverPlugin(GrpcAttributes.Empty, executor);
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
             // Act
             resolverPlugin.Subscribe(new Uri("https://sample.host.com"), nameResolutionObserver);
+            executor.DrainSingleAction();
             var resolutionResult = await nameResolutionObserver.GetFirstValueOrDefaultAsync();
             Assert.NotNull(resolutionResult);
             var serviceConfig = resolutionResult!.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
@@ -51,12 +54,14 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
         public async Task ForOverrideDefaultPolicy_UseNoOpResolverPlugin_ReturnServiceConfigWithOverridenPolicyName()
         {
             // Arrange
+            var executor = new ExecutorFake();
             var attributes = GrpcAttributes.Builder.NewBuilder().Add(GrpcAttributesConstants.DefaultLoadBalancingPolicy, "round_robin").Build();
-            var resolverPlugin = new NoOpResolverPlugin(attributes);
+            var resolverPlugin = new NoOpResolverPlugin(attributes, executor);
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
             // Act
             resolverPlugin.Subscribe(new Uri("https://sample.host.com"), nameResolutionObserver);
+            executor.DrainSingleAction();
             var resolutionResult = await nameResolutionObserver.GetFirstValueOrDefaultAsync();
             Assert.NotNull(resolutionResult);
             var serviceConfig = resolutionResult!.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
@@ -73,12 +78,14 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
         public async Task ForTargetWithWellKnownScheme_UseNoOpResolverPlugin_ThrowArgumentException(string scheme)
         {
             // Arrange
-            var resolverPlugin = new NoOpResolverPlugin(GrpcAttributes.Empty);
+            var executor = new ExecutorFake();
+            var resolverPlugin = new NoOpResolverPlugin(GrpcAttributes.Empty, executor);
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
             // Act
             // Assert
             resolverPlugin.Subscribe(new Uri($"{scheme}://sample.host.com"), nameResolutionObserver);
+            executor.DrainSingleAction();
             var error = await nameResolutionObserver.GetFirstErrorOrDefaultAsync();
             Assert.NotNull(error);
             Assert.Contains("require non-default name resolver", error.Value.Detail);

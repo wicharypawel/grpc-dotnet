@@ -16,6 +16,7 @@
 
 #endregion
 
+using Grpc.Net.Client.Internal;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
@@ -32,6 +33,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
     internal sealed class StaticResolverPlugin : IGrpcResolverPlugin
     {
         private readonly Func<Uri, GrpcNameResolutionResult> _staticNameResolution;
+        private readonly IGrpcExecutor _executor;
         private ILogger _logger = NullLogger.Instance;
         private Uri? _target = null;
         private IGrpcNameResolutionObserver? _observer = null;
@@ -48,10 +50,11 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         /// <summary>
         /// The ctor should only be called by <see cref="StaticResolverPluginProvider"/> or test code.
         /// </summary>
-        internal StaticResolverPlugin(GrpcAttributes attributes)
+        internal StaticResolverPlugin(GrpcAttributes attributes, IGrpcExecutor executor)
         {
             StaticResolverPluginOptions? options = attributes.Get(GrpcAttributesConstants.StaticResolverOptions);
             _staticNameResolution = options?.StaticNameResolution ?? throw new ArgumentNullException(nameof(options.StaticNameResolution));
+            _executor = executor ?? throw new ArgumentNullException(nameof(executor));
         }
 
         public void Subscribe(Uri target, IGrpcNameResolutionObserver observer)
@@ -86,7 +89,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
 
         private void Resolve()
         {
-            Task.Factory.StartNew(async () => await ResolveCoreAsync(_target, _observer).ConfigureAwait(false), _cancellationTokenSource!.Token);
+            _executor.Execute(async () => await ResolveCoreAsync(_target, _observer).ConfigureAwait(false));
         }
 
         private Task ResolveCoreAsync(Uri? target, IGrpcNameResolutionObserver? observer)

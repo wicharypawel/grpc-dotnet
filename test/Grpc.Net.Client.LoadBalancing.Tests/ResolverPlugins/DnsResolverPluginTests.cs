@@ -17,6 +17,7 @@
 #endregion
 
 using Grpc.Net.Client.LoadBalancing.Internal;
+using Grpc.Net.Client.LoadBalancing.Tests.Core.Fakes;
 using Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins.Fakes;
 using System;
 using System.Linq;
@@ -35,14 +36,16 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
         public async Task ForTargetWithNonDnsScheme_UseDnsResolverPluginTests_ThrowArgumentException(string scheme)
         {
             // Arrange
+            var executor = new ExecutorFake();
             var timer = new TimerFake();
-            var resolverPlugin = new DnsResolverPlugin(GrpcAttributes.Empty, timer);
+            var resolverPlugin = new DnsResolverPlugin(GrpcAttributes.Empty, executor, timer);
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
             // Act
             // Assert
             resolverPlugin.Subscribe(new Uri($"{scheme}://sample.host.com"), nameResolutionObserver);
             timer.ManualCallbackTrigger();
+            executor.DrainSingleAction();
             var error = await nameResolutionObserver.GetFirstErrorOrDefaultAsync();
             Assert.NotNull(error);
             Assert.Contains("require dns:// scheme to set as target address", error.Value.Detail);
@@ -52,15 +55,17 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
         public async Task ForTargetAndEmptyDnsResults_UseDnsResolverPlugin_ReturnNoFinidings()
         {
             // Arrange
+            var executor = new ExecutorFake();
             var timer = new TimerFake();
             var serviceHostName = "my-service";
-            var resolverPlugin = new DnsResolverPlugin(GrpcAttributes.Empty, timer);
+            var resolverPlugin = new DnsResolverPlugin(GrpcAttributes.Empty, executor, timer);
             resolverPlugin.OverrideDnsResults = Task.FromResult(Array.Empty<IPAddress>());
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
             // Act
             resolverPlugin.Subscribe(new Uri($"dns://{serviceHostName}:80"), nameResolutionObserver);
             timer.ManualCallbackTrigger();
+            executor.DrainSingleAction();
             var resolutionResult = await nameResolutionObserver.GetFirstValueOrDefaultAsync();
             Assert.NotNull(resolutionResult);
             var serviceConfig = resolutionResult!.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
@@ -75,10 +80,11 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
         public async Task ForOverrideDefaultPolicy_UseDnsResolverPlugin_ReturnServiceConfigWithOverridenPolicyName()
         {
             // Arrange
+            var executor = new ExecutorFake();
             var serviceHostName = "my-service";
             var attributes = GrpcAttributes.Builder.NewBuilder().Add(GrpcAttributesConstants.DefaultLoadBalancingPolicy, "round_robin").Build();
             var timerFake = new TimerFake();
-            var resolverPlugin = new DnsResolverPlugin(attributes, timerFake);
+            var resolverPlugin = new DnsResolverPlugin(attributes, executor, timerFake);
             resolverPlugin.OverrideDnsResults = Task.FromResult(new IPAddress[] { IPAddress.Parse("10.1.5.211"),
                 IPAddress.Parse("10.1.5.212"), IPAddress.Parse("10.1.5.213") });
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
@@ -86,6 +92,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             // Act
             resolverPlugin.Subscribe(new Uri($"dns://{serviceHostName}:443"), nameResolutionObserver);
             timerFake.ManualCallbackTrigger();
+            executor.DrainSingleAction();
             var resolutionResult = await nameResolutionObserver.GetFirstValueOrDefaultAsync();
             Assert.NotNull(resolutionResult);
             var serviceConfig = resolutionResult!.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
@@ -99,9 +106,10 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
         public async Task ForTargetAndARecordsDnsResults_UseDnsResolverPlugin_ReturnServers()
         {
             // Arrange
+            var executor = new ExecutorFake();
             var timer = new TimerFake();
             var serviceHostName = "my-service";
-            var resolverPlugin = new DnsResolverPlugin(GrpcAttributes.Empty, timer);
+            var resolverPlugin = new DnsResolverPlugin(GrpcAttributes.Empty, executor, timer);
             resolverPlugin.OverrideDnsResults = Task.FromResult(new IPAddress[] { IPAddress.Parse("10.1.5.211"), 
                 IPAddress.Parse("10.1.5.212"), IPAddress.Parse("10.1.5.213") });
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
@@ -109,6 +117,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             // Act
             resolverPlugin.Subscribe(new Uri($"dns://{serviceHostName}:80"), nameResolutionObserver);
             timer.ManualCallbackTrigger();
+            executor.DrainSingleAction();
             var resolutionResult = await nameResolutionObserver.GetFirstValueOrDefaultAsync();
             Assert.NotNull(resolutionResult);
             var serviceConfig = resolutionResult!.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
@@ -125,15 +134,17 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
         public async Task ForExceptionDuringDnsSearch_UseDnsResolverPlugin_ReturnError()
         {
             // Arrange
+            var executor = new ExecutorFake();
             var timer = new TimerFake();
             var serviceHostName = "my-service";
-            var resolverPlugin = new DnsResolverPlugin(GrpcAttributes.Empty, timer);
+            var resolverPlugin = new DnsResolverPlugin(GrpcAttributes.Empty, executor, timer);
             resolverPlugin.OverrideDnsResults = Task.FromException<IPAddress[]>(new InvalidOperationException());
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
             // Act
             resolverPlugin.Subscribe(new Uri($"dns://{serviceHostName}:80"), nameResolutionObserver);
             timer.ManualCallbackTrigger();
+            executor.DrainSingleAction();
             var error = await nameResolutionObserver.GetFirstErrorOrDefaultAsync();
 
             // Assert

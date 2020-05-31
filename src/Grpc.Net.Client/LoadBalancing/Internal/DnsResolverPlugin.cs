@@ -36,6 +36,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
     {
         private static readonly int DefaultNetworkTtlSeconds = 30;
         private readonly int _networkTtlSeconds;
+        private readonly IGrpcExecutor _executor;
         private readonly ITimer _timer;
         private ILogger _logger = NullLogger.Instance;
         private readonly string _defaultLoadBalancingPolicy;
@@ -59,10 +60,11 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         /// <summary>
         /// The ctor should only be called by <see cref="DnsResolverPluginProvider"/> or test code.
         /// </summary>
-        internal DnsResolverPlugin(GrpcAttributes attributes, ITimer timer)
+        internal DnsResolverPlugin(GrpcAttributes attributes, IGrpcExecutor executor, ITimer timer)
         {
             _defaultLoadBalancingPolicy = attributes.Get(GrpcAttributesConstants.DefaultLoadBalancingPolicy) ?? "pick_first";
             _networkTtlSeconds = int.TryParse(attributes.Get(GrpcAttributesConstants.DnsResolverNetworkTtlSeconds), out int ttlValue) ? ttlValue : DefaultNetworkTtlSeconds;
+            _executor = executor ?? throw new ArgumentNullException(nameof(executor));
             _timer = timer ?? throw new ArgumentNullException(nameof(timer));
         }
 
@@ -99,7 +101,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
 
         private void Resolve()
         {
-            Task.Factory.StartNew(async () => await ResolveCoreAsync(_target, _observer).ConfigureAwait(false), _cancellationTokenSource!.Token);
+            _executor.Execute(async () => await ResolveCoreAsync(_target, _observer).ConfigureAwait(false));
         }
 
         private async Task ResolveCoreAsync(Uri? target, IGrpcNameResolutionObserver? observer)

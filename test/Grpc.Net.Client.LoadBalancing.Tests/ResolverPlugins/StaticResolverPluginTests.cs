@@ -17,6 +17,7 @@
 #endregion
 
 using Grpc.Net.Client.LoadBalancing.Internal;
+using Grpc.Net.Client.LoadBalancing.Tests.Core.Fakes;
 using Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins.Fakes;
 using System;
 using System.Collections.Generic;
@@ -31,6 +32,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
         public async Task ForStaticResolutionFunction_UseStaticResolverPlugin_ReturnPredefinedValues()
         {
             // Arrange
+            var executor = new ExecutorFake();
             Func<Uri, GrpcNameResolutionResult> resolveFunction = (uri) =>
             {
                 var hosts = new List<GrpcHostAddress>()
@@ -43,11 +45,12 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             };
             var options = new StaticResolverPluginOptions(resolveFunction);
             var attributes = GrpcAttributes.Builder.NewBuilder().Add(GrpcAttributesConstants.StaticResolverOptions, options).Build();
-            var resolverPlugin = new StaticResolverPlugin(attributes);
+            var resolverPlugin = new StaticResolverPlugin(attributes, executor);
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
             // Act
             resolverPlugin.Subscribe(new Uri("https://sample.host.com"), nameResolutionObserver);
+            executor.DrainSingleAction();
             var resolutionResult = await nameResolutionObserver.GetFirstValueOrDefaultAsync();
 
             // Assert

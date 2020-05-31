@@ -16,6 +16,7 @@
 
 #endregion
 
+using Grpc.Net.Client.Internal;
 using System;
 
 namespace Grpc.Net.Client.LoadBalancing.Internal
@@ -30,7 +31,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
 
         public IGrpcResolverPlugin CreateResolverPlugin(Uri target, GrpcAttributes attributes)
         {
-            return new NoOpResolverPlugin(attributes);
+            return new NoOpResolverPlugin(attributes, TaskFactoryExecutor.Instance);
         }
     }
 
@@ -51,7 +52,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             {
                 throw new ArgumentException(nameof(target));
             }
-            return new NoOpResolverPlugin(attributes);
+            return new NoOpResolverPlugin(attributes, TaskFactoryExecutor.Instance);
         }
     }
 
@@ -72,7 +73,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             {
                 throw new ArgumentException(nameof(target));
             }
-            return new NoOpResolverPlugin(attributes);
+            return new NoOpResolverPlugin(attributes, TaskFactoryExecutor.Instance);
         }
     }
 }
