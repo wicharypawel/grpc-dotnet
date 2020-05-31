@@ -43,12 +43,10 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             set => _logger = value.CreateLogger<NoOpResolverPlugin>();
         }
 
-        public NoOpResolverPlugin()
-        {
-            _defaultLoadBalancingPolicy = "pick_first";
-        }
-
-        public NoOpResolverPlugin(GrpcAttributes attributes)
+        /// <summary>
+        /// The ctor should only be called by <see cref="NoOpResolverPluginProvider"/> or test code.
+        /// </summary>
+        internal NoOpResolverPlugin(GrpcAttributes attributes)
         {
             _defaultLoadBalancingPolicy = attributes.Get(GrpcAttributesConstants.DefaultLoadBalancingPolicy) ?? "pick_first";
         }

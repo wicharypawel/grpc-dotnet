@@ -19,7 +19,6 @@
 using Grpc.Net.Client.LoadBalancing.Internal;
 using Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins.Fakes;
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -31,7 +30,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
         public async Task ForTarget_UseNoOpResolverPlugin_ReturnResolutionResultWithTheSameValue()
         {
             // Arrange
-            var resolverPlugin = new NoOpResolverPlugin();
+            var resolverPlugin = new NoOpResolverPlugin(GrpcAttributes.Empty);
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
             // Act
@@ -74,7 +73,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
         public async Task ForTargetWithWellKnownScheme_UseNoOpResolverPlugin_ThrowArgumentException(string scheme)
         {
             // Arrange
-            var resolverPlugin = new NoOpResolverPlugin();
+            var resolverPlugin = new NoOpResolverPlugin(GrpcAttributes.Empty);
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
             // Act

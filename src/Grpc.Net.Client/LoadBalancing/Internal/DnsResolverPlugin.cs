@@ -57,18 +57,9 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         internal Task<IPAddress[]>? OverrideDnsResults { private get; set; }
 
         /// <summary>
-        /// Creates a new <seealso cref="DnsResolverPlugin"/> instance, with default settings.
+        /// The ctor should only be called by <see cref="DnsResolverPluginProvider"/> or test code.
         /// </summary>
-        public DnsResolverPlugin() : this(GrpcAttributes.Empty, new SystemTimer())
-        {
-        }
-
-        /// <summary>
-        /// Creates a <seealso cref="DnsResolverPlugin"/> using specified <seealso cref="GrpcAttributes"/>.
-        /// </summary>
-        /// <param name="attributes">Attributes with options.</param>
-        /// <param name="timer">Timer object required for periodic re-resolve.</param>
-        public DnsResolverPlugin(GrpcAttributes attributes, ITimer timer)
+        internal DnsResolverPlugin(GrpcAttributes attributes, ITimer timer)
         {
             _defaultLoadBalancingPolicy = attributes.Get(GrpcAttributesConstants.DefaultLoadBalancingPolicy) ?? "pick_first";
             _networkTtlSeconds = int.TryParse(attributes.Get(GrpcAttributesConstants.DnsResolverNetworkTtlSeconds), out int ttlValue) ? ttlValue : DefaultNetworkTtlSeconds;

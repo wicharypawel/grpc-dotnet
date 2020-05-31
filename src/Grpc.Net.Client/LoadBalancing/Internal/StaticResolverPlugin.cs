@@ -46,10 +46,9 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         }
 
         /// <summary>
-        /// Creates a <seealso cref="StaticResolverPlugin"/> using specified <seealso cref="GrpcAttributes"/>.
+        /// The ctor should only be called by <see cref="StaticResolverPluginProvider"/> or test code.
         /// </summary>
-        /// <param name="attributes">Attributes with options.</param>
-        public StaticResolverPlugin(GrpcAttributes attributes)
+        internal StaticResolverPlugin(GrpcAttributes attributes)
         {
             StaticResolverPluginOptions? options = attributes.Get(GrpcAttributesConstants.StaticResolverOptions);
             _staticNameResolution = options?.StaticNameResolution ?? throw new ArgumentNullException(nameof(options.StaticNameResolution));
