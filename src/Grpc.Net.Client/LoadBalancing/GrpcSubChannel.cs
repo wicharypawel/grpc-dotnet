@@ -149,6 +149,10 @@ namespace Grpc.Net.Client.LoadBalancing
         private void TriggerSubChannelFailureCore(Status status)
         {
             _synchronizationContext.ThrowIfNotInThisSynchronizationContext();
+            if (_stateInfo.State == GrpcConnectivityState.SHUTDOWN)
+            {
+                return;
+            }
             if (_backoffPolicy == null)
             {
                 _backoffPolicy = _channel.BackoffPolicyProvider.CreateBackoffPolicy();
@@ -162,6 +166,10 @@ namespace Grpc.Net.Client.LoadBalancing
         private void TriggerSubChannelSuccessCore()
         {
             _synchronizationContext.ThrowIfNotInThisSynchronizationContext();
+            if (_stateInfo.State == GrpcConnectivityState.SHUTDOWN)
+            {
+                return;
+            }
             _backoffPolicy = null;
         }
 
