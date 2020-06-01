@@ -43,7 +43,6 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         private ILogger _logger = NullLogger.Instance;
         private Uri? _target = null;
         private IGrpcNameResolutionObserver? _observer = null;
-        private CancellationTokenSource? _cancellationTokenSource = null;
 
         /// <summary>
         /// LoggerFactory is configured (injected) when class is being instantiated.
@@ -79,7 +78,6 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             }
             _observer = observer ?? throw new ArgumentNullException(nameof(observer));
             _target = target ?? throw new ArgumentNullException(nameof(target));
-            _cancellationTokenSource = new CancellationTokenSource();
             _timer.Start((state) => { Resolve(); }, null, TimeSpan.Zero, TimeSpan.FromSeconds(_networkTtlSeconds));
         }
 
@@ -87,9 +85,6 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         {
             _observer = null;
             _target = null;
-            _cancellationTokenSource?.Cancel();
-            _cancellationTokenSource?.Dispose();
-            _cancellationTokenSource = null;
             _timer.Change(TimeSpan.FromMilliseconds(-1), TimeSpan.FromMilliseconds(-1));
         }
 
