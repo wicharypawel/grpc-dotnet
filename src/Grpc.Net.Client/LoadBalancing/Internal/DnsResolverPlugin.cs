@@ -34,9 +34,8 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
     /// </summary>
     internal sealed class DnsResolverPlugin : IGrpcResolverPlugin
     {
-        private static readonly int DefaultNetworkTtlSeconds = 30;
         private readonly string _defaultLoadBalancingPolicy;
-        private readonly int _networkTtlSeconds;
+        private readonly double? _periodicResolutionSeconds;
         private readonly IGrpcExecutor _executor;
         private readonly ITimer _timer;
         private readonly GrpcSynchronizationContext _synchronizationContext;
@@ -65,7 +64,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         internal DnsResolverPlugin(GrpcAttributes attributes, IGrpcExecutor executor, ITimer timer)
         {
             _defaultLoadBalancingPolicy = attributes.Get(GrpcAttributesConstants.DefaultLoadBalancingPolicy) ?? "pick_first";
-            _networkTtlSeconds = int.TryParse(attributes.Get(GrpcAttributesConstants.DnsResolverNetworkTtlSeconds), out int ttlValue) ? ttlValue : DefaultNetworkTtlSeconds;
+            _periodicResolutionSeconds = double.TryParse(attributes.Get(GrpcAttributesConstants.DnsResolverPeriodicResolutionSeconds), out double periodSeconds) ? periodSeconds : (double?)null;
             _executor = executor ?? throw new ArgumentNullException(nameof(executor));
             _timer = timer ?? throw new ArgumentNullException(nameof(timer));
             _synchronizationContext = attributes.Get(GrpcAttributesConstants.ChannelSynchronizationContext) 
@@ -80,7 +79,12 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             }
             _observer = observer ?? throw new ArgumentNullException(nameof(observer));
             _target = target ?? throw new ArgumentNullException(nameof(target));
-            _timer.Start((state) => { Resolve(); }, null, TimeSpan.Zero, TimeSpan.FromSeconds(_networkTtlSeconds));
+            Resolve();
+            if (_periodicResolutionSeconds.HasValue)
+            {
+                _timer.Start((state) => { RefreshResolution(); }, null, 
+                    TimeSpan.FromSeconds(_periodicResolutionSeconds.Value), TimeSpan.FromSeconds(_periodicResolutionSeconds.Value));
+            }
         }
 
         public void Unsubscribe()

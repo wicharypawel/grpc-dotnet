@@ -45,7 +45,6 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             // Act
             // Assert
             resolverPlugin.Subscribe(new Uri($"{scheme}://sample.host.com"), nameResolutionObserver);
-            timer.ManualCallbackTrigger();
             executor.DrainSingleAction();
             var error = await nameResolutionObserver.GetFirstErrorOrDefaultAsync();
             Assert.NotNull(error);
@@ -65,7 +64,6 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
 
             // Act
             resolverPlugin.Subscribe(new Uri($"dns://{serviceHostName}:80"), nameResolutionObserver);
-            timer.ManualCallbackTrigger();
             executor.DrainSingleAction();
             var resolutionResult = await nameResolutionObserver.GetFirstValueOrDefaultAsync();
             Assert.NotNull(resolutionResult);
@@ -94,7 +92,6 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
 
             // Act
             resolverPlugin.Subscribe(new Uri($"dns://{serviceHostName}:443"), nameResolutionObserver);
-            timerFake.ManualCallbackTrigger();
             executor.DrainSingleAction();
             var resolutionResult = await nameResolutionObserver.GetFirstValueOrDefaultAsync();
             Assert.NotNull(resolutionResult);
@@ -119,7 +116,6 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
 
             // Act
             resolverPlugin.Subscribe(new Uri($"dns://{serviceHostName}:80"), nameResolutionObserver);
-            timer.ManualCallbackTrigger();
             executor.DrainSingleAction();
             var resolutionResult = await nameResolutionObserver.GetFirstValueOrDefaultAsync();
             Assert.NotNull(resolutionResult);
@@ -146,7 +142,6 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
 
             // Act
             resolverPlugin.Subscribe(new Uri($"dns://{serviceHostName}:80"), nameResolutionObserver);
-            timer.ManualCallbackTrigger();
             executor.DrainSingleAction();
             var error = await nameResolutionObserver.GetFirstErrorOrDefaultAsync();
 
