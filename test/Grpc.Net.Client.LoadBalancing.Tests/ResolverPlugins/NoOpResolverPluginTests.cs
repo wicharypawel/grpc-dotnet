@@ -18,6 +18,7 @@
 
 using Grpc.Net.Client.LoadBalancing.Internal;
 using Grpc.Net.Client.LoadBalancing.Tests.Core.Fakes;
+using Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins.Factories;
 using Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins.Fakes;
 using System;
 using System.Threading.Tasks;
@@ -32,7 +33,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
         {
             // Arrange
             var executor = new ExecutorFake();
-            var resolverPlugin = new NoOpResolverPlugin(GrpcAttributes.Empty, executor);
+            var resolverPlugin = new NoOpResolverPlugin(AttributesForResolverFactory.GetAttributes(), executor);
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
             // Act
@@ -55,7 +56,9 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
         {
             // Arrange
             var executor = new ExecutorFake();
-            var attributes = GrpcAttributes.Builder.NewBuilder().Add(GrpcAttributesConstants.DefaultLoadBalancingPolicy, "round_robin").Build();
+            var attributes = GrpcAttributes.Builder.NewBuilder()
+                .Add(AttributesForResolverFactory.GetAttributes())
+                .Add(GrpcAttributesConstants.DefaultLoadBalancingPolicy, "round_robin").Build();
             var resolverPlugin = new NoOpResolverPlugin(attributes, executor);
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
@@ -79,7 +82,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
         {
             // Arrange
             var executor = new ExecutorFake();
-            var resolverPlugin = new NoOpResolverPlugin(GrpcAttributes.Empty, executor);
+            var resolverPlugin = new NoOpResolverPlugin(AttributesForResolverFactory.GetAttributes(), executor);
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
             // Act

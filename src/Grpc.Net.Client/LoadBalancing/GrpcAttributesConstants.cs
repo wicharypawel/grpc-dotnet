@@ -34,6 +34,11 @@ namespace Grpc.Net.Client.LoadBalancing
         public static readonly GrpcAttributes.Key<string> DefaultLoadBalancingPolicy = GrpcAttributes.Key<string>.Create("default-loadbalancing-policy");
 
         /// <summary>
+        /// Key used to get synchronization context.
+        /// </summary>
+        public static readonly GrpcAttributes.Key<GrpcSynchronizationContext> ChannelSynchronizationContext = GrpcAttributes.Key<GrpcSynchronizationContext>.Create("synchronization-context");
+
+        /// <summary>
         /// Used to override default DNS cache duration (TTL).
         /// </summary>
         public static readonly GrpcAttributes.Key<string> DnsResolverNetworkTtlSeconds = GrpcAttributes.Key<string>.Create("dns-resolver-network-ttl-seconds");

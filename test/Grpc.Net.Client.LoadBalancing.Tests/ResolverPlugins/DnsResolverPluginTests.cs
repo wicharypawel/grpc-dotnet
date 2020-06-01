@@ -18,6 +18,7 @@
 
 using Grpc.Net.Client.LoadBalancing.Internal;
 using Grpc.Net.Client.LoadBalancing.Tests.Core.Fakes;
+using Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins.Factories;
 using Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins.Fakes;
 using System;
 using System.Linq;
@@ -38,7 +39,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             // Arrange
             var executor = new ExecutorFake();
             var timer = new TimerFake();
-            var resolverPlugin = new DnsResolverPlugin(GrpcAttributes.Empty, executor, timer);
+            var resolverPlugin = new DnsResolverPlugin(AttributesForResolverFactory.GetAttributes(), executor, timer);
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
             // Act
@@ -58,7 +59,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             var executor = new ExecutorFake();
             var timer = new TimerFake();
             var serviceHostName = "my-service";
-            var resolverPlugin = new DnsResolverPlugin(GrpcAttributes.Empty, executor, timer);
+            var resolverPlugin = new DnsResolverPlugin(AttributesForResolverFactory.GetAttributes(), executor, timer);
             resolverPlugin.OverrideDnsResults = Task.FromResult(Array.Empty<IPAddress>());
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
@@ -82,7 +83,9 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             // Arrange
             var executor = new ExecutorFake();
             var serviceHostName = "my-service";
-            var attributes = GrpcAttributes.Builder.NewBuilder().Add(GrpcAttributesConstants.DefaultLoadBalancingPolicy, "round_robin").Build();
+            var attributes = GrpcAttributes.Builder.NewBuilder()
+                .Add(AttributesForResolverFactory.GetAttributes())
+                .Add(GrpcAttributesConstants.DefaultLoadBalancingPolicy, "round_robin").Build(); // overwrite default policy
             var timerFake = new TimerFake();
             var resolverPlugin = new DnsResolverPlugin(attributes, executor, timerFake);
             resolverPlugin.OverrideDnsResults = Task.FromResult(new IPAddress[] { IPAddress.Parse("10.1.5.211"),
@@ -109,7 +112,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             var executor = new ExecutorFake();
             var timer = new TimerFake();
             var serviceHostName = "my-service";
-            var resolverPlugin = new DnsResolverPlugin(GrpcAttributes.Empty, executor, timer);
+            var resolverPlugin = new DnsResolverPlugin(AttributesForResolverFactory.GetAttributes(), executor, timer);
             resolverPlugin.OverrideDnsResults = Task.FromResult(new IPAddress[] { IPAddress.Parse("10.1.5.211"), 
                 IPAddress.Parse("10.1.5.212"), IPAddress.Parse("10.1.5.213") });
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
@@ -137,7 +140,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             var executor = new ExecutorFake();
             var timer = new TimerFake();
             var serviceHostName = "my-service";
-            var resolverPlugin = new DnsResolverPlugin(GrpcAttributes.Empty, executor, timer);
+            var resolverPlugin = new DnsResolverPlugin(AttributesForResolverFactory.GetAttributes(), executor, timer);
             resolverPlugin.OverrideDnsResults = Task.FromException<IPAddress[]>(new InvalidOperationException());
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 

@@ -35,11 +35,12 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
     internal sealed class DnsResolverPlugin : IGrpcResolverPlugin
     {
         private static readonly int DefaultNetworkTtlSeconds = 30;
+        private readonly string _defaultLoadBalancingPolicy;
         private readonly int _networkTtlSeconds;
         private readonly IGrpcExecutor _executor;
         private readonly ITimer _timer;
+        private readonly GrpcSynchronizationContext _synchronizationContext;
         private ILogger _logger = NullLogger.Instance;
-        private readonly string _defaultLoadBalancingPolicy;
         private Uri? _target = null;
         private IGrpcNameResolutionObserver? _observer = null;
         private CancellationTokenSource? _cancellationTokenSource = null;
@@ -66,6 +67,8 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             _networkTtlSeconds = int.TryParse(attributes.Get(GrpcAttributesConstants.DnsResolverNetworkTtlSeconds), out int ttlValue) ? ttlValue : DefaultNetworkTtlSeconds;
             _executor = executor ?? throw new ArgumentNullException(nameof(executor));
             _timer = timer ?? throw new ArgumentNullException(nameof(timer));
+            _synchronizationContext = attributes.Get(GrpcAttributesConstants.ChannelSynchronizationContext) 
+                ?? throw new ArgumentNullException($"Missing synchronization context in {nameof(attributes)}");
         }
 
         public void Subscribe(Uri target, IGrpcNameResolutionObserver observer)

@@ -18,6 +18,7 @@
 
 using Grpc.Net.Client.LoadBalancing.Internal;
 using Grpc.Net.Client.LoadBalancing.Tests.Core.Fakes;
+using Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins.Factories;
 using Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins.Fakes;
 using System;
 using System.Collections.Generic;
@@ -44,7 +45,9 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
                 return new GrpcNameResolutionResult(hosts, config, GrpcAttributes.Empty);
             };
             var options = new StaticResolverPluginOptions(resolveFunction);
-            var attributes = GrpcAttributes.Builder.NewBuilder().Add(GrpcAttributesConstants.StaticResolverOptions, options).Build();
+            var attributes = GrpcAttributes.Builder.NewBuilder()
+                .Add(AttributesForResolverFactory.GetAttributes())
+                .Add(GrpcAttributesConstants.StaticResolverOptions, options).Build();
             var resolverPlugin = new StaticResolverPlugin(attributes, executor);
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 

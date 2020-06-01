@@ -120,6 +120,7 @@ namespace Grpc.Net.Client
             var resolverAttributes = GrpcAttributes.Builder.NewBuilder()
                 .Add(channelOptions.Attributes)
                 .Add(GrpcAttributesConstants.DefaultLoadBalancingPolicy, channelOptions.DefaultLoadBalancingPolicy)
+                .Add(GrpcAttributesConstants.ChannelSynchronizationContext, SyncContext)
                 .Build();
             ResolverPlugin = CreateResolverPlugin(Address, LoggerFactory, resolverAttributes);
             ResolverPlugin.LoggerFactory = LoggerFactory;
