@@ -43,6 +43,8 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         private ILogger _logger = NullLogger.Instance;
         private Uri? _target = null;
         private IGrpcNameResolutionObserver? _observer = null;
+        private bool _resolving = false;
+        private bool _unsubscribed = false;
 
         /// <summary>
         /// LoggerFactory is configured (injected) when class is being instantiated.
@@ -83,6 +85,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
 
         public void Unsubscribe()
         {
+            _unsubscribed = true;
             _observer = null;
             _target = null;
             _timer.Change(TimeSpan.FromMilliseconds(-1), TimeSpan.FromMilliseconds(-1));
@@ -99,7 +102,13 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
 
         private void Resolve()
         {
-            _executor.Execute(async () => await ResolveCoreAsync(_target, _observer).ConfigureAwait(false));
+            if (_resolving || _unsubscribed)
+            {
+                return;
+            }
+            _resolving = true;
+            var observer = _observer;
+            _executor.Execute(async () => await ResolveCoreAsync(_target, observer).ConfigureAwait(false));
         }
 
         private async Task ResolveCoreAsync(Uri? target, IGrpcNameResolutionObserver? observer)
@@ -134,6 +143,10 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             catch (Exception ex)
             {
                 observer.OnError(new Core.Status(Core.StatusCode.Unavailable, ex.Message));
+            }
+            finally
+            {
+                _synchronizationContext.Execute(() => { _resolving = false; });
             }
         }
 
