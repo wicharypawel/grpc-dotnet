@@ -21,9 +21,10 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
-using System.Threading;
 using Grpc.Core;
 using Grpc.Net.Client.Internal;
+using Grpc.Net.Client.LoadBalancing;
+using Grpc.Net.Client.LoadBalancing.Internal;
 using Grpc.Net.Compression;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -54,12 +55,26 @@ namespace Grpc.Net.Client
         internal List<CallCredentials>? CallCredentials { get; }
         internal Dictionary<string, ICompressionProvider> CompressionProviders { get; }
         internal string MessageAcceptEncoding { get; }
+        internal IGrpcHelper Helper { get; }
+        internal GrpcResolutionState LastResolutionState { get; set; } = GrpcResolutionState.NoResolution; // update only in SyncContext
+        internal GrpcSynchronizationContext.ScheduledHandle? NameResolverRefreshSchedule { get; set; } // update only in SyncContext
+        internal IGrpcBackoffPolicy? NameResolverRefreshBackoffPolicy { get; set; } // update only in SyncContext
+        internal IGrpcResolverPlugin ResolverPlugin { get; }
+        internal IGrpcLoadBalancingPolicy LoadBalancingPolicy { get; set; } // update only in SyncContext
+        internal IGrpcLoadBalancingPolicyProvider LoadBalancingPolicyProvider { get; set; } // update only in SyncContext
+        internal IGrpcSubChannelPicker? SubChannelPicker { get; set; } // update only in SyncContext
+        internal GrpcConnectivityStateManager ChannelStateManager { get; }
+        internal IGrpcBackoffPolicyProvider BackoffPolicyProvider { get; }
+        internal GrpcSynchronizationContext SyncContext { get; }
+        internal GrpcDelayedClientTransport DelayedClientTransport { get; }
         internal bool Disposed { get; private set; }
         // Timing related options that are set in unit tests
         internal ISystemClock Clock = SystemClock.Instance;
         internal bool DisableClientDeadline;
         internal long MaxTimerDueTime = uint.MaxValue - 1; // Max System.Threading.Timer due time
 
+        internal readonly InterlockedBool _shutdown = new InterlockedBool(false);
+        private bool _panicMode = false; // access only in SyncContext 
         private bool _shouldDisposeHttpClient;
 
         internal GrpcChannel(Uri address, GrpcChannelOptions channelOptions) : base(address.Authority)
@@ -93,6 +108,141 @@ namespace Grpc.Net.Client
 
                 ValidateChannelCredentials();
             }
+
+            if (string.IsNullOrWhiteSpace(Address.Host))
+            {
+                throw new ArgumentException($"Can not find host in {nameof(address)}, verify host and scheme were specified");
+            }
+            Helper = new GrpcHelper(this);
+            ChannelStateManager = new GrpcConnectivityStateManager();
+            BackoffPolicyProvider = new GrpcExponentialBackoffPolicyProvider();
+            SyncContext = new GrpcSynchronizationContext((ex) => Panic(ex));
+            DelayedClientTransport = new GrpcDelayedClientTransport(TaskFactoryExecutor.Instance, SyncContext);
+            LoadBalancingPolicyProvider = CreateRequestedPolicyProvider(new string[] { channelOptions.DefaultLoadBalancingPolicy }, LoggerFactory);
+            LoadBalancingPolicy = LoadBalancingPolicyProvider.CreateLoadBalancingPolicy(Helper);
+            LoadBalancingPolicy.LoggerFactory = LoggerFactory;
+            SubChannelPicker = null;
+            var resolverAttributes = GrpcAttributes.Builder.NewBuilder()
+                .Add(channelOptions.Attributes)
+                .Add(GrpcAttributesConstants.DefaultLoadBalancingPolicy, channelOptions.DefaultLoadBalancingPolicy)
+                .Add(GrpcAttributesConstants.ChannelSynchronizationContext, SyncContext)
+                .Build();
+            ResolverPlugin = CreateResolverPlugin(Address, LoggerFactory, resolverAttributes);
+            ResolverPlugin.LoggerFactory = LoggerFactory;
+            var nameResolutionObserver = new GrpcNameResolutionObserver(this, Helper);
+            ResolverPlugin.Subscribe(Address, nameResolutionObserver);
+        }
+
+        internal Status TryHandleResolvedAddresses(GrpcResolvedAddresses resolvedAddresses)
+        {
+            SyncContext.ThrowIfNotInThisSynchronizationContext();
+            var serviceConfig = resolvedAddresses.ServiceConfig as GrpcServiceConfig ?? GrpcServiceConfig.Create("pick_first");
+            var requestedPolicies = serviceConfig.RequestedLoadBalancingPolicies;
+            var selectedPolicyProvider = CreateRequestedPolicyProvider(requestedPolicies, LoggerFactory);
+            if (!selectedPolicyProvider.PolicyName.Equals(LoadBalancingPolicyProvider.PolicyName, StringComparison.Ordinal)) // if true, new policy was requested
+            {
+                Helper.UpdateBalancingState(GrpcConnectivityState.CONNECTING, new EmptyPicker());
+                var oldPolicy = LoadBalancingPolicy;
+                LoadBalancingPolicyProvider = selectedPolicyProvider;
+                LoadBalancingPolicy = LoadBalancingPolicyProvider.CreateLoadBalancingPolicy(Helper);
+                LoadBalancingPolicy.LoggerFactory = LoggerFactory;
+                oldPolicy.Dispose();
+            }
+            if (resolvedAddresses.HostsAddresses.Count == 0 && !LoadBalancingPolicy.CanHandleEmptyAddressListFromNameResolution())
+            {
+                return new Status(StatusCode.Unavailable, "NameResolver returned no usable address.");
+            }
+            else
+            {
+                var isSecureConnection = Address.Scheme == Uri.UriSchemeHttps || Address.Port == 443;
+                LoadBalancingPolicy.HandleResolvedAddresses(resolvedAddresses, Address.Host, isSecureConnection);
+                return Status.DefaultSuccess;
+            }
+        }
+
+        internal void HandleNameResolutionError(Status status)
+        {
+            SyncContext.ThrowIfNotInThisSynchronizationContext();
+            LoadBalancingPolicy.HandleNameResolutionError(status);
+        }
+
+        private static IGrpcResolverPlugin CreateResolverPlugin(Uri address, ILoggerFactory loggerFactory, GrpcAttributes attributes)
+        {
+            var registry = GrpcResolverPluginRegistry.GetDefaultRegistry(loggerFactory);
+            var resolverPluginProvider = registry.GetProvider(address.Scheme);
+            if (resolverPluginProvider == null)
+            {
+                //NoOpResolverPlugin guarantee backwards compatibility
+                resolverPluginProvider = registry.GetProvider(string.Empty);
+            }
+            return resolverPluginProvider!.CreateResolverPlugin(address, attributes);
+        }
+
+        private static IGrpcLoadBalancingPolicyProvider CreateRequestedPolicyProvider(IReadOnlyList<string> requestedPolicies, ILoggerFactory loggerFactory)
+        {
+            var registry = GrpcLoadBalancingPolicyRegistry.GetDefaultRegistry(loggerFactory);
+            foreach (var requestedPolicyName in requestedPolicies)
+            {
+                var loadBalancingPolicyProvider = registry.GetProvider(requestedPolicyName);
+                if (loadBalancingPolicyProvider != null)
+                {
+                    return loadBalancingPolicyProvider;
+                }
+            }
+            throw new InvalidOperationException("LoadBalancingPolicyProvider for requested policy not found");
+        }
+
+        internal void UpdateSubchannelPicker(IGrpcSubChannelPicker newPicker)
+        {
+            SyncContext.ThrowIfNotInThisSynchronizationContext();
+            SubChannelPicker = newPicker ?? throw new ArgumentNullException(nameof(newPicker));
+            DelayedClientTransport.Reprocess(newPicker);
+        }
+
+        internal void RefreshNameResolution()
+        {
+            SyncContext.ThrowIfNotInThisSynchronizationContext();
+            ResolverPlugin.RefreshResolution();
+        }
+
+        internal void RefreshAndResetNameResolution()
+        {
+            SyncContext.ThrowIfNotInThisSynchronizationContext();
+            CancelNameResolverBackoff();
+            RefreshNameResolution();
+        }
+
+        internal void HandleInternalSubchannelState(GrpcConnectivityStateInfo newState)
+        {
+            SyncContext.ThrowIfNotInThisSynchronizationContext();
+            if (newState.State == GrpcConnectivityState.TRANSIENT_FAILURE || newState.State == GrpcConnectivityState.IDLE)
+            {
+                RefreshAndResetNameResolution();
+            }
+        }
+
+        internal void CancelNameResolverBackoff()
+        {
+            SyncContext.ThrowIfNotInThisSynchronizationContext();
+            if (NameResolverRefreshSchedule != null)
+            {
+                NameResolverRefreshSchedule.Cancel();
+                NameResolverRefreshSchedule = null;
+                NameResolverRefreshBackoffPolicy = null;
+            }
+        }
+
+        private void Panic(Exception ex)
+        {
+            SyncContext.ThrowIfNotInThisSynchronizationContext();
+            if (_panicMode)
+            {
+                return;
+            }
+            _panicMode = true;
+            LoggerFactory.CreateLogger(nameof(GrpcChannel)).LogDebug("Channel enters PANIC mode! Exception: " + ex.Message);
+            UpdateSubchannelPicker(new PanicPicker());
+            ChannelStateManager.SetState(GrpcConnectivityState.TRANSIENT_FAILURE);
         }
 
         private static HttpMessageInvoker CreateInternalHttpInvoker(HttpMessageHandler? handler)
@@ -130,7 +280,7 @@ namespace Grpc.Net.Client
             var uri = new Uri(method.FullName, UriKind.Relative);
             var scope = new GrpcCallScope(method.Type, uri);
 
-            return new GrpcMethodInfo(scope, new Uri(Address, uri));
+            return new GrpcMethodInfo(scope, uri); // the GrpcMethodInfo keeps relative uri because a subchannel address is variable
         }
 
         private static Dictionary<string, ICompressionProvider> ResolveCompressionProviders(IList<ICompressionProvider>? compressionProviders)
@@ -178,10 +328,35 @@ namespace Grpc.Net.Client
             {
                 throw new ObjectDisposedException(nameof(GrpcChannel));
             }
-
+            
             var invoker = new HttpClientCallInvoker(this);
 
             return invoker;
+        }
+
+        /// <summary>
+        /// Gets the current connectivity state. Note the result may soon become outdated.
+        /// </summary>
+        /// <returns>The current connectivity state.</returns>
+        public GrpcConnectivityState GetState()
+        {
+            var savedChannelState = ChannelStateManager.GetState();
+            return savedChannelState;
+        }
+
+        /// <summary>
+        /// Registers a one-off callback that will be run if the connectivity state of the channel diverges
+        /// from the given sourceState, which is typically what has just been returned by <see cref="GetState"/>.
+        /// If the states are already different, the callback will be called immediately.
+        /// 
+        /// Note that connectivity state can change rapidly. Transitions to the same state are possible, because intermediate
+        /// states may not have been observed. The API is only reliable in tracking the current state.
+        /// </summary>
+        /// <param name="sourceState">The assumed current state, typically just returned by <see cref="GetState"/> method.</param>
+        /// <param name="callback">The one-off callback.</param>
+        public void NotifyWhenStateChanged(GrpcConnectivityState sourceState, Action callback)
+        {
+            SyncContext.Execute(() => { ChannelStateManager.NotifyWhenStateChanged(callback, TaskFactoryExecutor.Instance, sourceState); });
         }
 
         private class DefaultChannelCredentialsConfigurator : ChannelCredentialsConfiguratorBase
@@ -293,6 +468,9 @@ namespace Grpc.Net.Client
             {
                 return;
             }
+            Disposed = true;
+            
+            ShutdownNow();
 
             lock (ActiveCalls)
             {
@@ -313,7 +491,30 @@ namespace Grpc.Net.Client
             {
                 HttpInvoker.Dispose();
             }
-            Disposed = true;
+        }
+
+        private void ShutdownNow()
+        {
+            Shutdown();
+            // Add more stuff in the future here...
+            DelayedClientTransport.Dispose();
+        }
+
+        private void Shutdown()
+        {
+            if (!_shutdown.CompareAndSet(false, true))
+            {
+                return;
+            }
+            // Put gotoState(SHUTDOWN) as early into the syncContext's queue as possible.
+            SyncContext.ExecuteLater(() => { ChannelStateManager.SetState(GrpcConnectivityState.SHUTDOWN); });
+            SyncContext.ExecuteLater(() => {
+                CancelNameResolverBackoff();
+                LoadBalancingPolicy.Dispose();
+                ResolverPlugin.Dispose();
+            });
+            // Add more stuff in the future here...
+            SyncContext.Drain();
         }
     }
 }

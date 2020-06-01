@@ -20,6 +20,7 @@ using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using Grpc.Core;
+using Grpc.Net.Client.LoadBalancing;
 using Grpc.Net.Compression;
 using Microsoft.Extensions.Logging;
 
@@ -120,11 +121,24 @@ namespace Grpc.Net.Client
         public bool ThrowOperationCanceledOnCancellation { get; set; }
 
         /// <summary>
+        /// Sets the default load-balancing policy that will be used if the service config doesn't specify
+        /// one. If not set, the default will be the "pick_first" policy.
+        /// </summary>
+        public string DefaultLoadBalancingPolicy { get; set; }
+
+        /// <summary>
+        /// Additional configuration passed as key-value dictionary.
+        /// </summary>
+        public GrpcAttributes Attributes { get; set; }
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="GrpcChannelOptions"/> class.
         /// </summary>
         public GrpcChannelOptions()
         {
             MaxReceiveMessageSize = GrpcChannel.DefaultMaxReceiveMessageSize;
+            Attributes = GrpcAttributes.Empty;
+            DefaultLoadBalancingPolicy = "pick_first";
         }
     }
 }

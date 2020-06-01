@@ -1,4 +1,4 @@
-﻿#region Copyright notice and license
+#region Copyright notice and license
 
 // Copyright 2019 The gRPC Authors
 //
@@ -25,6 +25,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Grpc.Core;
+using Grpc.Net.Client.LoadBalancing;
 using Grpc.Shared;
 using Microsoft.Extensions.Logging;
 
@@ -47,6 +48,7 @@ namespace Grpc.Net.Client.Internal
         private Timer? _deadlineTimer;
         private Metadata? _trailers;
         private CancellationTokenRegistration? _ctsRegistration;
+        private IGrpcSubChannel? _subChannel;
 
         public bool Disposed { get; private set; }
         public bool ResponseFinished { get; private set; }
@@ -101,7 +103,7 @@ namespace Grpc.Net.Client.Internal
             var timeout = GetTimeout();
             var message = CreateHttpRequestMessage(timeout);
             SetMessageContent(request, message);
-            _ = RunCall(message, timeout);
+            WaitSubChannelsAndRunCall(message, timeout);
         }
 
         public void StartClientStreaming()
@@ -111,7 +113,7 @@ namespace Grpc.Net.Client.Internal
             var timeout = GetTimeout();
             var message = CreateHttpRequestMessage(timeout);
             CreateWriter(message);
-            _ = RunCall(message, timeout);
+            WaitSubChannelsAndRunCall(message, timeout);
         }
 
         public void StartServerStreaming(TRequest request)
@@ -120,7 +122,7 @@ namespace Grpc.Net.Client.Internal
             var message = CreateHttpRequestMessage(timeout);
             SetMessageContent(request, message);
             ClientStreamReader = new HttpContentClientStreamReader<TRequest, TResponse>(this);
-            _ = RunCall(message, timeout);
+            WaitSubChannelsAndRunCall(message, timeout);
         }
 
         public void StartDuplexStreaming()
@@ -129,7 +131,7 @@ namespace Grpc.Net.Client.Internal
             var message = CreateHttpRequestMessage(timeout);
             CreateWriter(message);
             ClientStreamReader = new HttpContentClientStreamReader<TRequest, TResponse>(this);
-            _ = RunCall(message, timeout);
+            WaitSubChannelsAndRunCall(message, timeout);
         }
 
         public void Dispose()
@@ -440,7 +442,29 @@ namespace Grpc.Net.Client.Internal
             return new RpcException(status, trailers ?? Metadata.Empty);
         }
 
-        private async Task RunCall(HttpRequestMessage request, TimeSpan? timeout)
+        private void WaitSubChannelsAndRunCall(HttpRequestMessage request, TimeSpan? timeout)
+        {
+            if (Channel.SubChannelPicker == null)
+            {
+                var delayCallStart = new TaskCompletionSource<GrpcPickResult>();
+                Channel.DelayedClientTransport.BufforPendingCall((x) => delayCallStart.SetResult(x), GrpcPickSubchannelArgs.Empty);
+                var delayedPickResult = delayCallStart.Task.GetAwaiter().GetResult();
+                _ = RunCall(request, timeout, delayedPickResult);
+                return;
+            }
+            var pickResult = Channel.SubChannelPicker.GetNextSubChannel(GrpcPickSubchannelArgs.Empty);
+            if (GrpcPickResult.IsWithNoResult(pickResult))
+            {
+                var delayCallStart = new TaskCompletionSource<GrpcPickResult>();
+                Channel.DelayedClientTransport.BufforPendingCall((x) => delayCallStart.SetResult(x), GrpcPickSubchannelArgs.Empty);
+                var delayedPickResult = delayCallStart.Task.GetAwaiter().GetResult();
+                _ = RunCall(request, timeout, delayedPickResult);
+                return;
+            }
+            _ = RunCall(request, timeout, pickResult);
+        }
+
+        private async Task RunCall(HttpRequestMessage request, TimeSpan? timeout, GrpcPickResult pickResult)
         {
             using (StartScope())
             {
@@ -461,6 +485,16 @@ namespace Grpc.Net.Client.Internal
                     // Fail early if deadline has already been exceeded
                     _callCts.Token.ThrowIfCancellationRequested();
 
+                    if (pickResult.SubChannel != null)
+                    {
+                        _subChannel = pickResult.SubChannel;
+                        request.RequestUri = new Uri(_subChannel.Address, request.RequestUri);
+                    }
+                    else
+                    {
+                        throw new RpcException(pickResult.Status);
+                    }
+
                     try
                     {
                         // If a HttpClient has been specified then we need to call it with ResponseHeadersRead
@@ -469,6 +503,14 @@ namespace Grpc.Net.Client.Internal
                             ? httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, _callCts.Token)
                             : Channel.HttpInvoker.SendAsync(request, _callCts.Token);
 
+                        #region HTTP_CLIENT_MISSING_MONITORING_WORKAROUND
+                        await Task.WhenAny(_httpResponseTask, Task.Delay(1500)).ConfigureAwait(false);
+                        if (!_httpResponseTask.IsCompleted)
+                        {
+                            throw new TimeoutException("Starting gRPC call timedout.");
+                        }
+                        (_subChannel as GrpcSubChannel)?.TriggerSubChannelSuccess();
+                        #endregion
                         HttpResponse = await _httpResponseTask.ConfigureAwait(false);
                     }
                     catch (Exception ex)
@@ -605,6 +647,12 @@ namespace Grpc.Net.Client.Internal
             {
                 status = rpcException.Status;
                 resolvedException = CreateRpcException(status.Value);
+                #region HTTP_CLIENT_MISSING_MONITORING_WORKAROUND
+                if (status.Value.StatusCode == StatusCode.Unavailable || status.Value.StatusCode == StatusCode.Internal)
+                {
+                    (_subChannel as GrpcSubChannel)?.TriggerSubChannelFailure(new Status(StatusCode.Internal, "Subchannel TransientFailure"));
+                }
+                #endregion
             }
             else
             {
@@ -612,6 +660,9 @@ namespace Grpc.Net.Client.Internal
 
                 status = new Status(StatusCode.Internal, "Error starting gRPC call. " +  exceptionMessage);
                 resolvedException = CreateRpcException(status.Value);
+                #region HTTP_CLIENT_MISSING_MONITORING_WORKAROUND
+                (_subChannel as GrpcSubChannel)?.TriggerSubChannelFailure(new Status(StatusCode.Internal, "Subchannel TransientFailure"));
+                #endregion
             }
         }
 
