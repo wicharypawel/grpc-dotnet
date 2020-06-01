@@ -16,6 +16,7 @@
 
 #endregion
 
+using Grpc.Core;
 using Grpc.Net.Client.LoadBalancing.Internal;
 using Grpc.Net.Client.LoadBalancing.Tests.Core.Fakes;
 using Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins.Factories;
@@ -30,25 +31,54 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
 {
     public sealed class DnsResolverPluginTests
     {
-        [Theory]
-        [InlineData("http")]
-        [InlineData("https")]
-        [InlineData("unknown")]
-        public async Task ForTargetWithNonDnsScheme_UseDnsResolverPluginTests_ThrowArgumentException(string scheme)
+        [Fact]
+        public void ForCallingMultipleSubscribe_UseDnsResolverPlugin_ThrowInvalidOperation()
         {
             // Arrange
             var executor = new ExecutorFake();
             var timer = new TimerFake();
-            var resolverPlugin = new DnsResolverPlugin(AttributesForResolverFactory.GetAttributes(), executor, timer);
+            var serviceHostName = "service.googleapis.com";
+            using var resolverPlugin = new DnsResolverPlugin(AttributesForResolverFactory.GetAttributes(), executor, timer);
+            resolverPlugin.OverrideDnsResults = Task.FromResult(new IPAddress[] { IPAddress.Parse("10.1.5.211"),
+                IPAddress.Parse("10.1.5.212"), IPAddress.Parse("10.1.5.213") });
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
             // Act
             // Assert
-            resolverPlugin.Subscribe(new Uri($"{scheme}://sample.host.com"), nameResolutionObserver);
+            resolverPlugin.Subscribe(new Uri($"dns://{serviceHostName}:80"), nameResolutionObserver);
+            Assert.Single(executor.Actions);
+            Assert.Throws<InvalidOperationException>(() =>
+            {
+                resolverPlugin.Subscribe(new Uri($"dns://{serviceHostName}:80"), nameResolutionObserver);
+            });
+            Assert.Single(executor.Actions);
+        }
+
+        [Fact]
+        public async Task ForUnsubscribeAndFollowingRefresh_UseDnsResolverPlugin_VerifyNotReturnResultsOnRefresh()
+        {
+            // Arrange
+            var executor = new ExecutorFake();
+            var timer = new TimerFake();
+            var serviceHostName = "service.googleapis.com";
+            using var resolverPlugin = new DnsResolverPlugin(AttributesForResolverFactory.GetAttributes(), executor, timer);
+            resolverPlugin.OverrideDnsResults = Task.FromResult(new IPAddress[] { IPAddress.Parse("10.1.5.211"),
+                IPAddress.Parse("10.1.5.212"), IPAddress.Parse("10.1.5.213") });
+            var nameResolutionObserver = new GrpcNameResolutionObserverFake();
+
+            // Act
+            resolverPlugin.Subscribe(new Uri($"dns://{serviceHostName}:80"), nameResolutionObserver);
             executor.DrainSingleAction();
-            var error = await nameResolutionObserver.GetFirstErrorOrDefaultAsync();
-            Assert.NotNull(error);
-            Assert.Contains("require dns:// scheme to set as target address", error.Value.Detail);
+            var resolutionResult = await nameResolutionObserver.GetFirstValueOrDefaultAsync();
+            Assert.NotNull(resolutionResult);
+            resolverPlugin.Unsubscribe();
+
+            // Assert
+            Assert.Empty(executor.Actions);
+            Assert.Throws<InvalidOperationException>(() =>
+            {
+                resolverPlugin.RefreshResolution();
+            });
         }
 
         [Fact]
@@ -57,8 +87,8 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             // Arrange
             var executor = new ExecutorFake();
             var timer = new TimerFake();
-            var serviceHostName = "my-service";
-            var resolverPlugin = new DnsResolverPlugin(AttributesForResolverFactory.GetAttributes(), executor, timer);
+            var serviceHostName = "service.googleapis.com";
+            using var resolverPlugin = new DnsResolverPlugin(AttributesForResolverFactory.GetAttributes(), executor, timer);
             resolverPlugin.OverrideDnsResults = Task.FromResult(Array.Empty<IPAddress>());
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
@@ -70,8 +100,37 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             var serviceConfig = resolutionResult!.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
 
             // Assert
+            Assert.Empty(executor.Actions);
             Assert.Empty(resolutionResult.HostsAddresses);
             Assert.True(serviceConfig.RequestedLoadBalancingPolicies.Count == 1);
+            Assert.True(serviceConfig.RequestedLoadBalancingPolicies.First() == "pick_first");
+        }
+
+        [Fact]
+        public async Task ForTargetAndARecordsDnsResults_UseDnsResolverPlugin_ReturnServers()
+        {
+            // Arrange
+            var executor = new ExecutorFake();
+            var timer = new TimerFake();
+            var serviceHostName = "service.googleapis.com";
+            using var resolverPlugin = new DnsResolverPlugin(AttributesForResolverFactory.GetAttributes(), executor, timer);
+            resolverPlugin.OverrideDnsResults = Task.FromResult(new IPAddress[] { IPAddress.Parse("10.1.5.211"),
+                IPAddress.Parse("10.1.5.212"), IPAddress.Parse("10.1.5.213") });
+            var nameResolutionObserver = new GrpcNameResolutionObserverFake();
+
+            // Act
+            resolverPlugin.Subscribe(new Uri($"dns://{serviceHostName}:80"), nameResolutionObserver);
+            executor.DrainSingleAction();
+            var resolutionResult = await nameResolutionObserver.GetFirstValueOrDefaultAsync();
+            Assert.NotNull(resolutionResult);
+            var serviceConfig = resolutionResult!.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
+
+            // Assert
+            Assert.Empty(executor.Actions);
+            Assert.Equal(3, resolutionResult.HostsAddresses.Count);
+            Assert.All(resolutionResult.HostsAddresses, x => Assert.Equal(80, x.Port));
+            Assert.All(resolutionResult.HostsAddresses, x => Assert.StartsWith("10.1.5.", x.Host));
+            Assert.Single(serviceConfig.RequestedLoadBalancingPolicies);
             Assert.True(serviceConfig.RequestedLoadBalancingPolicies.First() == "pick_first");
         }
 
@@ -80,12 +139,12 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
         {
             // Arrange
             var executor = new ExecutorFake();
-            var serviceHostName = "my-service";
+            var timer = new TimerFake();
+            var serviceHostName = "service.googleapis.com";
             var attributes = GrpcAttributes.Builder.NewBuilder()
                 .Add(AttributesForResolverFactory.GetAttributes())
                 .Add(GrpcAttributesConstants.DefaultLoadBalancingPolicy, "round_robin").Build(); // overwrite default policy
-            var timerFake = new TimerFake();
-            var resolverPlugin = new DnsResolverPlugin(attributes, executor, timerFake);
+            using var resolverPlugin = new DnsResolverPlugin(attributes, executor, timer);
             resolverPlugin.OverrideDnsResults = Task.FromResult(new IPAddress[] { IPAddress.Parse("10.1.5.211"),
                 IPAddress.Parse("10.1.5.212"), IPAddress.Parse("10.1.5.213") });
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
@@ -103,30 +162,53 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
         }
 
         [Fact]
-        public async Task ForTargetAndARecordsDnsResults_UseDnsResolverPlugin_ReturnServers()
+        public void ForRefreshingResolution_UseDnsResolverPlugin_ReturnNextValues()
         {
             // Arrange
             var executor = new ExecutorFake();
             var timer = new TimerFake();
-            var serviceHostName = "my-service";
-            var resolverPlugin = new DnsResolverPlugin(AttributesForResolverFactory.GetAttributes(), executor, timer);
-            resolverPlugin.OverrideDnsResults = Task.FromResult(new IPAddress[] { IPAddress.Parse("10.1.5.211"), 
+            var serviceHostName = "service.googleapis.com";
+            using var resolverPlugin = new DnsResolverPlugin(AttributesForResolverFactory.GetAttributes(), executor, timer);
+            resolverPlugin.OverrideDnsResults = Task.FromResult(new IPAddress[] { IPAddress.Parse("10.1.5.211"),
                 IPAddress.Parse("10.1.5.212"), IPAddress.Parse("10.1.5.213") });
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
             // Act
-            resolverPlugin.Subscribe(new Uri($"dns://{serviceHostName}:80"), nameResolutionObserver);
-            executor.DrainSingleAction();
-            var resolutionResult = await nameResolutionObserver.GetFirstValueOrDefaultAsync();
-            Assert.NotNull(resolutionResult);
-            var serviceConfig = resolutionResult!.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
-
             // Assert
-            Assert.Equal(3, resolutionResult.HostsAddresses.Count);
-            Assert.All(resolutionResult.HostsAddresses, x => Assert.Equal(80, x.Port));
-            Assert.All(resolutionResult.HostsAddresses, x => Assert.StartsWith("10.1.5.", x.Host));
-            Assert.True(serviceConfig.RequestedLoadBalancingPolicies.Count == 1);
-            Assert.True(serviceConfig.RequestedLoadBalancingPolicies.First() == "pick_first");
+            resolverPlugin.Subscribe(new Uri($"dns://{serviceHostName}:80"), nameResolutionObserver);
+            Assert.Single(executor.Actions);
+            executor.DrainSingleAction();
+            resolverPlugin.RefreshResolution();
+            Assert.Single(executor.Actions);
+            executor.DrainSingleAction();
+            resolverPlugin.RefreshResolution();
+            Assert.Single(executor.Actions);
+            executor.DrainSingleAction();
+            Assert.Empty(executor.Actions);
+        }
+
+        [Fact]
+        public void ForRefreshingResolutionWhilePendingResolution_UseDnsResolverPlugin_ResolutionDoesNotOverlap()
+        {
+            // Arrange
+            var executor = new ExecutorFake();
+            var timer = new TimerFake();
+            var serviceHostName = "service.googleapis.com";
+            using var resolverPlugin = new DnsResolverPlugin(AttributesForResolverFactory.GetAttributes(), executor, timer);
+            resolverPlugin.OverrideDnsResults = Task.FromResult(new IPAddress[] { IPAddress.Parse("10.1.5.211"),
+                IPAddress.Parse("10.1.5.212"), IPAddress.Parse("10.1.5.213") });
+            var nameResolutionObserver = new GrpcNameResolutionObserverFake();
+
+            // Act
+            // Assert
+            resolverPlugin.Subscribe(new Uri($"dns://{serviceHostName}:80"), nameResolutionObserver);
+            Assert.Single(executor.Actions);
+            resolverPlugin.RefreshResolution();
+            resolverPlugin.RefreshResolution();
+            resolverPlugin.RefreshResolution();
+            Assert.Single(executor.Actions);
+            executor.DrainSingleAction();
+            Assert.Empty(executor.Actions);
         }
 
         [Fact]
@@ -135,8 +217,8 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             // Arrange
             var executor = new ExecutorFake();
             var timer = new TimerFake();
-            var serviceHostName = "my-service";
-            var resolverPlugin = new DnsResolverPlugin(AttributesForResolverFactory.GetAttributes(), executor, timer);
+            var serviceHostName = "service.googleapis.com";
+            using var resolverPlugin = new DnsResolverPlugin(AttributesForResolverFactory.GetAttributes(), executor, timer);
             resolverPlugin.OverrideDnsResults = Task.FromException<IPAddress[]>(new InvalidOperationException());
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
@@ -146,7 +228,33 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             var error = await nameResolutionObserver.GetFirstErrorOrDefaultAsync();
 
             // Assert
+            Assert.Empty(executor.Actions);
             Assert.NotNull(error);
+            Assert.Equal(StatusCode.Unavailable, error.Value.StatusCode);
+        }
+
+        [Theory]
+        [InlineData("http")]
+        [InlineData("https")]
+        [InlineData("unknown")]
+        public async Task ForTargetWithNonDnsScheme_UseDnsResolverPluginTests_ReturnsArgumentException(string scheme)
+        {
+            // Arrange
+            var executor = new ExecutorFake();
+            var timer = new TimerFake();
+            using var resolverPlugin = new DnsResolverPlugin(AttributesForResolverFactory.GetAttributes(), executor, timer);
+            var nameResolutionObserver = new GrpcNameResolutionObserverFake();
+
+            // Act
+            resolverPlugin.Subscribe(new Uri($"{scheme}://sample.host.com"), nameResolutionObserver);
+            executor.DrainSingleAction();
+            var error = await nameResolutionObserver.GetFirstErrorOrDefaultAsync();
+            
+            // Assert
+            Assert.Empty(executor.Actions);
+            Assert.NotNull(error);
+            Assert.Equal(StatusCode.Unavailable, error.Value.StatusCode);
+            Assert.Contains("require dns:// scheme to set as target address", error.Value.Detail);
         }
     }
 }
