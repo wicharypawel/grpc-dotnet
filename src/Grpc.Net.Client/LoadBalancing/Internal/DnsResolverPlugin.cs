@@ -16,13 +16,13 @@
 
 #endregion
 
+using Grpc.Core;
 using Grpc.Net.Client.Internal;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Linq;
 using System.Net;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace Grpc.Net.Client.LoadBalancing.Internal
@@ -67,7 +67,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             _periodicResolutionSeconds = double.TryParse(attributes.Get(GrpcAttributesConstants.DnsResolverPeriodicResolutionSeconds), out double periodSeconds) ? periodSeconds : (double?)null;
             _executor = executor ?? throw new ArgumentNullException(nameof(executor));
             _timer = timer ?? throw new ArgumentNullException(nameof(timer));
-            _synchronizationContext = attributes.Get(GrpcAttributesConstants.ChannelSynchronizationContext) 
+            _synchronizationContext = attributes.Get(GrpcAttributesConstants.ChannelSynchronizationContext)
                 ?? throw new ArgumentNullException($"Missing synchronization context in {nameof(attributes)}");
         }
 
@@ -82,17 +82,17 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             Resolve();
             if (_periodicResolutionSeconds.HasValue)
             {
-                _timer.Start((state) => { RefreshResolution(); }, null, 
+                _timer.Start((state) => { RefreshResolution(); }, null,
                     TimeSpan.FromSeconds(_periodicResolutionSeconds.Value), TimeSpan.FromSeconds(_periodicResolutionSeconds.Value));
             }
         }
 
         public void Unsubscribe()
         {
+            _timer.Change(TimeSpan.FromMilliseconds(-1), TimeSpan.FromMilliseconds(-1));
             _unsubscribed = true;
             _observer = null;
             _target = null;
-            _timer.Change(TimeSpan.FromMilliseconds(-1), TimeSpan.FromMilliseconds(-1));
         }
 
         public void RefreshResolution()
@@ -111,34 +111,24 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
                 return;
             }
             _resolving = true;
-            var observer = _observer;
-            _executor.Execute(async () => await ResolveCoreAsync(_target, observer).ConfigureAwait(false));
+            var target = _target ?? throw new ArgumentNullException(nameof(_target));
+            var observer = _observer ?? throw new ArgumentNullException(nameof(_observer));
+            _executor.Execute(async () => await ResolveCoreAsync(target, observer).ConfigureAwait(false));
         }
 
-        private async Task ResolveCoreAsync(Uri? target, IGrpcNameResolutionObserver? observer)
+        private async Task ResolveCoreAsync(Uri target, IGrpcNameResolutionObserver observer)
         {
-            if (observer == null)
-            {
-                return;
-            }
-            if (target == null)
-            {
-                observer.OnError(new Core.Status(Core.StatusCode.Unavailable, "Target is empty."));
-                return;
-            }
-            if (!target.Scheme.Equals("dns", StringComparison.OrdinalIgnoreCase))
-            {
-                observer.OnError(new Core.Status(Core.StatusCode.Unavailable, $"{nameof(DnsResolverPlugin)} require dns:// scheme to set as target address."));
-                return;
-            }
-            var serversDnsQuery = target.Host;
-            _logger.LogDebug($"Start A lookup for {serversDnsQuery}");
             try
             {
-                var serversDnsQueryTask = OverrideDnsResults ?? Dns.GetHostAddressesAsync(serversDnsQuery);
-                await serversDnsQueryTask.ConfigureAwait(false);
-                var serversDnsQueryResults = serversDnsQueryTask.Result.Select(x => ParseARecord(x, target.Port)).ToArray();
-                var results = serversDnsQueryResults.ToList();
+                if (!target.Scheme.Equals("dns", StringComparison.OrdinalIgnoreCase))
+                {
+                    observer.OnError(new Status(StatusCode.Unavailable, $"{nameof(DnsResolverPlugin)} require dns:// scheme to set as target address."));
+                    return;
+                }
+                _logger.LogDebug($"Start A lookup for {target.Host}");
+                var serversDnsQueryTask = OverrideDnsResults ?? Dns.GetHostAddressesAsync(target.Host);
+                var serversDnsQueryResults = await serversDnsQueryTask.ConfigureAwait(false);
+                var results = serversDnsQueryResults.Select(x => ParseARecord(x, target.Port)).ToList();
                 _logger.LogDebug($"NameResolution found {results.Count} DNS records");
                 var serviceConfig = GrpcServiceConfig.Create(_defaultLoadBalancingPolicy);
                 _logger.LogDebug($"Service config created with policies: {string.Join(',', serviceConfig.RequestedLoadBalancingPolicies)}");
@@ -146,7 +136,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             }
             catch (Exception ex)
             {
-                observer.OnError(new Core.Status(Core.StatusCode.Unavailable, ex.Message));
+                observer.OnError(new Status(StatusCode.Unavailable, ex.Message));
             }
             finally
             {
