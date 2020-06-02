@@ -16,11 +16,11 @@
 
 #endregion
 
+using Grpc.Core;
 using Grpc.Net.Client.Internal;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace Grpc.Net.Client.LoadBalancing.Internal
@@ -34,10 +34,12 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
     {
         private readonly Func<Uri, GrpcNameResolutionResult> _staticNameResolution;
         private readonly IGrpcExecutor _executor;
+        private readonly GrpcSynchronizationContext _synchronizationContext;
         private ILogger _logger = NullLogger.Instance;
         private Uri? _target = null;
         private IGrpcNameResolutionObserver? _observer = null;
-        private CancellationTokenSource? _cancellationTokenSource = null;
+        private bool _resolving = false;
+        private bool _unsubscribed = false;
 
         /// <summary>
         /// LoggerFactory is configured (injected) when class is being instantiated.
@@ -55,6 +57,8 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             StaticResolverPluginOptions? options = attributes.Get(GrpcAttributesConstants.StaticResolverOptions);
             _staticNameResolution = options?.StaticNameResolution ?? throw new ArgumentNullException(nameof(options.StaticNameResolution));
             _executor = executor ?? throw new ArgumentNullException(nameof(executor));
+            _synchronizationContext = attributes.Get(GrpcAttributesConstants.ChannelSynchronizationContext)
+                ?? throw new ArgumentNullException($"Missing synchronization context in {nameof(attributes)}");
         }
 
         public void Subscribe(Uri target, IGrpcNameResolutionObserver observer)
@@ -65,17 +69,14 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             }
             _observer = observer ?? throw new ArgumentNullException(nameof(observer));
             _target = target ?? throw new ArgumentNullException(nameof(target));
-            _cancellationTokenSource = new CancellationTokenSource();
             Resolve();
         }
 
         public void Unsubscribe()
         {
+            _unsubscribed = true;
             _observer = null;
             _target = null;
-            _cancellationTokenSource?.Cancel();
-            _cancellationTokenSource?.Dispose();
-            _cancellationTokenSource = null;
         }
 
         public void RefreshResolution()
@@ -89,24 +90,34 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
 
         private void Resolve()
         {
-            _executor.Execute(async () => await ResolveCoreAsync(_target, _observer).ConfigureAwait(false));
+            if (_resolving || _unsubscribed)
+            {
+                return;
+            }
+            _resolving = true;
+            var target = _target ?? throw new ArgumentNullException(nameof(_target));
+            var observer = _observer ?? throw new ArgumentNullException(nameof(_observer));
+            _executor.Execute(async () => await ResolveCoreAsync(target, observer).ConfigureAwait(false));
         }
 
-        private Task ResolveCoreAsync(Uri? target, IGrpcNameResolutionObserver? observer)
+        private Task ResolveCoreAsync(Uri target, IGrpcNameResolutionObserver observer)
         {
-            if (observer == null)
+            try
             {
+                _logger.LogDebug($"Using static name resolution");
+                _logger.LogDebug($"Using static service config");
+                observer.OnNext(_staticNameResolution(target));
                 return Task.CompletedTask;
             }
-            if (target == null)
+            catch (Exception ex)
             {
-                observer.OnError(new Core.Status(Core.StatusCode.Unavailable, "Target is empty."));
+                observer.OnError(new Status(StatusCode.Unavailable, ex.Message));
                 return Task.CompletedTask;
             }
-            _logger.LogDebug($"Using static name resolution");
-            _logger.LogDebug($"Using static service config");
-            observer.OnNext(_staticNameResolution(target));
-            return Task.CompletedTask;
+            finally
+            {
+                _synchronizationContext.Execute(() => { _resolving = false; });
+            }
         }
 
         public void Dispose()
