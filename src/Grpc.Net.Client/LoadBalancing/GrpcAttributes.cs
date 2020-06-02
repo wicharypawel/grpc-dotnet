@@ -55,6 +55,21 @@ namespace Grpc.Net.Client.LoadBalancing
         }
 
         /// <summary>
+        /// Gets the value for the key, or null if it's not present.
+        /// </summary>
+        /// <typeparam name="TValue">Type of the value.</typeparam>
+        /// <param name="key">Key for metadata.</param>
+        /// <returns>Metadata value or null.</returns>
+        public TValue? GetValue<TValue>(Key<TValue> key) where TValue : struct
+        {
+            if (_data.TryGetValue(key, out var result))
+            {
+                return (TValue)result;
+            }
+            return null;
+        }
+
+        /// <summary>
         /// The method can only be used for testing purposes.
         /// </summary>
         internal int GetKeysCount()
@@ -70,7 +85,7 @@ namespace Grpc.Net.Client.LoadBalancing
         /// Key for an key-value pair.
         /// </summary>
         /// <typeparam name="TValue">Type of the value.</typeparam>
-        public sealed class Key<TValue> : IKey where TValue : class
+        public sealed class Key<TValue> : IKey where TValue : notnull
         {
             private readonly string _debugString;
 
@@ -118,7 +133,7 @@ namespace Grpc.Net.Client.LoadBalancing
             /// <param name="key">Key for an key-value pair.</param>
             /// <param name="value">Value for an key-value pair.</param>
             /// <returns>This builder instance.</returns>
-            public Builder Add<TValue>(Key<TValue> key, TValue value) where TValue : class
+            public Builder Add<TValue>(Key<TValue> key, TValue value) where TValue : notnull
             {
                 _data[key] = value;
                 return this;
@@ -145,7 +160,7 @@ namespace Grpc.Net.Client.LoadBalancing
             /// <typeparam name="TValue">Type of the value.</typeparam>
             /// <param name="key">Key for an key-value pair.</param>
             /// <returns>This builder instance.</returns>
-            public Builder Remove<TValue>(Key<TValue> key) where TValue : class
+            public Builder Remove<TValue>(Key<TValue> key) where TValue : notnull
             {
                 if (_data.ContainsKey(key))
                 {
