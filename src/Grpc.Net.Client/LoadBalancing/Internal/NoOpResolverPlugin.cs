@@ -16,13 +16,13 @@
 
 #endregion
 
+using Grpc.Core;
 using Grpc.Net.Client.Internal;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace Grpc.Net.Client.LoadBalancing.Internal
@@ -32,13 +32,15 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
     /// </summary>
     internal sealed class NoOpResolverPlugin : IGrpcResolverPlugin
     {
-        private readonly string[] WellKnownSchemes = new string[] { "dns", "xds", "xds-experimental" }; 
-        private ILogger _logger = NullLogger.Instance;
+        private readonly string[] WellKnownSchemes = new string[] { "dns", "xds", "xds-experimental" };
         private readonly string _defaultLoadBalancingPolicy;
         private readonly IGrpcExecutor _executor;
+        private readonly GrpcSynchronizationContext _synchronizationContext;
+        private ILogger _logger = NullLogger.Instance;
         private Uri? _target = null;
         private IGrpcNameResolutionObserver? _observer = null;
-        private CancellationTokenSource? _cancellationTokenSource = null;
+        private bool _resolving = false;
+        private bool _unsubscribed = false;
 
         public ILoggerFactory LoggerFactory
         {
@@ -52,6 +54,8 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         {
             _defaultLoadBalancingPolicy = attributes.Get(GrpcAttributesConstants.DefaultLoadBalancingPolicy) ?? "pick_first";
             _executor = executor ?? throw new ArgumentNullException(nameof(executor));
+            _synchronizationContext = attributes.Get(GrpcAttributesConstants.ChannelSynchronizationContext)
+                ?? throw new ArgumentNullException($"Missing synchronization context in {nameof(attributes)}");
         }
 
         public void Subscribe(Uri target, IGrpcNameResolutionObserver observer)
@@ -62,17 +66,14 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             }
             _observer = observer ?? throw new ArgumentNullException(nameof(observer));
             _target = target ?? throw new ArgumentNullException(nameof(target));
-            _cancellationTokenSource = new CancellationTokenSource();
             Resolve();
         }
 
         public void Unsubscribe()
         {
+            _unsubscribed = true;
             _observer = null;
             _target = null;
-            _cancellationTokenSource?.Cancel();
-            _cancellationTokenSource?.Dispose();
-            _cancellationTokenSource = null;
         }
 
         public void RefreshResolution()
@@ -86,34 +87,44 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
 
         private void Resolve()
         {
-            _executor.Execute(async () => await ResolveCoreAsync(_target, _observer).ConfigureAwait(false));
+            if (_resolving || _unsubscribed)
+            {
+                return;
+            }
+            _resolving = true;
+            var target = _target ?? throw new ArgumentNullException(nameof(_target));
+            var observer = _observer ?? throw new ArgumentNullException(nameof(_observer));
+            _executor.Execute(async () => await ResolveCoreAsync(target, observer).ConfigureAwait(false));
         }
 
-        private Task ResolveCoreAsync(Uri? target, IGrpcNameResolutionObserver? observer)
+        private Task ResolveCoreAsync(Uri target, IGrpcNameResolutionObserver observer)
         {
-            if (observer == null)
+            try
             {
+                if (WellKnownSchemes.Contains(target.Scheme.ToLowerInvariant()))
+                {
+                    observer.OnError(new Status(StatusCode.Unavailable, $"{target.Scheme}:// scheme require non-default name resolver."));
+                    return Task.CompletedTask;
+                }
+                _logger.LogDebug("NoOpResolverPlugin using defined target as name resolution");
+                var hosts = new List<GrpcHostAddress>()
+                {
+                   new GrpcHostAddress(target.Host, target.Port)
+                };
+                _logger.LogDebug($"NoOpResolverPlugin returns {_defaultLoadBalancingPolicy} policy");
+                var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create(_defaultLoadBalancingPolicy));
+                observer.OnNext(new GrpcNameResolutionResult(hosts, config, GrpcAttributes.Empty));
                 return Task.CompletedTask;
             }
-            if (target == null)
+            catch (Exception ex)
             {
-                observer.OnError(new Core.Status(Core.StatusCode.Unavailable, "Target is empty."));
+                observer.OnError(new Status(StatusCode.Unavailable, ex.Message));
                 return Task.CompletedTask;
             }
-            if (WellKnownSchemes.Contains(target.Scheme.ToLowerInvariant()))
+            finally
             {
-                observer.OnError(new Core.Status(Core.StatusCode.Unavailable, $"{target.Scheme}:// scheme require non-default name resolver."));
-                return Task.CompletedTask;
+                _synchronizationContext.Execute(() => { _resolving = false; });
             }
-            _logger.LogDebug("NoOpResolverPlugin using defined target as name resolution");
-            var hosts = new List<GrpcHostAddress>()
-            {
-               new GrpcHostAddress(target.Host, target.Port)
-            };
-            _logger.LogDebug($"NoOpResolverPlugin returns {_defaultLoadBalancingPolicy} policy");
-            var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create(_defaultLoadBalancingPolicy));
-            observer.OnNext(new GrpcNameResolutionResult(hosts, config, GrpcAttributes.Empty));
-            return Task.CompletedTask;
         }
 
         public void Dispose()
