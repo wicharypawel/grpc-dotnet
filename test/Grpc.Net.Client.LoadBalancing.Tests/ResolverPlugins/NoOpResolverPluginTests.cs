@@ -16,6 +16,7 @@
 
 #endregion
 
+using Grpc.Core;
 using Grpc.Net.Client.LoadBalancing.Internal;
 using Grpc.Net.Client.LoadBalancing.Tests.Core.Fakes;
 using Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins.Factories;
@@ -33,19 +34,21 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
         {
             // Arrange
             var executor = new ExecutorFake();
-            var resolverPlugin = new NoOpResolverPlugin(AttributesForResolverFactory.GetAttributes(), executor);
+            var serviceHostName = "service.googleapis.com";
+            using var resolverPlugin = new NoOpResolverPlugin(AttributesForResolverFactory.GetAttributes(), executor);
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
             // Act
-            resolverPlugin.Subscribe(new Uri("https://sample.host.com"), nameResolutionObserver);
+            resolverPlugin.Subscribe(new Uri($"https://{serviceHostName}"), nameResolutionObserver);
             executor.DrainSingleAction();
             var resolutionResult = await nameResolutionObserver.GetFirstValueOrDefaultAsync();
             Assert.NotNull(resolutionResult);
             var serviceConfig = resolutionResult!.ServiceConfig.Config as GrpcServiceConfig ?? throw new InvalidOperationException("Missing config");
 
             // Assert
+            Assert.Empty(executor.Actions);
             Assert.Single(resolutionResult.HostsAddresses);
-            Assert.Equal("sample.host.com", resolutionResult.HostsAddresses[0].Host);
+            Assert.Equal(serviceHostName, resolutionResult.HostsAddresses[0].Host);
             Assert.Equal(443, resolutionResult.HostsAddresses[0].Port);
             Assert.Single(serviceConfig.RequestedLoadBalancingPolicies);
             Assert.Equal("pick_first", serviceConfig.RequestedLoadBalancingPolicies[0]);
@@ -56,14 +59,15 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
         {
             // Arrange
             var executor = new ExecutorFake();
+            var serviceHostName = "service.googleapis.com";
             var attributes = GrpcAttributes.Builder.NewBuilder()
                 .Add(AttributesForResolverFactory.GetAttributes())
                 .Add(GrpcAttributesConstants.DefaultLoadBalancingPolicy, "round_robin").Build();
-            var resolverPlugin = new NoOpResolverPlugin(attributes, executor);
+            using var resolverPlugin = new NoOpResolverPlugin(attributes, executor);
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
             // Act
-            resolverPlugin.Subscribe(new Uri("https://sample.host.com"), nameResolutionObserver);
+            resolverPlugin.Subscribe(new Uri($"https://{serviceHostName}"), nameResolutionObserver);
             executor.DrainSingleAction();
             var resolutionResult = await nameResolutionObserver.GetFirstValueOrDefaultAsync();
             Assert.NotNull(resolutionResult);
@@ -82,16 +86,64 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
         {
             // Arrange
             var executor = new ExecutorFake();
-            var resolverPlugin = new NoOpResolverPlugin(AttributesForResolverFactory.GetAttributes(), executor);
+            var serviceHostName = "service.googleapis.com";
+            using var resolverPlugin = new NoOpResolverPlugin(AttributesForResolverFactory.GetAttributes(), executor);
+            var nameResolutionObserver = new GrpcNameResolutionObserverFake();
+
+            // Act
+            resolverPlugin.Subscribe(new Uri($"{scheme}://{serviceHostName}"), nameResolutionObserver);
+            executor.DrainSingleAction();
+            var error = await nameResolutionObserver.GetFirstErrorOrDefaultAsync();
+
+            // Assert
+            Assert.Empty(executor.Actions);
+            Assert.NotNull(error);
+            Assert.Contains("require non-default name resolver", error.Value.Detail);
+            Assert.Equal(StatusCode.Unavailable, error.Value.StatusCode);
+        }
+
+        [Fact]
+        public void ForRefreshingResolution_UseNoOpResolverPlugin_ReturnNextValues()
+        {
+            // Arrange
+            var executor = new ExecutorFake();
+            var serviceHostName = "service.googleapis.com";
+            using var resolverPlugin = new NoOpResolverPlugin(AttributesForResolverFactory.GetAttributes(), executor);
             var nameResolutionObserver = new GrpcNameResolutionObserverFake();
 
             // Act
             // Assert
-            resolverPlugin.Subscribe(new Uri($"{scheme}://sample.host.com"), nameResolutionObserver);
+            resolverPlugin.Subscribe(new Uri($"https://{serviceHostName}"), nameResolutionObserver);
+            Assert.Single(executor.Actions);
             executor.DrainSingleAction();
-            var error = await nameResolutionObserver.GetFirstErrorOrDefaultAsync();
-            Assert.NotNull(error);
-            Assert.Contains("require non-default name resolver", error.Value.Detail);
+            resolverPlugin.RefreshResolution();
+            Assert.Single(executor.Actions);
+            executor.DrainSingleAction();
+            resolverPlugin.RefreshResolution();
+            Assert.Single(executor.Actions);
+            executor.DrainSingleAction();
+            Assert.Empty(executor.Actions);
+        }
+
+        [Fact]
+        public void ForRefreshingResolutionWhilePendingResolution_UseNoOpResolverPlugin_ResolutionDoesNotOverlap()
+        {
+            // Arrange
+            var executor = new ExecutorFake();
+            var serviceHostName = "service.googleapis.com";
+            using var resolverPlugin = new NoOpResolverPlugin(AttributesForResolverFactory.GetAttributes(), executor);
+            var nameResolutionObserver = new GrpcNameResolutionObserverFake();
+
+            // Act
+            // Assert
+            resolverPlugin.Subscribe(new Uri($"https://{serviceHostName}"), nameResolutionObserver);
+            Assert.Single(executor.Actions);
+            resolverPlugin.RefreshResolution();
+            resolverPlugin.RefreshResolution();
+            resolverPlugin.RefreshResolution();
+            Assert.Single(executor.Actions);
+            executor.DrainSingleAction();
+            Assert.Empty(executor.Actions);
         }
     }
 }
