@@ -18,7 +18,7 @@
 
 using System;
 
-namespace Grpc.Net.Client.LoadBalancing
+namespace Grpc.Net.Client.LoadBalancing.Internal
 {
     internal sealed class GrpcExponentialBackoffPolicyProvider : IGrpcBackoffPolicyProvider
     {

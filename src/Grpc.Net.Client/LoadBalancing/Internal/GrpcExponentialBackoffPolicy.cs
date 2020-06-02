@@ -18,7 +18,7 @@
 
 using System;
 
-namespace Grpc.Net.Client.LoadBalancing
+namespace Grpc.Net.Client.LoadBalancing.Internal
 {
     /// <summary>
     /// Retry Policy for Transport reconnection. Backoff Algorithm from
@@ -34,7 +34,7 @@ namespace Grpc.Net.Client.LoadBalancing
         private readonly double _jitter;
         private long _nextBackoffTicks;
 
-        public GrpcExponentialBackoffPolicy(IRandom random, TimeSpan initialBackoff, TimeSpan maxBackoff, 
+        public GrpcExponentialBackoffPolicy(IRandom random, TimeSpan initialBackoff, TimeSpan maxBackoff,
             double multiplier, double jitter)
         {
             _random = random;

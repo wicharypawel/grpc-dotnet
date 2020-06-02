@@ -26,6 +26,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Grpc.Core;
 using Grpc.Net.Client.LoadBalancing;
+using Grpc.Net.Client.LoadBalancing.Internal;
 using Grpc.Shared;
 using Microsoft.Extensions.Logging;
 

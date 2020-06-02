@@ -16,6 +16,8 @@
 
 #endregion
 
+using Grpc.Net.Client.LoadBalancing.Internal;
+
 namespace Grpc.Net.Client.LoadBalancing.Tests.Core.Fakes
 {
     internal sealed class BackoffPolicyRandomFake : GrpcExponentialBackoffPolicy.IRandom

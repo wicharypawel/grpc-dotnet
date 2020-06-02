@@ -31,7 +31,7 @@ namespace Grpc.Net.Client.LoadBalancing
         /// IDLE state.
         /// 
         /// If the new state is not SHUTDOWN, this method should create a new picker and call
-        /// <see cref="GrpcHelper.UpdateBalancingState"/>. Failing to do so may result in
+        /// <see cref="IGrpcHelper.UpdateBalancingState"/>. Failing to do so may result in
         /// unnecessary delays of RPCs. Please refer to <see cref="GrpcPickResult.WithSubChannel"/>
         /// for more information.
         /// 

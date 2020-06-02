@@ -16,6 +16,7 @@
 
 #endregion
 
+using Grpc.Net.Client.LoadBalancing.Internal;
 using Grpc.Net.Client.LoadBalancing.Tests.Core.Fakes;
 using System.Collections.Generic;
 using Xunit;

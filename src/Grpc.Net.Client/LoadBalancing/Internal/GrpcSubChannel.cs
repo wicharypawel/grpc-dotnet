@@ -21,7 +21,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
 
-namespace Grpc.Net.Client.LoadBalancing
+namespace Grpc.Net.Client.LoadBalancing.Internal
 {
     internal sealed class GrpcSubChannel : IGrpcSubChannel
     {
@@ -75,7 +75,7 @@ namespace Grpc.Net.Client.LoadBalancing
             if (!_started) throw new InvalidOperationException("Not started.");
             _logger.LogDebug("RequestConnection GrpcSubChannel.");
             #region HTTP_CLIENT_MISSING_MONITORING_WORKAROUND
-            _synchronizationContext.Execute(() => 
+            _synchronizationContext.Execute(() =>
             {
                 if (_stateInfo.State == GrpcConnectivityState.IDLE || _stateInfo.State == GrpcConnectivityState.TRANSIENT_FAILURE)
                 {
@@ -141,7 +141,7 @@ namespace Grpc.Net.Client.LoadBalancing
             if (_backoffPolicy == null)
             {
                 // subchannel was "healthy" and it's "healthy" now so skip as fast as possible to reduce overhead
-                return; 
+                return;
             }
             Task.Factory.StartNew(() => _synchronizationContext.Execute(() => TriggerSubChannelSuccessCore()));
         }

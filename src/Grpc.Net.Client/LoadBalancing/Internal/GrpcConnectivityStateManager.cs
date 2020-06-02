@@ -21,7 +21,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 
-namespace Grpc.Net.Client.LoadBalancing
+namespace Grpc.Net.Client.LoadBalancing.Internal
 {
     /// <summary>
     /// Manages connectivity states of the channel. Used for <see cref="GetState"/> to read the
@@ -37,7 +37,7 @@ namespace Grpc.Net.Client.LoadBalancing
         {
             if (callback == null) throw new ArgumentNullException(nameof(callback));
             if (executor == null) throw new ArgumentNullException(nameof(executor));
-            var listener = new Listener(callback, executor); 
+            var listener = new Listener(callback, executor);
             if (_state != sourceState)
             {
                 listener.RunCallback();

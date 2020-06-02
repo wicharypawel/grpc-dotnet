@@ -17,11 +17,10 @@
 #endregion
 
 using Grpc.Core;
-using Grpc.Net.Client.LoadBalancing.Internal;
 using Microsoft.Extensions.Logging;
 using System;
 
-namespace Grpc.Net.Client.LoadBalancing
+namespace Grpc.Net.Client.LoadBalancing.Internal
 {
     internal sealed class GrpcNameResolutionObserver : IGrpcNameResolutionObserver
     {

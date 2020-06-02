@@ -19,7 +19,7 @@
 using Microsoft.Extensions.Logging;
 using System;
 
-namespace Grpc.Net.Client.LoadBalancing
+namespace Grpc.Net.Client.LoadBalancing.Internal
 {
     internal sealed class GrpcHelper : IGrpcHelper
     {
@@ -45,8 +45,8 @@ namespace Grpc.Net.Client.LoadBalancing
             {
                 throw new ArgumentNullException(nameof(newPicker));
             }
-            _channel.SyncContext.Execute(() => 
-            { 
+            _channel.SyncContext.Execute(() =>
+            {
                 if (this != _channel.Helper)
                 {
                     return;
