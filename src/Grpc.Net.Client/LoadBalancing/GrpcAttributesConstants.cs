@@ -41,6 +41,6 @@ namespace Grpc.Net.Client.LoadBalancing
         /// <summary>
         /// Used to enable a periodic dns resolution.
         /// </summary>
-        public static readonly GrpcAttributes.Key<string> DnsResolverPeriodicResolutionSeconds = GrpcAttributes.Key<string>.Create("dns-resolver-periodic-resolution-seconds");
+        public static readonly GrpcAttributes.Key<double> DnsResolverPeriodicResolutionSeconds = GrpcAttributes.Key<double>.Create("dns-resolver-periodic-resolution-seconds");
     }
 }

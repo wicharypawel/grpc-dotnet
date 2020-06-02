@@ -64,7 +64,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         internal DnsResolverPlugin(GrpcAttributes attributes, IGrpcExecutor executor, ITimer timer)
         {
             _defaultLoadBalancingPolicy = attributes.Get(GrpcAttributesConstants.DefaultLoadBalancingPolicy) ?? "pick_first";
-            _periodicResolutionSeconds = double.TryParse(attributes.Get(GrpcAttributesConstants.DnsResolverPeriodicResolutionSeconds), out double periodSeconds) ? periodSeconds : (double?)null;
+            _periodicResolutionSeconds = attributes.GetValue(GrpcAttributesConstants.DnsResolverPeriodicResolutionSeconds);
             _executor = executor ?? throw new ArgumentNullException(nameof(executor));
             _timer = timer ?? throw new ArgumentNullException(nameof(timer));
             _synchronizationContext = attributes.Get(GrpcAttributesConstants.ChannelSynchronizationContext)
