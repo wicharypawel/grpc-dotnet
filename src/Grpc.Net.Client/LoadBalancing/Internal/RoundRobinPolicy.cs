@@ -249,7 +249,12 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
                 {
                     return false;
                 }
-                return this == other || (_subChannels.Count == other._subChannels.Count); //TODO HERE
+                return this == other || (_subChannels.Count == other._subChannels.Count && ContainsAll(new HashSet<IGrpcSubChannel>(_subChannels), other._subChannels));
+            }
+
+            private static bool ContainsAll<T>(IEnumerable<T> source, IEnumerable<T> values)
+            {
+                return values.All(value => source.Contains(value));
             }
         }
 

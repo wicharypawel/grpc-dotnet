@@ -16,7 +16,6 @@
 
 #endregion
 
-using Grpc.Core;
 using Grpc.Net.Client.LoadBalancing.Internal;
 using Grpc.Net.Client.LoadBalancing.Tests.Policies.Factories;
 using Grpc.Net.Client.LoadBalancing.Tests.Policies.Fakes;
@@ -71,6 +70,18 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         }
 
         [Fact]
+        public void ForCanHandleEmptyAddressList_UseRoundRobinPolicy_VerifyFalse()
+        {
+            // Arrange
+            var helper = new HelperFake();
+            using var policy = new RoundRobinPolicy(helper);
+
+            // Act
+            // Assert
+            Assert.False(policy.CanHandleEmptyAddressListFromNameResolution());
+        }
+
+        [Fact]
         public void ForResolutionResults_UseRoundRobinPolicy_CreateAmmountSubChannels()
         {
             // Arrange
@@ -89,27 +100,6 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             Assert.All(subChannels, subChannel => Assert.Equal("http", subChannel.Address.Scheme));
             Assert.All(subChannels, subChannel => Assert.Equal(80, subChannel.Address.Port));
             Assert.All(subChannels, subChannel => Assert.StartsWith("10.1.5.", subChannel.Address.Host));
-        }
-
-        [Fact]
-        public void ForGrpcSubChannels_UseRoundRobinPolicySelectChannels_SelectChannelsInRoundRobin()
-        {
-            // Arrange
-            var subChannels = GrpcSubChannelFactory.GetSubChannelsWithoutLoadBalanceTokens();
-            var picker = new RoundRobinPolicy.ReadyPicker(subChannels);
-
-            // Act
-            // Assert
-            for (int i = 0; i < 30; i++)
-            {
-                var pickResult = picker.GetNextSubChannel(GrpcPickSubchannelArgs.Empty);
-                Assert.NotNull(pickResult);
-                Assert.NotNull(pickResult!.SubChannel);
-                Assert.Equal(subChannels[i % subChannels.Count].Address.Host, pickResult!.SubChannel!.Address.Host);
-                Assert.Equal(subChannels[i % subChannels.Count].Address.Port, pickResult.SubChannel.Address.Port);
-                Assert.Equal(subChannels[i % subChannels.Count].Address.Scheme, pickResult.SubChannel.Address.Scheme);
-                Assert.Equal(Status.DefaultSuccess, pickResult.Status);
-            }
         }
     }
 }

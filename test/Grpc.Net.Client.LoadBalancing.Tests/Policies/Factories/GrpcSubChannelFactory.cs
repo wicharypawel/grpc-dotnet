@@ -24,7 +24,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies.Factories
 {
     internal static class GrpcSubChannelFactory
     {
-        public static List<IGrpcSubChannel> GetSubChannelsWithoutLoadBalanceTokens()
+        public static List<IGrpcSubChannel> GetSubChannels()
         {
             return new List<IGrpcSubChannel>()
             {
@@ -33,6 +33,20 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies.Factories
                 new GrpcSubChannelFake(new UriBuilder("http://10.1.5.211:80").Uri, GrpcAttributes.Empty),
                 new GrpcSubChannelFake(new UriBuilder("http://10.1.5.213:80").Uri, GrpcAttributes.Empty)
             };
+        }
+
+        public static List<IGrpcSubChannel> GetSubChannels(int subchannelsCount = 4)
+        {
+            if (subchannelsCount > 10)
+            {
+                throw new InvalidOperationException("Factory does not support count over 10.");
+            }
+            var result = new List<IGrpcSubChannel>();
+            for (int i = 0; i < subchannelsCount; i++)
+            {
+                result.Add(new GrpcSubChannelFake(new UriBuilder($"http://10.1.5.21{i}:80").Uri, GrpcAttributes.Empty));
+            }
+            return result;
         }
     }
 }
