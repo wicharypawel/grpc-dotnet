@@ -17,15 +17,15 @@
 #endregion
 
 using Grpc.Core;
+using Grpc.Net.Client.Internal;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Threading.Tasks;
 
 namespace Grpc.Net.Client.LoadBalancing.Internal
 {
     internal sealed class GrpcSubChannel : IGrpcSubChannel
     {
-        private readonly GrpcChannel _channel;
+        private readonly IGrpcChannel _channel;
         private readonly GrpcSynchronizationContext _synchronizationContext;
         private readonly ILogger _logger;
         private GrpcConnectivityStateInfo _stateInfo = GrpcConnectivityStateInfo.ForNonError(GrpcConnectivityState.IDLE);
@@ -38,7 +38,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
 
         public GrpcAttributes Attributes { get; private set; }
 
-        public GrpcSubChannel(GrpcChannel channel, CreateSubchannelArgs arguments, IGrpcHelper grpcHelper)
+        public GrpcSubChannel(IGrpcChannel channel, CreateSubchannelArgs arguments, IGrpcHelper grpcHelper)
         {
             if (channel == null) throw new ArgumentNullException(nameof(channel));
             if (arguments == null) throw new ArgumentNullException(nameof(arguments));
@@ -114,6 +114,11 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         #region HTTP_CLIENT_MISSING_MONITORING_WORKAROUND
 
         /// <summary>
+        /// This property sets executor responsible for handling background jobs triggered on workaround. By default it is a <see cref="TaskFactoryExecutor"/>.
+        /// </summary>
+        internal IGrpcExecutor Executor { private get; set; } = TaskFactoryExecutor.Instance;
+
+        /// <summary>
         /// This method allows for the emulation of the missing connectivity state 
         /// monitoring in HttpClient. Call this method whenever the <see cref="GrpcSubChannel"/>
         /// is faulty.
@@ -122,7 +127,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         /// </summary>
         internal void TriggerSubChannelFailure(Status status)
         {
-            Task.Factory.StartNew(() => _synchronizationContext.Execute(() => TriggerSubChannelFailureCore(status)));
+            Executor.Execute(() => _synchronizationContext.Execute(() => TriggerSubChannelFailureCore(status)));
         }
 
         /// <summary>
@@ -143,7 +148,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
                 // subchannel was "healthy" and it's "healthy" now so skip as fast as possible to reduce overhead
                 return;
             }
-            Task.Factory.StartNew(() => _synchronizationContext.Execute(() => TriggerSubChannelSuccessCore()));
+            Executor.Execute(() => _synchronizationContext.Execute(() => TriggerSubChannelSuccessCore()));
         }
 
         private void TriggerSubChannelFailureCore(Status status)
@@ -174,5 +179,34 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         }
 
         #endregion
+
+        internal interface IGrpcChannel
+        {
+            public ILoggerFactory LoggerFactory { get; }
+            public IGrpcBackoffPolicyProvider BackoffPolicyProvider { get; }
+            public GrpcSynchronizationContext SyncContext { get; }
+            public void HandleInternalSubchannelState(GrpcConnectivityStateInfo newState);
+        }
+
+        internal sealed class DelegatingGrpcChannel : IGrpcChannel
+        {
+            private readonly GrpcChannel _delegateChannel;
+            
+            public DelegatingGrpcChannel(GrpcChannel delegateChannel)
+            {
+                _delegateChannel = delegateChannel ?? throw new ArgumentNullException(nameof(delegateChannel));
+            }
+
+            public ILoggerFactory LoggerFactory => _delegateChannel.LoggerFactory;
+
+            public IGrpcBackoffPolicyProvider BackoffPolicyProvider => _delegateChannel.BackoffPolicyProvider;
+
+            public GrpcSynchronizationContext SyncContext => _delegateChannel.SyncContext;
+
+            public void HandleInternalSubchannelState(GrpcConnectivityStateInfo newState)
+            {
+                _delegateChannel.HandleInternalSubchannelState(newState);
+            }
+        }
     }
 }
