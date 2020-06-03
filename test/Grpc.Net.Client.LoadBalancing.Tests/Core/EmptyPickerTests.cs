@@ -17,16 +17,27 @@
 #endregion
 
 using Grpc.Core;
+using Grpc.Net.Client.LoadBalancing.Internal;
+using Xunit;
 
-namespace Grpc.Net.Client.LoadBalancing.Internal
+namespace Grpc.Net.Client.LoadBalancing.Tests.Core
 {
-    internal sealed class PanicPicker : IGrpcSubChannelPicker
+    public sealed class EmptyPickerTests
     {
-        private readonly GrpcPickResult _panicPickResult = GrpcPickResult.WithDrop(new Status(StatusCode.Internal, "Panic! This is a bug!"));
-
-        public GrpcPickResult GetNextSubChannel(IGrpcPickSubchannelArgs arguments)
+        [Fact]
+        public void ForGetNextSubChannel_UseEmptyPicker_VerifyNoResult()
         {
-            return _panicPickResult;
+            // Arrange
+            var picker = new EmptyPicker();
+
+            // Act
+            var subchannel = picker.GetNextSubChannel(GrpcPickSubchannelArgs.Empty);
+
+            // Assert
+            Assert.Null(subchannel.SubChannel);
+            Assert.Equal(StatusCode.OK, subchannel.Status.StatusCode);
+            Assert.False(subchannel.Drop);
+            Assert.Equal(GrpcPickResult.WithNoResult(), subchannel);
         }
     }
 }
