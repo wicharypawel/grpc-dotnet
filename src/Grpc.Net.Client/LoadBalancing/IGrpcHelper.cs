@@ -67,6 +67,21 @@ namespace Grpc.Net.Client.LoadBalancing
         /// </summary>
         /// <returns>An instance of context.</returns>
         public GrpcSynchronizationContext GetSynchronizationContext();
+
+        /// <summary>
+        /// Returns the authority string of the channel, which is derived from the DNS-style target name. 
+        /// 
+        /// Authority always includes a port eg. service.googleapis.com:8080. Default port is 
+        /// port 80 (for http and unknown schemes) and 443 (for https scheme).
+        /// </summary>
+        /// <returns>A string containing the authority component.</returns>
+        public string GetAuthority();
+
+        /// <summary>
+        /// Returns the address Uri of the channel.
+        /// </summary>
+        /// <returns>An Uri that was used to create a channel.</returns>
+        public Uri GetAddress();
     }
 
     /// <summary>

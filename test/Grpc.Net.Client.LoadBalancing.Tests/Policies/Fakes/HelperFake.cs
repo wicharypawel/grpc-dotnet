@@ -16,10 +16,20 @@
 
 #endregion
 
+using Grpc.Net.Client.LoadBalancing.Internal;
+using System;
+
 namespace Grpc.Net.Client.LoadBalancing.Tests.Policies.Fakes
 {
     internal sealed class HelperFake : IGrpcHelper
     {
+        private readonly Uri _address;
+
+        public HelperFake()
+        {
+            _address = new UriBuilder("http://google.apis.com:80").Uri;
+        }
+
         public IGrpcSubChannelPicker? SubChannelPicker { get; private set; }
 
         public IGrpcSubChannel CreateSubChannel(CreateSubchannelArgs args)
@@ -34,12 +44,22 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies.Fakes
 
         public void RefreshNameResolution()
         {
-            throw new System.NotImplementedException();
+            throw new NotImplementedException();
         }
 
         public GrpcSynchronizationContext GetSynchronizationContext()
         {
-            throw new System.NotImplementedException();
+            throw new NotImplementedException();
+        }
+
+        public string GetAuthority()
+        {
+            return GrpcHelper.GetAuthorityCore(_address, true);
+        }
+
+        public Uri GetAddress()
+        {
+            return _address;
         }
     }
 }

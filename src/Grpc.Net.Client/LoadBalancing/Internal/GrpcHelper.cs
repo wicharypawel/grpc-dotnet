@@ -73,5 +73,26 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         {
             return _channel.SyncContext;
         }
+
+        public string GetAuthority()
+        {
+            return GetAuthorityCore(_channel.Address, true);
+        }
+
+        public Uri GetAddress()
+        {
+            return _channel.Address;
+        }
+
+        // Internal for testing
+        internal static string GetAuthorityCore(Uri address, bool alwaysIncludePort)
+        {
+            if (alwaysIncludePort && address.IsDefaultPort)
+            {
+                var port = address.Port != -1 ? address.Port : 80;
+                return $"{address.Authority}:{port}";
+            }
+            return address.Authority;
+        }
     }
 }
