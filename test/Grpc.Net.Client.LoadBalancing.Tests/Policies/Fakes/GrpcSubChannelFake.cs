@@ -17,14 +17,15 @@
 #endregion
 
 using System;
+using System.Threading;
 
 namespace Grpc.Net.Client.LoadBalancing.Tests.Policies.Fakes
 {
     internal sealed class GrpcSubChannelFake : IGrpcSubChannel
     {
-        public Uri Address { get; set; }
-
-        public GrpcAttributes Attributes { get; set; }
+        private int _requestConnectionCount = 0;
+        private int _shutdownCount = 0;
+        private int _startCount = 0;
 
         public GrpcSubChannelFake(Uri address, GrpcAttributes attributes)
         {
@@ -32,20 +33,25 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies.Fakes
             Attributes = attributes;
         }
 
+        public Uri Address { get; set; }
+        public GrpcAttributes Attributes { get; set; }
+        public int RequestConnectionCount => _requestConnectionCount;
+        public int ShutdownCount => _shutdownCount;
+        public int StartCount => _startCount;
+
         public void RequestConnection()
         {
+            Interlocked.Increment(ref _requestConnectionCount);
         }
 
         public void Shutdown()
         {
+            Interlocked.Increment(ref _shutdownCount);
         }
 
         public void Start(IGrpcSubchannelStateObserver observer)
         {
-        }
-
-        public void UpdateAddress(Uri address)
-        {
+            Interlocked.Increment(ref _startCount);
         }
     }
 }

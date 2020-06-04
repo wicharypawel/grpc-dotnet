@@ -30,7 +30,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         public void ForEmptyResolutionPassed_UsePickFirstPolicy_ThrowArgumentException()
         {
             // Arrange
-            var helper = new HelperFake();
+            var helper = new GrpcHelperFake();
             using var policy = new PickFirstPolicy(helper);
             var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(0);
             var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
@@ -49,7 +49,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         public void ForCanHandleEmptyAddressList_UsePickFirstPolicy_VerifyFalse()
         {
             // Arrange
-            var helper = new HelperFake();
+            var helper = new GrpcHelperFake();
             using var policy = new PickFirstPolicy(helper);
 
             // Act
@@ -61,7 +61,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         public void ForResolutionResults_UsePickFirstPolicy_CreateAmmountSubChannels()
         {
             // Arrange
-            var helper = new HelperFake();
+            var helper = new GrpcHelperFake();
             using var policy = new PickFirstPolicy(helper);
             var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(4);
             var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));

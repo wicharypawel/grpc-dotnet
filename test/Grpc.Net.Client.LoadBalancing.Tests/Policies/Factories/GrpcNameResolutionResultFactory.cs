@@ -36,5 +36,15 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies.Factories
             }
             return result;
         }
+
+        public static List<GrpcHostAddress> GetNameResolution(params string[] serverAddresses)
+        {
+            var result = new List<GrpcHostAddress>();
+            foreach (var serverAddress in serverAddresses)
+            {
+                result.Add(new GrpcHostAddress(serverAddress, 80));
+            }
+            return result;
+        }
     }
 }

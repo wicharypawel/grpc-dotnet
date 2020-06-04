@@ -30,10 +30,10 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         public void ForEmptyResolutionPassed_UseRoundRobinPolicy_ThrowArgumentException()
         {
             // Arrange
-            var helper = new HelperFake();
+            var helper = new GrpcHelperFake();
             using var policy = new RoundRobinPolicy(helper);
             var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(0);
-            var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
+            var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("round_robin"));
             var resolvedAddresses = new GrpcResolvedAddresses(hostsAddresses, config, GrpcAttributes.Empty);
 
             // Act
@@ -49,7 +49,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         public void ForCanHandleEmptyAddressList_UseRoundRobinPolicy_VerifyFalse()
         {
             // Arrange
-            var helper = new HelperFake();
+            var helper = new GrpcHelperFake();
             using var policy = new RoundRobinPolicy(helper);
 
             // Act
@@ -61,10 +61,10 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         public void ForResolutionResults_UseRoundRobinPolicy_CreateAmmountSubChannels()
         {
             // Arrange
-            var helper = new HelperFake();
+            var helper = new GrpcHelperFake();
             using var policy = new RoundRobinPolicy(helper);
             var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(4);
-            var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
+            var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("round_robin"));
             var resolvedAddresses = new GrpcResolvedAddresses(hostsAddresses, config, GrpcAttributes.Empty);
 
             // Act
