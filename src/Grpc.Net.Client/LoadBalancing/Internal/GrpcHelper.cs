@@ -36,7 +36,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         {
             _channel.SyncContext.ThrowIfNotInThisSynchronizationContext();
             var channel = new GrpcSubChannel.DelegatingGrpcChannel(_channel);
-            return new GrpcSubChannel(channel, arguments, this);
+            return new GrpcSubChannel(channel, arguments);
         }
 
         public void UpdateBalancingState(GrpcConnectivityState newState, IGrpcSubChannelPicker newPicker)

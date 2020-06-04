@@ -38,11 +38,10 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
 
         public GrpcAttributes Attributes { get; private set; }
 
-        public GrpcSubChannel(IGrpcChannel channel, CreateSubchannelArgs arguments, IGrpcHelper grpcHelper)
+        public GrpcSubChannel(IGrpcChannel channel, CreateSubchannelArgs arguments)
         {
             if (channel == null) throw new ArgumentNullException(nameof(channel));
             if (arguments == null) throw new ArgumentNullException(nameof(arguments));
-            if (grpcHelper == null) throw new ArgumentNullException(nameof(grpcHelper));
             Address = arguments.Address;
             Attributes = arguments.Attributes;
             _channel = channel;
