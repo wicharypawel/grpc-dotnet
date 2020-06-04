@@ -26,7 +26,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
     public sealed class GrpcPickResultTests
     {
         [Fact]
-        public void ForSampleChannel_UsingPickResultWithSubChannel_ReturnsWrappedChannel()
+        public void ForSampleChannel_UseGrpcPickResultWithSubChannel_ReturnsWrappedChannel()
         {
             // Arrange
             var subChannel = new GrpcSubChannelFake(new Uri("http://10.1.5.210:80"), GrpcAttributes.Empty);
@@ -36,12 +36,12 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
 
             // Assert
             Assert.Equal(subChannel, pickResult.SubChannel);
-            Assert.Equal(Status.DefaultSuccess, pickResult.Status);
+            Assert.Equal(StatusCode.OK, pickResult.Status.StatusCode);
             Assert.False(pickResult.Drop);
         }
 
         [Fact]
-        public void ForNoResult_UsingPickResultWithNoResult_ReturnsNoResultAndNullChannel()
+        public void ForNoResult_UseGrpcPickResultWithNoResult_ReturnsNoResultAndNullChannel()
         {
             // Arrange
             // Act
@@ -49,12 +49,12 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
 
             // Assert
             Assert.Null(pickResult.SubChannel);
-            Assert.Equal(Status.DefaultSuccess, pickResult.Status);
+            Assert.Equal(StatusCode.OK, pickResult.Status.StatusCode);
             Assert.False(pickResult.Drop);
         }
 
         [Fact]
-        public void ForErrorStatus_UsingPickResultWithError_ReturnsErrorAndNullChannel()
+        public void ForErrorStatus_UseGrpcPickResultWithError_ReturnsErrorAndNullChannel()
         {
             // Arrange
             var status = new Status(StatusCode.Unavailable, "for test");
@@ -69,7 +69,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
         }
 
         [Fact]
-        public void ForErrorStatus_UsingPickResultWithDrop_ReturnsWrappedChannel()
+        public void ForErrorStatus_UseGrpcPickResultWithDrop_ReturnsWrappedChannel()
         {
             // Arrange
             var status = new Status(StatusCode.Unavailable, "for test");
@@ -84,7 +84,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
         }
 
         [Fact]
-        public void ForNoResult_UsingIsWithNoResult_ReturnsTrue()
+        public void ForNoResult_UseGrpcPickResultIsWithNoResult_ReturnsTrue()
         {
             // Arrange
             var pickResult = GrpcPickResult.WithNoResult();
@@ -94,6 +94,26 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
 
             // Assert
             Assert.True(result);
+        }
+
+        [Fact]
+        public void ForOkStatus_UseGrpcPickResultWithErrorOrWithDrop_ThrowsArgumentException()
+        {
+            // Arrange
+            var status = new Status(StatusCode.OK, string.Empty);
+
+            // Act
+            // Assert
+            var error = Assert.Throws<ArgumentException>(() => 
+            {
+                var _ = GrpcPickResult.WithError(status);
+            });
+            Assert.Equal("Error status shouldn't be OK.", error.Message);
+            error = Assert.Throws<ArgumentException>(() =>
+            {
+                var _ = GrpcPickResult.WithDrop(status);
+            });
+            Assert.Equal("Drop status shouldn't be OK.", error.Message);
         }
     }
 }
