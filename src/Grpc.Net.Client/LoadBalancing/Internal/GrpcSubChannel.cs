@@ -94,6 +94,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
 
         private void SetState(GrpcConnectivityStateInfo newState)
         {
+            _synchronizationContext.ThrowIfNotInThisSynchronizationContext();
             if (newState == null)
             {
                 throw new ArgumentNullException(nameof(newState));
