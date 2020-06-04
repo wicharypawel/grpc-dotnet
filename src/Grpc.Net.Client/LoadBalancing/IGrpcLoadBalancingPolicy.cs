@@ -33,20 +33,15 @@ namespace Grpc.Net.Client.LoadBalancing
         public ILoggerFactory LoggerFactory { set; }
 
         /// <summary>
-        /// Creates a subchannel to each server address. Depending on policy this may require additional 
-        /// steps eg. reaching out to lookaside loadbalancer.
+        /// Creates a subchannel to each server address.
         /// </summary>
-        /// <param name="resolvedAddresses">Resolved list of servers and/or lookaside load balancers.</param>
-        /// <param name="serviceName">The name of the load balanced service (e.g., service.googleapis.com).</param>
-        /// <param name="isSecureConnection">Flag if connection between client and destination server should be secured.</param>
-        /// <returns>List of subchannels.</returns>
-        public void HandleResolvedAddresses(GrpcResolvedAddresses resolvedAddresses, string serviceName, bool isSecureConnection);
+        /// <param name="resolvedAddresses">Resolved list of servers.</param>
+        public void HandleResolvedAddresses(GrpcResolvedAddresses resolvedAddresses);
 
         /// <summary>
         /// Handles an error from the name resolution system.
         /// </summary>
-        /// <param name="error">Error a non-OK status</param>
-        /// <returns>Task instance.</returns>
+        /// <param name="error">Error a non-OK status.</param>
         public void HandleNameResolutionError(Status error);
 
         /// <summary>
@@ -66,7 +61,6 @@ namespace Grpc.Net.Client.LoadBalancing
         /// given the current state, e.g. no Subchannel has been created yet, LoadBalancer can ignore this
         /// request.
         /// </summary>
-        /// <returns>Task instance.</returns>
         public void RequestConnection();
     }
 }

@@ -27,30 +27,6 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
     public sealed class RoundRobinPolicyTests
     {
         [Fact]
-        public void ForEmptyServiceName_UseRoundRobinPolicy_ThrowArgumentException()
-        {
-            // Arrange
-            var helper = new HelperFake();
-            using var policy = new RoundRobinPolicy(helper);
-            var hostsAddresses = GrpcHostAddressFactory.GetNameResolution(2);
-            var config = GrpcServiceConfigOrError.FromConfig(GrpcServiceConfig.Create("pick_first"));
-            var resolvedAddresses = new GrpcResolvedAddresses(hostsAddresses, config, GrpcAttributes.Empty);
-
-            // Act
-            // Assert
-            var exception = Assert.Throws<ArgumentException>(() =>
-            {
-                policy.HandleResolvedAddresses(resolvedAddresses, "", false);
-            });
-            Assert.Equal("serviceName not defined.", exception.Message);
-            exception = Assert.Throws<ArgumentException>(() =>
-            {
-                policy.HandleResolvedAddresses(resolvedAddresses, string.Empty, false);
-            });
-            Assert.Equal("serviceName not defined.", exception.Message);
-        }
-
-        [Fact]
         public void ForEmptyResolutionPassed_UseRoundRobinPolicy_ThrowArgumentException()
         {
             // Arrange
@@ -64,7 +40,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             // Assert
             var exception = Assert.Throws<ArgumentException>(() =>
             {
-                policy.HandleResolvedAddresses(resolvedAddresses, "sample-service.contoso.com", false);
+                policy.HandleResolvedAddresses(resolvedAddresses);
             });
             Assert.Equal("resolvedAddresses must contain at least one address.", exception.Message);
         }
@@ -92,7 +68,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             var resolvedAddresses = new GrpcResolvedAddresses(hostsAddresses, config, GrpcAttributes.Empty);
 
             // Act
-            policy.HandleResolvedAddresses(resolvedAddresses, "sample-service.contoso.com", false);
+            policy.HandleResolvedAddresses(resolvedAddresses);
             var subChannels = policy.SubChannels.Values;
 
             // Assert

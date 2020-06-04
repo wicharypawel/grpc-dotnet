@@ -47,15 +47,11 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         
         internal IGrpcSubChannel? SubChannel { get; set; }
 
-        public void HandleResolvedAddresses(GrpcResolvedAddresses resolvedAddresses, string serviceName, bool isSecureConnection)
+        public void HandleResolvedAddresses(GrpcResolvedAddresses resolvedAddresses)
         {
             if (resolvedAddresses == null)
             {
                 throw new ArgumentNullException(nameof(resolvedAddresses));
-            }
-            if (string.IsNullOrWhiteSpace(serviceName))
-            {
-                throw new ArgumentException($"{nameof(serviceName)} not defined.");
             }
             var hostsAddresses = resolvedAddresses.HostsAddresses;
             if (hostsAddresses.Count == 0)
@@ -63,6 +59,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
                 throw new ArgumentException($"{nameof(resolvedAddresses)} must contain at least one address.");
             }
             _logger.LogDebug($"Start pick_first policy");
+            var isSecureConnection = _helper.IsSecureConnection();
             var resolvedUris = hostsAddresses.Select(hostsAddress =>
             {
                 var uriBuilder = new UriBuilder();

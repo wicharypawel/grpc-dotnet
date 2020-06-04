@@ -154,8 +154,7 @@ namespace Grpc.Net.Client
             }
             else
             {
-                var isSecureConnection = Address.Scheme == Uri.UriSchemeHttps || Address.Port == 443;
-                LoadBalancingPolicy.HandleResolvedAddresses(resolvedAddresses, Address.Host, isSecureConnection);
+                LoadBalancingPolicy.HandleResolvedAddresses(resolvedAddresses);
                 return Status.DefaultSuccess;
             }
         }
