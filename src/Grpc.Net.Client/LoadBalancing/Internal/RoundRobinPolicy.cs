@@ -134,6 +134,14 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
 
         public void RequestConnection()
         {
+            // By design this can be left as a no-op. Moreover, until something similar 
+            // to an IDLE mode is introduced, we do not have to worry about the reconnection at 
+            // load balancer level. The IDLE mode in gRPC Java is based on a timout starting when 
+            // all connections are not in use. When the timeout is passed all subchannels pause
+            // connections which reduces unused resources.
+            // 
+            // This policy is implemented to request connection immediatelly after subchannel is 
+            // created.
         }
 
         public void Dispose()
