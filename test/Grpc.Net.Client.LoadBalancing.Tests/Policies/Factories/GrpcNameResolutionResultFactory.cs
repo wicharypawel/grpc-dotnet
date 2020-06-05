@@ -23,7 +23,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies.Factories
 {
     internal static class GrpcHostAddressFactory
     {
-        public static List<GrpcHostAddress> GetNameResolution(int serversCount)
+        public static List<GrpcHostAddress> GetNameResolution(int serversCount, int port)
         {
             if (serversCount > 9)
             {
@@ -32,9 +32,14 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies.Factories
             var result = new List<GrpcHostAddress>();
             for (int i = 0; i < serversCount; i++)
             {
-                result.Add(new GrpcHostAddress($"10.1.5.21{i}", 80));
+                result.Add(new GrpcHostAddress($"10.1.5.21{i}", port));
             }
             return result;
+        }
+
+        public static List<GrpcHostAddress> GetNameResolution(int serversCount)
+        {
+            return GetNameResolution(serversCount, 80);
         }
 
         public static List<GrpcHostAddress> GetNameResolution(params string[] serverAddresses)

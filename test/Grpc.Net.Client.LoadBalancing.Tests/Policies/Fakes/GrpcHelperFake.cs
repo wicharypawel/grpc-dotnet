@@ -29,9 +29,10 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies.Fakes
         private int _refreshNameResolutionCount = 0;
         private int _createSubChannelCount = 0;
 
-        public GrpcHelperFake()
+        /// <param name="address">If not specified, fake will use http://google.apis.com:80</param>
+        public GrpcHelperFake(Uri? address = null)
         {
-            _address = new UriBuilder("http://google.apis.com:80").Uri;
+            _address = address ?? new UriBuilder("http://google.apis.com:80").Uri;
         }
 
         public List<ValueTuple<GrpcConnectivityState, IGrpcSubChannelPicker>> ObservedUpdatesToBalancingState { get; } = new List<ValueTuple<GrpcConnectivityState, IGrpcSubChannelPicker>>();

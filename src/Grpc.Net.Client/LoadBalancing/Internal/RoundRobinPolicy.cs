@@ -58,7 +58,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             {
                 throw new ArgumentException($"{nameof(resolvedAddresses)} must contain at least one address.");
             }
-            _logger.LogDebug($"Start pick_first policy");
+            _logger.LogDebug($"Start round_robin policy");
             var isSecureConnection = _helper.IsSecureConnection();
             var resolvedUris = hostsAddresses.Select(hostsAddress =>
             {

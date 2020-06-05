@@ -100,6 +100,26 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
             Assert.Equal(StatusCode.OK, helper.ObservedUpdatesToBalancingState[0].Item2.GetNextSubChannel(GrpcPickSubchannelArgs.Empty).Status.StatusCode);
         }
 
+        [Theory]
+        [InlineData("https", 9000)]
+        [InlineData("dns", 443)]
+        public void ForResolutionResultsWithSecure_UseRoundRobinPolicy_CreateAmmountSubChannels(string scheme, int port)
+        {
+            // Arrange
+            var helper = new GrpcHelperFake(new UriBuilder($"{scheme}://google.apis.com:{port}").Uri);
+            using var policy = new RoundRobinPolicy(helper);
+
+            // Act
+            policy.HandleResolvedAddresses(NextResolved(GrpcHostAddressFactory.GetNameResolution(3, port)));
+            var subChannels = policy.GetInternalSubchannels();
+
+            // Assert
+            Assert.Equal(3, subChannels.Count);
+            Assert.All(subChannels, subChannel => Assert.Equal("https", subChannel.Address.Scheme));
+            Assert.All(subChannels, subChannel => Assert.Equal(port, subChannel.Address.Port));
+            Assert.All(subChannels, subChannel => Assert.StartsWith("10.1.5.", subChannel.Address.Host));
+        }
+
         [Fact]
         public void ForRepeatedResolutionResults_UseRoundRobinPolicy_VerifyCacheWorks()
         {
