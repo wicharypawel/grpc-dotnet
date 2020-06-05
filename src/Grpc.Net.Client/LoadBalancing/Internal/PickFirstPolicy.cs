@@ -69,7 +69,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
                 var uri = uriBuilder.Uri;
                 _logger.LogDebug($"Found a server {uri}");
                 return uri;
-            }).ToArray();
+            }).Distinct().ToArray();
             if (EqualResolution(_resolvedUris, resolvedUris))
             {
                 return;
@@ -81,7 +81,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             subChannel.Start(new BaseSubchannelStateObserver((stateInfo) => { ProcessSubchannelState(subChannel, stateInfo); }));
             SubChannel = subChannel;
             SubChannel.RequestConnection();
-            UpdateBalancingState(GrpcConnectivityState.IDLE, new EmptyPicker(Status.DefaultSuccess));
+            UpdateBalancingState(GrpcConnectivityState.CONNECTING, new EmptyPicker(StatusEmptyOk));
             previousSubChannel?.Shutdown();
             _logger.LogDebug($"SubChannels list created");
         }
@@ -97,12 +97,22 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             {
                 return;
             }
+            if (stateInfo.State == GrpcConnectivityState.IDLE)
+            {
+                subChannel.RequestConnection();
+            }
+            if (_currentStateCache == GrpcConnectivityState.TRANSIENT_FAILURE)
+            {
+                if (stateInfo.State == GrpcConnectivityState.CONNECTING || stateInfo.State == GrpcConnectivityState.IDLE)
+                {
+                    return;
+                }
+            }
             var currentState = stateInfo.State;
             PickFirstPicker picker;
             switch (currentState)
             {
                 case GrpcConnectivityState.IDLE:
-                    subChannel.RequestConnection();
                     picker = new EmptyPicker(StatusEmptyOk);
                     break;
                 case GrpcConnectivityState.CONNECTING:
@@ -113,7 +123,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
                     break;
                 case GrpcConnectivityState.TRANSIENT_FAILURE:
                     if (_currentUriIndex + 1 < _resolvedUris.Length)
-                    {
+                    {                        
                         _currentUriIndex += 1;
                         var previousSubChannel = SubChannel;
                         var newSubChannel = _helper.CreateSubChannel(new CreateSubchannelArgs(_resolvedUris[_currentUriIndex], GrpcAttributes.Empty));
