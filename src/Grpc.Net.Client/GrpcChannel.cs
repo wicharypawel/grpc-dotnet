@@ -336,10 +336,19 @@ namespace Grpc.Net.Client
         /// <summary>
         /// Gets the current connectivity state. Note the result may soon become outdated.
         /// </summary>
+        /// <param name="requestConnection">If true, the channel will try to make a connection if it is currently IDLE.</param>
         /// <returns>The current connectivity state.</returns>
-        public GrpcConnectivityState GetState()
+        public GrpcConnectivityState GetState(bool requestConnection = false)
         {
             var savedChannelState = ChannelStateManager.GetState();
+            if (requestConnection && savedChannelState == GrpcConnectivityState.IDLE)
+            {
+                var channel = this;
+                SyncContext.Execute(() => 
+                {
+                    channel.LoadBalancingPolicy.RequestConnection();
+                });
+            }
             return savedChannelState;
         }
 
