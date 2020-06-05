@@ -23,6 +23,8 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies.Fakes
 {
     internal sealed class GrpcSubChannelFake : IGrpcSubChannel
     {
+        private GrpcConnectivityStateInfo _stateInfo = GrpcConnectivityStateInfo.ForNonError(GrpcConnectivityState.IDLE);
+        private IGrpcSubchannelStateObserver? _observer = null;
         private int _requestConnectionCount = 0;
         private int _shutdownCount = 0;
         private int _startCount = 0;
@@ -35,9 +37,9 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies.Fakes
 
         public Uri Address { get; set; }
         public GrpcAttributes Attributes { get; set; }
-        public int RequestConnectionCount => _requestConnectionCount;
-        public int ShutdownCount => _shutdownCount;
-        public int StartCount => _startCount;
+        internal int RequestConnectionCount => _requestConnectionCount;
+        internal int ShutdownCount => _shutdownCount;
+        internal int StartCount => _startCount;
 
         public void RequestConnection()
         {
@@ -52,6 +54,24 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies.Fakes
         public void Start(IGrpcSubchannelStateObserver observer)
         {
             Interlocked.Increment(ref _startCount);
+            _observer = observer;
+        }
+
+        internal void SetState(GrpcConnectivityStateInfo newState)
+        {
+            if (newState == null)
+            {
+                throw new ArgumentNullException(nameof(newState));
+            }
+            if (_stateInfo.State != newState.State)
+            {
+                if (_stateInfo.State == GrpcConnectivityState.SHUTDOWN)
+                {
+                    throw new InvalidOperationException("Cannot transition out of SHUTDOWN state.");
+                }
+                _stateInfo = newState;
+                _observer?.OnNext(newState);
+            }
         }
     }
 }
