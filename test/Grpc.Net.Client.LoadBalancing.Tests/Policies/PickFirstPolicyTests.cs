@@ -373,6 +373,47 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         }
 
         [Fact]
+        public void ForChangingSubChannelState_UsePickFirstPolicy_AllTransportsFail()
+        {
+            // Arrange
+            var helper = new GrpcHelperFake();
+            using var policy = new PickFirstPolicy(helper);
+
+            // Act
+            // Assert
+            policy.HandleResolvedAddresses(NextResolved(GrpcHostAddressFactory.GetNameResolution("10.1.5.1", "10.1.5.2", "10.1.5.3")));
+            policy.GetInternalSubchannel().SetState(GrpcConnectivityStateInfo.ForNonError(GrpcConnectivityState.CONNECTING));
+            policy.GetInternalSubchannel().SetState(GrpcConnectivityStateInfo.ForNonError(GrpcConnectivityState.READY));
+            Assert.Equal(GrpcConnectivityState.READY, helper.ObservedUpdatesToBalancingState.Last().Item1);
+            Assert.Equal(typeof(PickFirstPolicy.ReadyPicker), helper.ObservedUpdatesToBalancingState.Last().Item2.GetType());
+            Assert.Equal("10.1.5.1", policy.GetInternalSubchannel().Address.Host);
+
+            policy.GetInternalSubchannel().SetState(GrpcConnectivityStateInfo.ForTransientFailure(new Status(StatusCode.Internal, "test bug")));
+            Assert.Equal(GrpcConnectivityState.TRANSIENT_FAILURE, helper.ObservedUpdatesToBalancingState.Last().Item1);
+            var currentPicker = helper.ObservedUpdatesToBalancingState.Last().Item2;
+            Assert.Equal(typeof(PickFirstPolicy.EmptyPicker), currentPicker.GetType());
+            Assert.Equal(StatusCode.Internal, currentPicker.GetNextSubChannel(GrpcPickSubchannelArgs.Empty).Status.StatusCode);
+
+            policy.GetInternalSubchannel().SetState(GrpcConnectivityStateInfo.ForNonError(GrpcConnectivityState.CONNECTING));
+            policy.GetInternalSubchannel().SetState(GrpcConnectivityStateInfo.ForNonError(GrpcConnectivityState.READY));
+            Assert.Equal(GrpcConnectivityState.READY, helper.ObservedUpdatesToBalancingState.Last().Item1);
+            Assert.Equal(typeof(PickFirstPolicy.ReadyPicker), helper.ObservedUpdatesToBalancingState.Last().Item2.GetType());
+            Assert.Equal("10.1.5.2", policy.GetInternalSubchannel().Address.Host);
+
+            policy.GetInternalSubchannel().SetState(GrpcConnectivityStateInfo.ForTransientFailure(new Status(StatusCode.Internal, "test bug")));
+            Assert.Equal(GrpcConnectivityState.TRANSIENT_FAILURE, helper.ObservedUpdatesToBalancingState.Last().Item1);
+            currentPicker = helper.ObservedUpdatesToBalancingState.Last().Item2;
+            Assert.Equal(typeof(PickFirstPolicy.EmptyPicker), currentPicker.GetType());
+            Assert.Equal(StatusCode.Internal, currentPicker.GetNextSubChannel(GrpcPickSubchannelArgs.Empty).Status.StatusCode);
+
+            policy.GetInternalSubchannel().SetState(GrpcConnectivityStateInfo.ForNonError(GrpcConnectivityState.CONNECTING));
+            policy.GetInternalSubchannel().SetState(GrpcConnectivityStateInfo.ForNonError(GrpcConnectivityState.READY));
+            Assert.Equal(GrpcConnectivityState.READY, helper.ObservedUpdatesToBalancingState.Last().Item1);
+            Assert.Equal(typeof(PickFirstPolicy.ReadyPicker), helper.ObservedUpdatesToBalancingState.Last().Item2.GetType());
+            Assert.Equal("10.1.5.3", policy.GetInternalSubchannel().Address.Host);
+        }
+
+        [Fact]
         public void ForChangingSubChannelState_UsePickFirstPolicy_VerifyPreciseNumberOfChangingStates()
         {
             // Arrange

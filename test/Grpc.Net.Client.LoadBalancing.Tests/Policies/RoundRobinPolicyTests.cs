@@ -455,6 +455,42 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Policies
         }
 
         [Fact]
+        public void ForChangingSubChannelsStates_UseRoundRobinPolicy_AllTransportsFail()
+        {
+            // Arrange
+            var helper = new GrpcHelperFake();
+            using var policy = new RoundRobinPolicy(helper);
+
+            // Act
+            policy.HandleResolvedAddresses(NextResolved(GrpcHostAddressFactory.GetNameResolution("10.1.5.1", "10.1.5.2", "10.1.5.3")));
+            policy.GetInternalSubchannels()[0].SetState(GrpcConnectivityStateInfo.ForNonError(GrpcConnectivityState.CONNECTING));
+            policy.GetInternalSubchannels()[1].SetState(GrpcConnectivityStateInfo.ForNonError(GrpcConnectivityState.CONNECTING));
+            policy.GetInternalSubchannels()[2].SetState(GrpcConnectivityStateInfo.ForNonError(GrpcConnectivityState.CONNECTING));
+            policy.GetInternalSubchannels()[0].SetState(GrpcConnectivityStateInfo.ForNonError(GrpcConnectivityState.READY));
+            policy.GetInternalSubchannels()[1].SetState(GrpcConnectivityStateInfo.ForNonError(GrpcConnectivityState.READY));
+            policy.GetInternalSubchannels()[2].SetState(GrpcConnectivityStateInfo.ForNonError(GrpcConnectivityState.READY));
+            Assert.Equal(GrpcConnectivityState.READY, helper.ObservedUpdatesToBalancingState.Last().Item1);
+            Assert.Equal(typeof(RoundRobinPolicy.ReadyPicker), helper.ObservedUpdatesToBalancingState.Last().Item2.GetType());
+
+            policy.GetInternalSubchannels()[0].SetState(GrpcConnectivityStateInfo.ForTransientFailure(new Status(StatusCode.Internal, "test bug")));
+            Assert.Equal(GrpcConnectivityState.READY, helper.ObservedUpdatesToBalancingState.Last().Item1);
+            Assert.Equal(typeof(RoundRobinPolicy.ReadyPicker), helper.ObservedUpdatesToBalancingState.Last().Item2.GetType());
+
+            policy.GetInternalSubchannels()[1].SetState(GrpcConnectivityStateInfo.ForTransientFailure(new Status(StatusCode.Internal, "test bug")));
+            Assert.Equal(GrpcConnectivityState.READY, helper.ObservedUpdatesToBalancingState.Last().Item1);
+            Assert.Equal(typeof(RoundRobinPolicy.ReadyPicker), helper.ObservedUpdatesToBalancingState.Last().Item2.GetType());
+
+            policy.GetInternalSubchannels()[2].SetState(GrpcConnectivityStateInfo.ForTransientFailure(new Status(StatusCode.Internal, "test bug")));
+            var currentState = helper.ObservedUpdatesToBalancingState.Last().Item1;
+            var currentPicker = helper.ObservedUpdatesToBalancingState.Last().Item2;
+            
+            // Assert
+            Assert.Equal(GrpcConnectivityState.TRANSIENT_FAILURE, currentState);
+            Assert.Equal(typeof(RoundRobinPolicy.EmptyPicker), currentPicker.GetType());
+            Assert.Equal(StatusCode.Internal, currentPicker.GetNextSubChannel(GrpcPickSubchannelArgs.Empty).Status.StatusCode);
+        }
+
+        [Fact]
         public void ForChangingSubChannelsStates_UseRoundRobinPolicy_VerifyPreciseNumberOfChangingStates()
         {
             // Arrange
