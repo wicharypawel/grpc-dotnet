@@ -1,4 +1,4 @@
-﻿#region Copyright notice and license
+#region Copyright notice and license
 
 // Copyright 2019 The gRPC Authors
 //
@@ -37,9 +37,9 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
 
         public void OnNext(GrpcNameResolutionResult value)
         {
-            _logger.LogDebug("Name resolution results received.");
             _helper.GetSynchronizationContext().Execute(() =>
             {
+                _logger.LogDebug("Name resolution results received.");
                 var lastResolutionStateCopy = _grpcChannel.LastResolutionState;
                 if (_grpcChannel.LastResolutionState != GrpcResolutionState.Success)
                 {
@@ -69,9 +69,9 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             {
                 throw new ArgumentException("The error status must not be OK.");
             }
-            _logger.LogDebug("Name resolution error received.");
             _helper.GetSynchronizationContext().Execute(() =>
             {
+                _logger.LogDebug("Name resolution error received.");
                 HandleErrorInSyncContext(error);
             });
         }
