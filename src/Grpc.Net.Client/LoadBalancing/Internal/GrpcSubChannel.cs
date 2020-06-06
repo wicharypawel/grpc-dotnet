@@ -33,6 +33,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         private bool _started = false;
         private bool _shutdown = false;
         private IGrpcBackoffPolicy? _backoffPolicy = null;
+        private GrpcSynchronizationContext.ScheduledHandle? _reconnectTaskSchedule = null;
 
         public Uri Address { get; private set; }
 
@@ -165,7 +166,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             SetState(GrpcConnectivityStateInfo.ForTransientFailure(status));
             var delay = _backoffPolicy.NextBackoff();
             _logger.LogDebug($"Scheduling subChannel reconnect backoff for {delay}.");
-            _synchronizationContext.Schedule(() => RequestConnection(), delay); // ScheduledHandle ignored 
+            _reconnectTaskSchedule = _synchronizationContext.Schedule(() => { _reconnectTaskSchedule = null; RequestConnection(); }, delay);
         }
 
         private void TriggerSubChannelSuccessCore()
