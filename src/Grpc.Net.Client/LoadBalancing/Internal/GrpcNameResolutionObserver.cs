@@ -44,6 +44,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
                 {
                     _grpcChannel.LastResolutionState = GrpcResolutionState.Success;
                 }
+                _grpcChannel.NameResolverRefreshBackoffPolicy = null;
                 var effectiveServiceConfig = value.ServiceConfig.Config ?? new object();
                 var resolvedAddresses = new GrpcResolvedAddresses(value.HostsAddresses, effectiveServiceConfig, value.Attributes);
                 if (_helper != _grpcChannel.Helper) return;
