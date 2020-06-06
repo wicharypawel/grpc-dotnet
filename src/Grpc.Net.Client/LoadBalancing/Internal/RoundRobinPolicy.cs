@@ -42,7 +42,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
 
         public ILoggerFactory LoggerFactory
         {
-            set => _logger = value.CreateLogger<PickFirstPolicy>();
+            set => _logger = value.CreateLogger<RoundRobinPolicy>();
         }
 
         internal Dictionary<Uri, IGrpcSubChannel> SubChannels { get; set; } = new Dictionary<Uri, IGrpcSubChannel>();
