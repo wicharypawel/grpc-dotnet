@@ -19,6 +19,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -27,6 +28,40 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
 {
     public sealed class GrpcSynchronizationContextTests
     {
+        [Fact]
+        public void ForVerifyIfInContext_UseUseGrpcSynchronizationContext_ThrowForNotInContext()
+        {
+            // Arrange
+            var context = new GrpcSynchronizationContext((exception) => { });
+
+            // Act
+            // Assert
+            var ex = Assert.Throws<InvalidOperationException>(() =>
+            {
+                context.ThrowIfNotInThisSynchronizationContext();
+            });
+            Assert.Equal("Not called from the SynchronizationContext", ex.Message);
+        }
+
+        [Fact]
+        public void ForVerifyIfInContext_UseUseGrpcSynchronizationContext_NotThrowIfInContext()
+        {
+            // Arrange
+            var wasExecuted = false;
+            var errors = new List<Exception>();
+            var context = new GrpcSynchronizationContext((exception) => { errors.Add(exception); });
+
+            // Act
+            context.Execute(() => {
+                context.ThrowIfNotInThisSynchronizationContext();
+                wasExecuted = true;
+            });
+
+            // Assert
+            Assert.True(wasExecuted);
+            Assert.Empty(errors);
+        }
+
         [Fact]
         public void ForNullAction_UseGrpcSynchronizationContext_ThrowException()
         {
@@ -54,6 +89,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
 
             // Assert
             Assert.True(wasExecuted);
+            Assert.Equal(0, GetActionsCountUsingReflection(context));
         }
 
         [Fact]
@@ -70,6 +106,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
 
             // Assert
             Assert.True(wasExecuted);
+            Assert.Equal(0, GetActionsCountUsingReflection(context));
         }
 
         [Fact]
@@ -293,6 +330,20 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
         {
             context.ThrowIfNotInThisSynchronizationContext();
             results.Enqueue(value); // Do some job.
+        }
+        
+        private static int GetActionsCountUsingReflection(GrpcSynchronizationContext context)
+        {
+            var field = typeof(GrpcSynchronizationContext).GetField("_queue", BindingFlags.NonPublic | BindingFlags.Instance);
+            if (field == null)
+            {
+                return -1;
+            }
+            else
+            {
+                ConcurrentQueue<Action>? queue = field.GetValue(context) as ConcurrentQueue<Action>;
+                return queue == null ? -1 : queue.Count;
+            }
         }
     }
 }
