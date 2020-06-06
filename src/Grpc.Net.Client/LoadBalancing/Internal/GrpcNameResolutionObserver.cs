@@ -1,4 +1,4 @@
-#region Copyright notice and license
+﻿#region Copyright notice and license
 
 // Copyright 2019 The gRPC Authors
 //
@@ -40,7 +40,6 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             _helper.GetSynchronizationContext().Execute(() =>
             {
                 _logger.LogDebug("Name resolution results received.");
-                var lastResolutionStateCopy = _grpcChannel.LastResolutionState;
                 if (_grpcChannel.LastResolutionState != GrpcResolutionState.Success)
                 {
                     _grpcChannel.LastResolutionState = GrpcResolutionState.Success;
@@ -51,14 +50,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
                 Status handleResult = _grpcChannel.TryHandleResolvedAddresses(resolvedAddresses);
                 if (handleResult.StatusCode != StatusCode.OK)
                 {
-                    if (value.HostsAddresses.Count == 0 && lastResolutionStateCopy == GrpcResolutionState.Success)
-                    {
-                        ScheduleExponentialBackOffInSyncContext();
-                    }
-                    else
-                    {
-                        HandleErrorInSyncContext(handleResult);
-                    }
+                    HandleErrorInSyncContext(handleResult);
                 }
             });
         }
