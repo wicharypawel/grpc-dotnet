@@ -24,8 +24,6 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins.Fakes
 {
     internal sealed class TimerFake : ITimer
     {
-        public TimeSpan? FirstReportInterval { get; private set; }
-        public TimeSpan? ClientStatsReportInterval { get; private set; }
         public TimerCallback? Callback { get; private set; }
         public object? State { get; private set; }
         
@@ -33,15 +31,13 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins.Fakes
         {
             Callback = callback;
             State = state;
-            FirstReportInterval = dueTime;
-            ClientStatsReportInterval = period;
         }
 
         public void ManualCallbackTrigger()
         {
-            if(Callback == null)
+            if (Callback == null)
             {
-                throw new InvalidOperationException("TimerFake Started");
+                throw new InvalidOperationException("TimerFake not started.");
             }
             Callback.Invoke(State);
         }
