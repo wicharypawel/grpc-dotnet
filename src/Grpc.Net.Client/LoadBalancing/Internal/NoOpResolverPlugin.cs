@@ -40,7 +40,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         private Uri? _target = null;
         private IGrpcNameResolutionObserver? _observer = null;
         private bool _resolving = false;
-        private bool _unsubscribed = false;
+        private bool _shutdown = false;
 
         public ILoggerFactory LoggerFactory
         {
@@ -69,9 +69,13 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             Resolve();
         }
 
-        public void Unsubscribe()
+        public void Shutdown()
         {
-            _unsubscribed = true;
+            if (_shutdown)
+            {
+                return;
+            }
+            _shutdown = true;
             _observer = null;
             _target = null;
         }
@@ -87,7 +91,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
 
         private void Resolve()
         {
-            if (_resolving || _unsubscribed)
+            if (_resolving || _shutdown)
             {
                 return;
             }
@@ -129,7 +133,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
 
         public void Dispose()
         {
-            Unsubscribe();
+            Shutdown();
         }
     }
 }

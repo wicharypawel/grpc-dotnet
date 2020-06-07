@@ -43,7 +43,7 @@ namespace Grpc.Net.Client.LoadBalancing
         /// <summary>
         /// Stops the resolution. Updates to the Listener will stop.
         /// </summary>
-        public void Unsubscribe();
+        public void Shutdown();
 
         /// <summary>
         /// Re-resolve the name. Can only be called after Start method has been called.

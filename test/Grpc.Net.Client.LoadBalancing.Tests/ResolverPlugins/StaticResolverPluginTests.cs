@@ -72,7 +72,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.ResolverPlugins
             executor.DrainSingleAction();
             var resolutionResult = await nameResolutionObserver.GetFirstValueOrDefaultAsync();
             Assert.NotNull(resolutionResult);
-            resolverPlugin.Unsubscribe();
+            resolverPlugin.Shutdown();
 
             // Assert
             Assert.Empty(executor.Actions);
