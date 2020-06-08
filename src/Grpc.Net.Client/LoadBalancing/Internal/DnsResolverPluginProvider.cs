@@ -35,7 +35,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             {
                 throw new ArgumentException(nameof(target));
             }
-            return new DnsResolverPlugin(attributes, TaskFactoryExecutor.Instance, new SystemTimer());
+            return new DnsResolverPlugin(attributes, TaskFactoryExecutor.Instance, new SystemTimer(), new SystemStopwatch());
         }
     }
 }

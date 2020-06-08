@@ -39,9 +39,13 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         private readonly IGrpcExecutor _executor;
         private readonly ITimer _timer;
         private readonly GrpcSynchronizationContext _synchronizationContext;
+        private readonly IStopwatch _stopwatch;
+        private readonly TimeSpan _cacheTtl;
+        private const double DefaultNetworkTtlSeconds = 30;
         private ILogger _logger = NullLogger.Instance;
         private Uri? _target = null;
         private IGrpcNameResolutionObserver? _observer = null;
+        private bool _resolved = false;
         private bool _resolving = false;
         private bool _shutdown = false;
 
@@ -61,7 +65,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         /// <summary>
         /// The ctor should only be called by <see cref="DnsResolverPluginProvider"/> or test code.
         /// </summary>
-        internal DnsResolverPlugin(GrpcAttributes attributes, IGrpcExecutor executor, ITimer timer)
+        internal DnsResolverPlugin(GrpcAttributes attributes, IGrpcExecutor executor, ITimer timer, IStopwatch stopwatch)
         {
             _defaultLoadBalancingPolicy = attributes.Get(GrpcAttributesConstants.DefaultLoadBalancingPolicy) ?? "pick_first";
             var periodicResolutionSeconds = attributes.GetValue(GrpcAttributesConstants.DnsResolverPeriodicResolutionSeconds);
@@ -71,6 +75,10 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             _timer = timer ?? throw new ArgumentNullException(nameof(timer));
             _synchronizationContext = attributes.Get(GrpcAttributesConstants.ChannelSynchronizationContext)
                 ?? throw new ArgumentNullException($"Missing synchronization context in {nameof(attributes)}");
+            _stopwatch = stopwatch ?? throw new ArgumentNullException(nameof(stopwatch));
+            var networkTtlSeconds = attributes.GetValue(GrpcAttributesConstants.DnsResolverNetworkTtlSeconds);
+            if (networkTtlSeconds.HasValue && networkTtlSeconds.Value < 0) throw new ArgumentException(nameof(networkTtlSeconds));
+            _cacheTtl = TimeSpan.FromSeconds(networkTtlSeconds ?? DefaultNetworkTtlSeconds);
         }
 
         public void Subscribe(Uri target, IGrpcNameResolutionObserver observer)
@@ -111,7 +119,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
 
         private void Resolve()
         {
-            if (_resolving || _shutdown)
+            if (_resolving || _shutdown || !CacheRefreshRequired())
             {
                 return;
             }
@@ -121,8 +129,16 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             _executor.Execute(async () => await ResolveCoreAsync(target, observer).ConfigureAwait(false));
         }
 
+        private bool CacheRefreshRequired()
+        {
+            return !_resolved
+                || _cacheTtl == TimeSpan.Zero
+                || (_cacheTtl > TimeSpan.Zero && _stopwatch.Elapsed > _cacheTtl);
+        }
+
         private async Task ResolveCoreAsync(Uri target, IGrpcNameResolutionObserver observer)
         {
+            bool succeed = false;
             try
             {
                 if (!target.Scheme.Equals("dns", StringComparison.OrdinalIgnoreCase))
@@ -138,14 +154,27 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
                 var serviceConfig = GrpcServiceConfig.Create(_defaultLoadBalancingPolicy);
                 _logger.LogDebug($"Service config created with policies: {string.Join(',', serviceConfig.RequestedLoadBalancingPolicies)}");
                 observer.OnNext(new GrpcNameResolutionResult(results, GrpcServiceConfigOrError.FromConfig(serviceConfig), GrpcAttributes.Empty));
+                succeed = true;
             }
             catch (Exception ex)
             {
                 observer.OnError(new Status(StatusCode.Unavailable, ex.Message));
+                succeed = false;
             }
             finally
             {
-                _synchronizationContext.Execute(() => { _resolving = false; });
+                _synchronizationContext.Execute(() => 
+                { 
+                    if (succeed)
+                    {
+                        _resolved = true;
+                        if (_cacheTtl > TimeSpan.Zero)
+                        {
+                            _stopwatch.Restart();
+                        }
+                    }
+                    _resolving = false; 
+                });
             }
         }
 

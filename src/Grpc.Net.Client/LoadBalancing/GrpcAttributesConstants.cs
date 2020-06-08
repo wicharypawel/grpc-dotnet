@@ -39,7 +39,12 @@ namespace Grpc.Net.Client.LoadBalancing
         public static readonly GrpcAttributes.Key<GrpcSynchronizationContext> ChannelSynchronizationContext = GrpcAttributes.Key<GrpcSynchronizationContext>.Create("synchronization-context");
 
         /// <summary>
-        /// Used to enable a periodic dns resolution.
+        /// Used to override the default DNS cache duration (TTL). TTL equal zero turns off caching.
+        /// </summary>
+        public static readonly GrpcAttributes.Key<double> DnsResolverNetworkTtlSeconds = GrpcAttributes.Key<double>.Create("dns-resolver-network-ttl-seconds");
+
+        /// <summary>
+        /// Used to enable an optional periodic DNS resolution. Refreshes occurring more frequently than DNS cache duration (TTL) are skipped. 
         /// </summary>
         public static readonly GrpcAttributes.Key<double> DnsResolverPeriodicResolutionSeconds = GrpcAttributes.Key<double>.Create("dns-resolver-periodic-resolution-seconds");
     }
