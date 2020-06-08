@@ -1,4 +1,4 @@
-﻿#region Copyright notice and license
+#region Copyright notice and license
 
 // Copyright 2019 The gRPC Authors
 //
@@ -35,7 +35,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
     internal sealed class DnsResolverPlugin : IGrpcResolverPlugin
     {
         private readonly string _defaultLoadBalancingPolicy;
-        private readonly double? _periodicResolutionSeconds;
+        private readonly TimeSpan? _periodicResolution;
         private readonly IGrpcExecutor _executor;
         private readonly ITimer _timer;
         private readonly GrpcSynchronizationContext _synchronizationContext;
@@ -64,7 +64,9 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         internal DnsResolverPlugin(GrpcAttributes attributes, IGrpcExecutor executor, ITimer timer)
         {
             _defaultLoadBalancingPolicy = attributes.Get(GrpcAttributesConstants.DefaultLoadBalancingPolicy) ?? "pick_first";
-            _periodicResolutionSeconds = attributes.GetValue(GrpcAttributesConstants.DnsResolverPeriodicResolutionSeconds);
+            var periodicResolutionSeconds = attributes.GetValue(GrpcAttributesConstants.DnsResolverPeriodicResolutionSeconds);
+            if (periodicResolutionSeconds.HasValue && periodicResolutionSeconds.Value <= 0) throw new ArgumentException(nameof(periodicResolutionSeconds));
+            _periodicResolution = periodicResolutionSeconds.HasValue ? TimeSpan.FromSeconds(periodicResolutionSeconds.Value) : (TimeSpan?)null;
             _executor = executor ?? throw new ArgumentNullException(nameof(executor));
             _timer = timer ?? throw new ArgumentNullException(nameof(timer));
             _synchronizationContext = attributes.Get(GrpcAttributesConstants.ChannelSynchronizationContext)
@@ -80,10 +82,9 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             _observer = observer ?? throw new ArgumentNullException(nameof(observer));
             _target = target ?? throw new ArgumentNullException(nameof(target));
             Resolve();
-            if (_periodicResolutionSeconds.HasValue)
+            if (_periodicResolution.HasValue)
             {
-                _timer.Start((state) => { RefreshResolution(); }, null,
-                    TimeSpan.FromSeconds(_periodicResolutionSeconds.Value), TimeSpan.FromSeconds(_periodicResolutionSeconds.Value));
+                _timer.Start((state) => { Resolve(); }, null, _periodicResolution.Value, _periodicResolution.Value);
             }
         }
 
