@@ -1,4 +1,4 @@
-#region Copyright notice and license
+﻿#region Copyright notice and license
 
 // Copyright 2019 The gRPC Authors
 //
@@ -25,19 +25,17 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
     internal sealed class GrpcNameResolutionObserver : IGrpcNameResolutionObserver
     {
         private readonly GrpcChannel _channel;
-        private readonly IGrpcHelper _helper;
         private readonly ILogger _logger;
 
-        public GrpcNameResolutionObserver(GrpcChannel channel, IGrpcHelper helper)
+        public GrpcNameResolutionObserver(GrpcChannel channel)
         {
             _channel = channel ?? throw new ArgumentNullException(nameof(channel));
-            _helper = helper ?? throw new ArgumentNullException(nameof(helper));
             _logger = channel.LoggerFactory.CreateLogger<GrpcNameResolutionObserver>();
         }
 
         public void OnNext(GrpcNameResolutionResult value)
         {
-            _helper.GetSynchronizationContext().Execute(() =>
+            _channel.SyncContext.Execute(() =>
             {
                 _logger.LogDebug("Name resolution results received.");
                 if (_channel.LastResolutionState != GrpcResolutionState.Success)
@@ -63,7 +61,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             {
                 throw new ArgumentException("The error status must not be OK.");
             }
-            _helper.GetSynchronizationContext().Execute(() =>
+            _channel.SyncContext.Execute(() =>
             {
                 _logger.LogDebug("Name resolution error received.");
                 HandleErrorInSyncContext(error);
@@ -98,7 +96,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             }
             var delay = _channel.NameResolverRefreshBackoffPolicy.NextBackoff();
             _logger.LogDebug($"Scheduling name resolution backoff for {delay}.");
-            _channel.NameResolverRefreshSchedule = _helper.GetSynchronizationContext().Schedule(() =>
+            _channel.NameResolverRefreshSchedule = _channel.SyncContext.Schedule(() =>
             {
                 _channel.NameResolverRefreshSchedule = null;
                 _channel.RefreshNameResolution();

@@ -130,7 +130,7 @@ namespace Grpc.Net.Client
                 .Build();
             ResolverPlugin = CreateResolverPlugin(Address, LoggerFactory, resolverAttributes);
             ResolverPlugin.LoggerFactory = LoggerFactory;
-            var nameResolutionObserver = new GrpcNameResolutionObserver(this, Helper);
+            var nameResolutionObserver = new GrpcNameResolutionObserver(this);
             ResolverPlugin.Subscribe(Address, nameResolutionObserver);
         }
 
