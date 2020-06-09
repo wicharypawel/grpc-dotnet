@@ -24,10 +24,10 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
 {
     internal sealed class GrpcNameResolutionObserver : IGrpcNameResolutionObserver
     {
-        private readonly GrpcChannel _channel;
+        private readonly IGrpcChannel _channel;
         private readonly ILogger _logger;
 
-        public GrpcNameResolutionObserver(GrpcChannel channel)
+        public GrpcNameResolutionObserver(IGrpcChannel channel)
         {
             _channel = channel ?? throw new ArgumentNullException(nameof(channel));
             _logger = channel.LoggerFactory.CreateLogger<GrpcNameResolutionObserver>();

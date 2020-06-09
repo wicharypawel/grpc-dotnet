@@ -19,6 +19,8 @@
 using Grpc.Core;
 using Grpc.Net.Client.LoadBalancing.Internal;
 using Grpc.Net.Client.LoadBalancing.Tests.Core.Fakes;
+using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -32,7 +34,8 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
         public void ForNewSubChannel_UseGrpcSubChannel_VerifyReturnValuesUsedInCtor()
         {
             // Arrange
-            var channel = GrpcChannelForSubChannelFake.Get();
+            var channelMock = CreateGrpcChannelMock();
+            var channel = channelMock.Object;
             var attributes = GrpcAttributes.Builder.NewBuilder().Add(GrpcAttributes.Key<string>.Create("test-key"), "testValue").Build();
             var subChannelArgs = new CreateSubchannelArgs(new UriBuilder("http://10.1.5.210:80").Uri, attributes);
             var subchannel = new GrpcSubChannel(channel, subChannelArgs);
@@ -50,7 +53,8 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
         public void ForStarting_UseGrpcSubChannel_DoesNotPublishIdleState()
         {
             // Arrange
-            var channel = GrpcChannelForSubChannelFake.Get();
+            var channelMock = CreateGrpcChannelMock();
+            var channel = channelMock.Object;
             var subChannelArgs = new CreateSubchannelArgs(new UriBuilder("http://10.1.5.210:80").Uri, GrpcAttributes.Empty);
             var subchannel = new GrpcSubChannel(channel, subChannelArgs);
             var observedStateInfos = new List<GrpcConnectivityStateInfo>();
@@ -69,7 +73,9 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
             // Arrange
             Exception? actualException = null;
             var synchronizationContext = new GrpcSynchronizationContext((ex) => actualException = ex);
-            var channel = GrpcChannelForSubChannelFake.Get(synchronizationContext);
+            var channelMock = CreateGrpcChannelMock();
+            channelMock.Setup(x => x.SyncContext).Returns(synchronizationContext);
+            var channel = channelMock.Object;
             var subChannelArgs = new CreateSubchannelArgs(new UriBuilder("http://10.1.5.210:80").Uri, GrpcAttributes.Empty);
             var subchannel = new GrpcSubChannel(channel, subChannelArgs);
             var observedStateInfos = new List<GrpcConnectivityStateInfo>();
@@ -99,7 +105,8 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
         public void ForShutingdown_UseGrpcSubChannel_PublishesShutdownState()
         {
             // Arrange
-            var channel = GrpcChannelForSubChannelFake.Get();
+            var channelMock = CreateGrpcChannelMock();
+            var channel = channelMock.Object;
             var subChannelArgs = new CreateSubchannelArgs(new UriBuilder("http://10.1.5.210:80").Uri, GrpcAttributes.Empty);
             var subchannel = new GrpcSubChannel(channel, subChannelArgs);
             var observedStateInfos = new List<GrpcConnectivityStateInfo>();
@@ -118,7 +125,8 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
         public void ForDoubleShutingdown_UseGrpcSubChannel_DoesNotRepeatShutdownState()
         {
             // Arrange
-            var channel = GrpcChannelForSubChannelFake.Get();
+            var channelMock = CreateGrpcChannelMock();
+            var channel = channelMock.Object;
             var subChannelArgs = new CreateSubchannelArgs(new UriBuilder("http://10.1.5.210:80").Uri, GrpcAttributes.Empty);
             var subchannel = new GrpcSubChannel(channel, subChannelArgs);
             var observedStateInfos = new List<GrpcConnectivityStateInfo>();
@@ -137,7 +145,8 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
         public void ForRequestConnectionIdle_UseGrpcSubChannel_MoveToConnectingState()
         {
             // Arrange
-            var channel = GrpcChannelForSubChannelFake.Get();
+            var channelMock = CreateGrpcChannelMock();
+            var channel = channelMock.Object;
             var subChannelArgs = new CreateSubchannelArgs(new UriBuilder("http://10.1.5.210:80").Uri, GrpcAttributes.Empty);
             var subchannel = new GrpcSubChannel(channel, subChannelArgs);
             var observedStateInfos = new List<GrpcConnectivityStateInfo>();
@@ -159,7 +168,9 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
             // Arrange
             Exception? actualException = null;
             var synchronizationContext = new GrpcSynchronizationContext((ex) => actualException = ex);
-            var channel = GrpcChannelForSubChannelFake.Get(synchronizationContext);
+            var channelMock = CreateGrpcChannelMock();
+            channelMock.Setup(x => x.SyncContext).Returns(synchronizationContext);
+            var channel = channelMock.Object;
             var subChannelArgs = new CreateSubchannelArgs(new UriBuilder("http://10.1.5.210:80").Uri, GrpcAttributes.Empty);
             var subchannel = new GrpcSubChannel(channel, subChannelArgs);
             var observedStateInfos = new List<GrpcConnectivityStateInfo>();
@@ -189,7 +200,8 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
         public void ForRequestConnectionOnConnecting_UseGrpcSubChannel_ChangeToReadyState()
         {
             // Arrange
-            var channel = GrpcChannelForSubChannelFake.Get();
+            var channelMock = CreateGrpcChannelMock();
+            var channel = channelMock.Object;
             var subChannelArgs = new CreateSubchannelArgs(new UriBuilder("http://10.1.5.210:80").Uri, GrpcAttributes.Empty);
             var subchannel = new GrpcSubChannel(channel, subChannelArgs);
             var observedStateInfos = new List<GrpcConnectivityStateInfo>();
@@ -214,7 +226,9 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
             // Arrange
             var executor = new ExecutorFake();
             var backoffPolicyProvider = new GrpcBackoffPolicyProviderFake(new GrpcBackoffPolicyFake(TimeSpan.Zero));
-            var channel = GrpcChannelForSubChannelFake.Get(backoffPolicyProvider);
+            var channelMock = CreateGrpcChannelMock();
+            channelMock.Setup(x => x.BackoffPolicyProvider).Returns(backoffPolicyProvider);
+            var channel = channelMock.Object;
             var subChannelArgs = new CreateSubchannelArgs(new UriBuilder("http://10.1.5.210:80").Uri, GrpcAttributes.Empty);
             var subchannel = new GrpcSubChannel(channel, subChannelArgs);
             subchannel.Executor = executor;
@@ -252,7 +266,8 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
         {
             // Arrange
             var executor = new ExecutorFake();
-            var channel = GrpcChannelForSubChannelFake.Get();
+            var channelMock = CreateGrpcChannelMock();
+            var channel = channelMock.Object;
             var subChannelArgs = new CreateSubchannelArgs(new UriBuilder("http://10.1.5.210:80").Uri, GrpcAttributes.Empty);
             var subchannel = new GrpcSubChannel(channel, subChannelArgs);
             subchannel.Executor = executor;
@@ -271,5 +286,14 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
             Assert.Equal(GrpcConnectivityState.READY, observedStateInfos[1].State);
         }
         #endregion
+
+        private static Mock<IGrpcChannel> CreateGrpcChannelMock()
+        {
+            var channelMock = new Mock<IGrpcChannel>(MockBehavior.Strict);
+            channelMock.Setup(x => x.LoggerFactory).Returns(NullLoggerFactory.Instance);
+            channelMock.Setup(x => x.SyncContext).Returns(new GrpcSynchronizationContext((ex) => { }));
+            channelMock.Setup(x => x.HandleInternalSubchannelState(It.IsAny<GrpcConnectivityStateInfo>()));
+            return channelMock;
+        }
     }
 }

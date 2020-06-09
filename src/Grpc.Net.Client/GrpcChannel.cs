@@ -114,7 +114,7 @@ namespace Grpc.Net.Client
             {
                 throw new ArgumentException($"Can not find host in {nameof(address)}, verify host and scheme were specified");
             }
-            Helper = new GrpcHelper(this);
+            Helper = new GrpcHelper(new DelegatingGrpcChannel(this));
             ChannelStateManager = new GrpcConnectivityStateManager();
             BackoffPolicyProvider = new GrpcExponentialBackoffPolicyProvider();
             SyncContext = new GrpcSynchronizationContext((ex) => Panic(ex));
@@ -130,7 +130,7 @@ namespace Grpc.Net.Client
                 .Build();
             ResolverPlugin = CreateResolverPlugin(Address, LoggerFactory, resolverAttributes);
             ResolverPlugin.LoggerFactory = LoggerFactory;
-            var nameResolutionObserver = new GrpcNameResolutionObserver(this);
+            var nameResolutionObserver = new GrpcNameResolutionObserver(new DelegatingGrpcChannel(this));
             ResolverPlugin.Subscribe(Address, nameResolutionObserver);
         }
 

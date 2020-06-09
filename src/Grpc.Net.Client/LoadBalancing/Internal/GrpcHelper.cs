@@ -23,10 +23,10 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
 {
     internal sealed class GrpcHelper : IGrpcHelper
     {
-        private readonly GrpcChannel _channel;
+        private readonly IGrpcChannel _channel;
         private readonly ILogger _logger;
 
-        public GrpcHelper(GrpcChannel channel)
+        public GrpcHelper(IGrpcChannel channel)
         {
             _channel = channel ?? throw new ArgumentNullException(nameof(channel));
             _logger = channel.LoggerFactory.CreateLogger<GrpcHelper>();
@@ -35,8 +35,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         public IGrpcSubChannel CreateSubChannel(CreateSubchannelArgs arguments)
         {
             _channel.SyncContext.ThrowIfNotInThisSynchronizationContext();
-            var channel = new GrpcSubChannel.DelegatingGrpcChannel(_channel);
-            return new GrpcSubChannel(channel, arguments);
+            return new GrpcSubChannel(_channel, arguments);
         }
 
         public void UpdateBalancingState(GrpcConnectivityState newState, IGrpcSubChannelPicker newPicker)

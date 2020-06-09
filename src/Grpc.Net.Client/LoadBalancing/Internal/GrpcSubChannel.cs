@@ -180,34 +180,5 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         }
 
         #endregion
-
-        internal interface IGrpcChannel
-        {
-            public ILoggerFactory LoggerFactory { get; }
-            public IGrpcBackoffPolicyProvider BackoffPolicyProvider { get; }
-            public GrpcSynchronizationContext SyncContext { get; }
-            public void HandleInternalSubchannelState(GrpcConnectivityStateInfo newState);
-        }
-
-        internal sealed class DelegatingGrpcChannel : IGrpcChannel
-        {
-            private readonly GrpcChannel _delegateChannel;
-            
-            public DelegatingGrpcChannel(GrpcChannel delegateChannel)
-            {
-                _delegateChannel = delegateChannel ?? throw new ArgumentNullException(nameof(delegateChannel));
-            }
-
-            public ILoggerFactory LoggerFactory => _delegateChannel.LoggerFactory;
-
-            public IGrpcBackoffPolicyProvider BackoffPolicyProvider => _delegateChannel.BackoffPolicyProvider;
-
-            public GrpcSynchronizationContext SyncContext => _delegateChannel.SyncContext;
-
-            public void HandleInternalSubchannelState(GrpcConnectivityStateInfo newState)
-            {
-                _delegateChannel.HandleInternalSubchannelState(newState);
-            }
-        }
     }
 }
