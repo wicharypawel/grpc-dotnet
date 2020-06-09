@@ -48,10 +48,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             }
             _channel.SyncContext.Execute(() =>
             {
-                if (this != _channel.Helper)
-                {
-                    return;
-                }
+                if (_channel.IsShutdown) return;
                 _channel.UpdateSubchannelPicker(newPicker);
                 // It's not appropriate to report SHUTDOWN state from lb.
                 // Ignore the case of newState == SHUTDOWN for now.
@@ -66,7 +63,11 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
         public void RefreshNameResolution()
         {
             _channel.SyncContext.ThrowIfNotInThisSynchronizationContext();
-            _channel.SyncContext.Execute(() => { _channel.RefreshAndResetNameResolution(); });
+            _channel.SyncContext.Execute(() => 
+            {
+                if (_channel.IsShutdown) return;
+                _channel.RefreshAndResetNameResolution(); 
+            });
         }
 
         public GrpcSynchronizationContext GetSynchronizationContext()

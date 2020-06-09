@@ -1,4 +1,4 @@
-﻿#region Copyright notice and license
+#region Copyright notice and license
 
 // Copyright 2019 The gRPC Authors
 //
@@ -47,10 +47,11 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
                 _channel.NameResolverRefreshBackoffPolicy = null;
                 var effectiveServiceConfig = value.ServiceConfig.Config ?? new object();
                 var resolvedAddresses = new GrpcResolvedAddresses(value.HostsAddresses, effectiveServiceConfig, value.Attributes);
-                if (_helper != _channel.Helper) return;
+                if (_channel.IsShutdown) return;
                 Status handleResult = _channel.TryHandleResolvedAddresses(resolvedAddresses);
                 if (handleResult.StatusCode != StatusCode.OK)
                 {
+                    _logger.LogDebug("Name resolution results were reported as incorrect.");
                     HandleErrorInSyncContext(handleResult);
                 }
             });
@@ -75,8 +76,8 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             {
                 _channel.LastResolutionState = GrpcResolutionState.Error;
             }
-            // Call LB only if it's not shutdown. If LB is shutdown, lbHelper won't match. This is required for idle mode implementation.
-            if (_helper != _channel.Helper) return;
+            if (_channel.IsShutdown) return;
+            _logger.LogDebug("Handing error resolution and scheduling refresh with exponential backoff.");
             _channel.HandleNameResolutionError(error);
             ScheduleExponentialBackOffInSyncContext();
         }

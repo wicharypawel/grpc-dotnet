@@ -68,6 +68,7 @@ namespace Grpc.Net.Client
         internal GrpcSynchronizationContext SyncContext { get; }
         internal GrpcDelayedClientTransport DelayedClientTransport { get; }
         internal bool Disposed { get; private set; }
+        internal bool IsShutdown => _shutdown.Get();
         // Timing related options that are set in unit tests
         internal ISystemClock Clock = SystemClock.Instance;
         internal bool DisableClientDeadline;
