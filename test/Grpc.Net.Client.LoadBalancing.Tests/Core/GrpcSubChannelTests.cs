@@ -291,7 +291,7 @@ namespace Grpc.Net.Client.LoadBalancing.Tests.Core
         {
             var channelMock = new Mock<IGrpcChannel>(MockBehavior.Strict);
             channelMock.Setup(x => x.LoggerFactory).Returns(NullLoggerFactory.Instance);
-            channelMock.Setup(x => x.SyncContext).Returns(new GrpcSynchronizationContext((ex) => { }));
+            channelMock.Setup(x => x.SyncContext).Returns(new GrpcSynchronizationContext((ex) => { throw ex; }));
             channelMock.Setup(x => x.HandleInternalSubchannelState(It.IsAny<GrpcConnectivityStateInfo>()));
             return channelMock;
         }
