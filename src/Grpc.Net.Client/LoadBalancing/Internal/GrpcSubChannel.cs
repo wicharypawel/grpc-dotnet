@@ -101,7 +101,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
             }
             if (_stateInfo.State != newState.State)
             {
-                _logger.LogDebug($"Change state from {_stateInfo.State} to {newState.State}");
+                _logger.LogDebug($"SubChannel change state from {_stateInfo.State} to {newState.State}");
                 if (_stateInfo.State == GrpcConnectivityState.SHUTDOWN)
                 {
                     throw new InvalidOperationException("Cannot transition out of SHUTDOWN state.");

@@ -53,7 +53,7 @@ namespace Grpc.Net.Client.LoadBalancing.Internal
                 // Ignore the case of newState == SHUTDOWN for now.
                 if (newState != GrpcConnectivityState.SHUTDOWN)
                 {
-                    _logger.LogDebug($"Entering {newState} state with picker: {newPicker.GetType().Name}");
+                    _logger.LogDebug($"Channel entering {newState} state with picker: {newPicker.GetType().Name}");
                     _channel.ChannelStateManager.SetState(newState);
                 }
             });
